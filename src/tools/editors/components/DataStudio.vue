@@ -119,7 +119,7 @@ const dlXlsx = async () => {
             <Database :size="13" class="ds-icon" />
             <span class="ds-name" :title="d.name">{{ d.name }}</span>
             <span class="ds-meta">{{ d.rows.length }}行</span>
-            <button class="ds-del" title="移除" @click.stop="removeAt(i)"><Trash2 :size="12" /></button>
+            <button class="ds-del" title="移除" aria-label="移除" @click.stop="removeAt(i)"><Trash2 :size="12" /></button>
           </div>
         </div>
         <p v-else class="muted small mt-2">支持多文件，每个 Excel 工作表会作为独立数据集。</p>

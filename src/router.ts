@@ -1,5 +1,7 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import HomePage from '@/pages/HomePage.vue'
+import { toolMap } from '@/tools'
+import { guideBySlug } from '@/data/guides'
 
 /** 使用 hash 路由：纯静态部署无需服务器重写规则 */
 const router = createRouter({
@@ -38,6 +40,15 @@ router.afterEach((to) => {
     terms: '使用条款 | 百宝工具箱',
   }
   document.title = titles[to.name as string] ?? '百宝工具箱 ToolHub'
+  // 工具页标题带上工具名，便于多标签页区分与分享/SEO
+  if (to.name === 'tool') {
+    const tool = toolMap.get(String(to.params.slug ?? ''))
+    if (tool) document.title = `${tool.title} | 百宝工具箱`
+  }
+  if (to.name === 'guide') {
+    const guide = guideBySlug(String(to.params.slug ?? ''))
+    if (guide) document.title = `${guide.title} | 百宝工具箱`
+  }
 })
 
 export default router

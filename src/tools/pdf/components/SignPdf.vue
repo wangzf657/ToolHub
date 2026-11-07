@@ -4,7 +4,7 @@ import { Loader2 } from 'lucide-vue-next'
 import PdfToolBase from './PdfToolBase.vue'
 import PageThumbs, { type PageEntry } from './PageThumbs.vue'
 import SignPad from './SignPad.vue'
-import { loadPdfLib, renderPageToCanvas } from '@/lib/pdfEngine'
+import { loadPdfLib, renderPageToCanvas, toPdfBlob } from '@/lib/pdfEngine'
 import { saveBlob } from '@/lib/download'
 import { useToast } from '@/composables/useToast'
 
@@ -99,7 +99,7 @@ const apply = async () => {
       width: w,
       height: h,
     })
-    const out = (await doc.save()) as unknown as Blob
+    const out = toPdfBlob(await doc.save())
     work.value = out
     toast.ok('签名已放置，可继续放置多个签名或下载')
   } catch (e) {

@@ -131,12 +131,12 @@ onBeforeUnmount(stop)
 <template>
   <div>
     <div v-if="!blob && !recording" class="vc-idle">
-      <button class="vc-btn" title="开始录音" @click="start"><Mic :size="26" /></button>
+      <button class="vc-btn" title="开始录音" aria-label="开始录音" @click="start"><Mic :size="26" /></button>
       <p class="muted small">点击开始录音，浏览器会请求麦克风权限</p>
     </div>
 
     <div v-else-if="recording" class="vc-rec">
-      <button class="vc-btn danger" title="停止录音" @click="stop"><Square :size="20" /></button>
+      <button class="vc-btn danger" title="停止录音" aria-label="停止录音" @click="stop"><Square :size="20" /></button>
       <span class="vc-time mono">{{ fmtTime(seconds) }}</span>
       <div class="vc-meter">
         <span v-for="(v, i) in levels" :key="i" :style="{ height: `${Math.max(6, v)}%` }"></span>

@@ -85,7 +85,7 @@ const doPrint = () => {
           <input v-model="e.major" class="input" placeholder="专业" />
           <select v-model="e.degree" class="select w-deg"><option>大专</option><option>本科</option><option>硕士</option><option>博士</option></select>
           <input v-model="e.range" class="input w-range" placeholder="2018-2022" />
-          <button class="icon-btn danger" title="删除" @click="removeAt(draft.edu, i)"><Trash2 :size="14" /></button>
+          <button class="icon-btn danger" title="删除" aria-label="删除" @click="removeAt(draft.edu, i)"><Trash2 :size="14" /></button>
         </div>
         <button class="btn btn-ghost btn-sm mt-1" @click="addEdu"><Plus :size="14" /> 添加教育经历</button>
       </fieldset>
@@ -97,7 +97,7 @@ const doPrint = () => {
             <input v-model="w.company" class="input" placeholder="公司" />
             <input v-model="w.position" class="input" placeholder="职位" />
             <input v-model="w.range" class="input w-range" placeholder="2022-至今" />
-            <button class="icon-btn danger" title="删除" @click="removeAt(draft.work, i)"><Trash2 :size="14" /></button>
+            <button class="icon-btn danger" title="删除" aria-label="删除" @click="removeAt(draft.work, i)"><Trash2 :size="14" /></button>
           </div>
           <textarea v-model="w.points" class="textarea w-points" rows="3" placeholder="每行一条工作要点（最多 3 条）&#10;负责 XX 模块开发，性能提升 40%"></textarea>
         </div>
@@ -122,7 +122,7 @@ const doPrint = () => {
       <fieldset class="sec">
         <legend>主题色</legend>
         <div class="row">
-          <button v-for="(c, k) in THEMES" :key="k" class="swatch" :class="{ active: theme === k }" :style="{ background: c }" :title="k" @click="theme = k as typeof theme"></button>
+          <button v-for="(c, k) in THEMES" :key="k" class="swatch" :class="{ active: theme === k }" :style="{ background: c }" :title="k" aria-label="k" @click="theme = k as typeof theme"></button>
         </div>
       </fieldset>
 

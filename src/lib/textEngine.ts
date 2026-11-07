@@ -140,7 +140,8 @@ export function removeDuplicateLines(text: string, opts: { ignoreCase?: boolean;
     if (opts.ignoreCase) k = k.toLowerCase()
     if (seen.has(k)) continue
     seen.add(k)
-    out.push(l)
+    // 开启 trim 时输出同样去除首尾空白（与行排序的去重口径一致）
+    out.push(opts.trim ? l.trim() : l)
   }
   const result = (opts.keepLast ? out.reverse() : out).join('\n')
   return { result, removed: lines.length - out.length }
@@ -196,11 +197,23 @@ export function findReplace(
 /* ---------------- 编码类 ---------------- */
 
 export function b64encode(text: string): string {
-  return btoa(String.fromCharCode(...new TextEncoder().encode(text)))
+  const bytes = new TextEncoder().encode(text)
+  let bin = ''
+  // 分块转字符串，避免大输入下展开参数导致栈溢出
+  const CHUNK = 0x8000
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    bin += String.fromCharCode(...bytes.subarray(i, i + CHUNK))
+  }
+  return btoa(bin)
 }
 
 export function b64decode(text: string): string {
-  const bin = atob(text.replace(/\s/g, ''))
+  let bin: string
+  try {
+    bin = atob(text.replace(/\s/g, ''))
+  } catch {
+    throw new Error('包含无效的 Base64 字符，请检查输入')
+  }
   return new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)))
 }
 
@@ -219,7 +232,8 @@ export function b32encode(text: string): string {
     }
   }
   if (bits > 0) out += alpha[(value << (5 - bits)) & 31]
-  return out
+  // RFC 4648：输出补齐到 8 的倍数（= 填充），保证与严格解码器互操作
+  return out + '='.repeat((8 - (out.length % 8)) % 8)
 }
 
 export function b32decode(text: string): string {
@@ -291,26 +305,49 @@ const MORSE: Record<string, string> = {
 const MORSE_REV = Object.fromEntries(Object.entries(MORSE).map(([k, v]) => [v, k]))
 
 export function morseEncode(text: string): string {
-  return text
-    .toLowerCase()
-    .split(/\s+/)
-    .map((word) => [...word].map((c) => MORSE[c] ?? '').filter(Boolean).join(' '))
-    .filter(Boolean)
-    .join(' / ')
+  const words: string[] = []
+  const flush = (buf: string[]) => {
+    if (buf.length) words.push(buf.join(' '))
+  }
+  for (const raw of text.toLowerCase().split(/\s+/)) {
+    if (!raw) continue
+    let buf: string[] = []
+    for (const c of raw) {
+      if (MORSE[c]) {
+        buf.push(MORSE[c])
+      } else if (/[\u4e00-\u9fff]/.test(c)) {
+        // 中文按 Unicode 码点数字编码，每个汉字独立成词（/ 分隔），可无损解码
+        flush(buf)
+        buf = []
+        words.push([...String(c.codePointAt(0))].map((d) => MORSE[d]).join(' '))
+      }
+    }
+    flush(buf)
+  }
+  return words.join(' / ')
 }
 
 export function morseDecode(text: string): string {
-  return text
-    .split(/\s*\/\s*|\s{2,}/)
-    .map((word) =>
-      word
-        .trim()
-        .split(/\s+/)
-        .map((code) => MORSE_REV[code] ?? '')
-        .join(''),
-    )
-    .filter(Boolean)
-    .join(' ')
+  let out = ''
+  for (const word of text.split(/\s*\/\s*|\s{2,}/)) {
+    const s = word
+      .trim()
+      .split(/\s+/)
+      .map((code) => MORSE_REV[code] ?? '')
+      .join('')
+    if (!s) continue
+    let piece = s
+    // 5 位纯数字且落在 CJK 码点区间时还原为汉字
+    if (/^\d{5}$/.test(s)) {
+      const n = Number(s)
+      if (n >= 0x4e00 && n <= 0x9fff) piece = String.fromCodePoint(n)
+    }
+    // 编码端每个汉字独立成词，连续汉字直接拼接还原原词
+    if (!out) out = piece
+    else if (/[\u4e00-\u9fff]/.test(out[out.length - 1]) && /[\u4e00-\u9fff]/.test(piece[0])) out += piece
+    else out += ' ' + piece
+  }
+  return out
 }
 
 export function textToBinary(text: string): string {
@@ -377,17 +414,7 @@ export function numberToChinese(input: number | string, finance = false): string
   const [intPart = '', decPart] = s.split('.')
   const n = parseInt(intPart, 10)
   if (Number.isNaN(n)) return '（请输入有效数字）'
-  if (n === 0) {
-    const zero = digits[0] + (decPart ? '点' + [...decPart].map((d) => digits[Number(d)] ?? '').join('') : '')
-    return (neg ? '负' : '') + zero
-  }
   // 四位一组（低→高），组内转「几千几百几十几」
-  const groups: number[] = []
-  let rest = n
-  while (rest > 0) {
-    groups.push(rest % 10000)
-    rest = Math.floor(rest / 10000)
-  }
   const groupToCn = (g: number): string => {
     const q = Math.floor(g / 1000)
     const b = Math.floor((g % 1000) / 100)
@@ -395,7 +422,7 @@ export function numberToChinese(input: number | string, finance = false): string
     const o = g % 10
     let out = ''
     if (q) out += digits[q] + units[3]
-    if (b) out += (q ? '' : '') + digits[b] + units[2]
+    if (b) out += digits[b] + units[2]
     if (t) {
       // 「一十」在组首可省略「一」（非财务体）
       out += (!q && !b && t === 1 && !finance ? '' : digits[t]) + units[1]
@@ -406,16 +433,45 @@ export function numberToChinese(input: number | string, finance = false): string
     }
     return out
   }
-  const parts: string[] = []
-  for (let gi = groups.length - 1; gi >= 0; gi--) {
-    const g = groups[gi]
-    const isLast = gi === 0
-    if (g === 0) continue
-    parts.push(groupToCn(g) + big[gi])
-    // 下一组（更低位）不足千位时补零
-    if (!isLast && groups[gi - 1] > 0 && groups[gi - 1] < 1000) parts.push(digits[0])
+  const intToCn = (num: number): string => {
+    if (num === 0) return digits[0]
+    const groups: number[] = []
+    let rest = num
+    while (rest > 0) {
+      groups.push(rest % 10000)
+      rest = Math.floor(rest / 10000)
+    }
+    const parts: string[] = []
+    for (let gi = groups.length - 1; gi >= 0; gi--) {
+      const g = groups[gi]
+      const isLast = gi === 0
+      if (g === 0) continue
+      parts.push(groupToCn(g) + big[gi])
+      // 下一组（更低位）不足千位时补零
+      if (!isLast && groups[gi - 1] > 0 && groups[gi - 1] < 1000) parts.push(digits[0])
+    }
+    return parts.join('')
   }
-  let out = parts.join('')
+  // 财务大写：按人民币票据惯例精确到分，补「元/角/分/整」单位
+  if (finance) {
+    const num = Number(neg ? '-' + s : s)
+    if (!Number.isFinite(num)) return '（请输入有效数字）'
+    const cents = Math.round(Math.abs(num) * 100)
+    const yuan = Math.floor(cents / 100)
+    const jiao = Math.floor((cents % 100) / 10)
+    const fen = cents % 10
+    let out = yuan === 0 ? '' : intToCn(yuan) + '元'
+    if (jiao === 0 && fen === 0) {
+      out += yuan === 0 ? '零元整' : '整'
+    } else {
+      if (jiao) out += digits[jiao] + '角'
+      else if (fen) out += '零'
+      if (fen) out += digits[fen] + '分'
+      else out += '整'
+    }
+    return (neg ? '负' : '') + (out || '零元整')
+  }
+  let out = n === 0 ? digits[0] : intToCn(n)
   if (decPart) {
     out += '点' + [...decPart].map((d) => digits[Number(d)] ?? '').join('')
   }

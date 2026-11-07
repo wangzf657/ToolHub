@@ -157,7 +157,7 @@ switchCat(categories[0])
             <option v-for="x in active.units" :key="x.id" :value="x.id">{{ x.label }}</option>
           </select>
         </div>
-        <button class="swap-btn" title="交换方向" @click="convertRight(); [leftVal, rightVal] = [rightVal, leftVal]; convertLeft()">
+        <button class="swap-btn" title="交换方向" aria-label="交换方向" @click="convertRight(); [leftVal, rightVal] = [rightVal, leftVal]; convertLeft()">
           <ArrowLeftRight :size="18" />
         </button>
         <div>

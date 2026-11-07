@@ -10,9 +10,10 @@ npm run dev         # 开发服务器 http://localhost:5173
 npm run typecheck   # vue-tsc -b --noEmit（类型门禁）
 npm run build       # 先 vue-tsc -b 类型检查，再 vite build → dist/
 npm run preview     # 预览构建产物
+npm run test        # 纯 Node 引擎/注册表测试（scripts/tests/，222+41+34 用例）
 ```
 
-没有 lint 与测试脚本；`npm run build` 自带类型检查，改完代码至少跑 `npm run typecheck`。
+没有 lint；`npm run build` 自带类型检查，改完代码至少跑 `npm run typecheck`；改动引擎或注册表后跑 `npm run test` 防回归。
 
 ## 技术栈与硬约束
 
@@ -32,7 +33,7 @@ npm run preview     # 预览构建产物
 - 工具组件只渲染面板内容（输入区 + 选项 + 执行 + 结果/下载），**不带页面框架**——H1、隐私徽章、面包屑、相关工具由 `pages/ToolPage.vue` 负责。
 - 重逻辑一律放 `src/lib/` 共享引擎（imageEngine/pdfEngine/audioEngine/videoEngine/csvEngine/textEngine/nlpEngine/finance 等 20 个）；工具组件只做输入交互。
 - 首次使用需下载模型/编解码器的工具（OCR、抠图、转写、ffmpeg）注册时标 `needModel: true`，UI 必须显示下载提示（ffmpeg 约 30MB）。
-- 编辑器工作室（`studio: true`，共 4 个）在 `src/tools/editors/`，首页编辑器区展示。
+- 编辑器工作室（`studio: true`，共 8 个注册项，复用 `src/tools/editors/` 下 4 个组件）在 `src/tools/editors/`，首页编辑器区展示。
 
 ## 改动时的联动点（易漏）
 

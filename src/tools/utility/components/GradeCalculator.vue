@@ -67,7 +67,7 @@ const removeAt = (i: number) => items.value.splice(i, 1)
         <input v-model="it.name" class="input" placeholder="项目名称" style="flex: 1.3" />
         <input v-model.number="it.score" type="number" min="0" max="100" class="input" style="width: 90px" placeholder="得分" />
         <input v-model.number="it.weight" type="number" min="0" max="100" class="input" style="width: 90px" placeholder="权重%" />
-        <button class="mini-btn danger" title="删除" @click="removeAt(i)"><Trash2 :size="14" /></button>
+        <button class="mini-btn danger" title="删除" aria-label="删除" @click="removeAt(i)"><Trash2 :size="14" /></button>
       </div>
     </div>
 

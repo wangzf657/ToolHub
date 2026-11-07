@@ -43,7 +43,7 @@ const perDayMinutes = computed(() => result.value.perDay)
           分钟
         </label>
         <span v-if="perDayMinutes[i] !== undefined" class="per-day">{{ formatMinutes(perDayMinutes[i]) }}</span>
-        <button class="mini-btn danger" title="删除" @click="removeAt(i)"><Trash2 :size="14" /></button>
+        <button class="mini-btn danger" title="删除" aria-label="删除" @click="removeAt(i)"><Trash2 :size="14" /></button>
       </div>
     </div>
 

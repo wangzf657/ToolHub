@@ -59,7 +59,7 @@ void toast
           autofocus
           @keydown="onKey"
         />
-        <button class="close-btn" @click="$emit('close')"><X :size="17" /></button>
+        <button class="close-btn" aria-label="关闭搜索" @click="$emit('close')"><X :size="17" /></button>
       </div>
       <div class="search-results">
         <template v-if="query.trim()">

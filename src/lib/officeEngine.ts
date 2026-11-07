@@ -131,7 +131,13 @@ export async function htmlToPdfBlob(html: string, opts: { title?: string; pageSi
     }
     y += 6
   }
-  return doc.output('blob')
+  doc.setProperties({ title: opts.title ?? '', creator: 'ToolHub' })
+  // 元数据契约：jsPDF 硬编码 Producer，改由 pdf-lib 重写（updateMetadata:false 防止被强制写回 pdf-lib）
+  const { PDFDocument } = await import('@cantoo/pdf-lib')
+  const pdf = await PDFDocument.load(await doc.output('arraybuffer'))
+  pdf.setProducer('ToolHub')
+  pdf.setCreator('ToolHub')
+  return new Blob([await pdf.save({ updateMetadata: false } as never)], { type: 'application/pdf' })
 }
 
 interface Block {

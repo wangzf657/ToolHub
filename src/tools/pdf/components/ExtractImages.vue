@@ -63,7 +63,7 @@ const pack = () => void saveMany(results.value.map(({ name, blob }) => ({ name, 
         <img :src="r.url" :alt="r.name" loading="lazy" />
         <div class="cell-ops">
           <span class="small muted">{{ r.name }} · {{ (r.blob.size / 1024).toFixed(0) }}KB</span>
-          <button class="mini" title="下载" @click="saveBlob(r.blob, r.name)"><Download :size="13" /></button>
+          <button class="mini" title="下载" aria-label="下载" @click="saveBlob(r.blob, r.name)"><Download :size="13" /></button>
         </div>
       </div>
     </div>

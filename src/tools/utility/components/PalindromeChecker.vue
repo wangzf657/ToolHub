@@ -57,7 +57,7 @@ const swapAna = () => {
       </div>
       <div class="ana-inputs">
         <input v-model="anaA" class="input mono" placeholder="第一个词，例如 listen" />
-        <button class="swap-btn" title="交换" @click="swapAna"><ArrowLeftRight :size="15" /></button>
+        <button class="swap-btn" title="交换" aria-label="交换" @click="swapAna"><ArrowLeftRight :size="15" /></button>
         <input v-model="anaB" class="input mono" placeholder="第二个词，例如 silent" />
       </div>
       <div v-if="anaA || anaB" class="verdict mt-2" :class="anaPending ? 'neutral' : anaOk ? 'yes' : 'no'">

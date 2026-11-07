@@ -95,6 +95,7 @@ watch([top, scale, opacity, position], () => {
               :key="p"
               class="pos-cell"
               :class="{ active: position === p }"
+              :aria-label="'叠加位置：' + p"
               @click="position = p"
             ></button>
           </div>

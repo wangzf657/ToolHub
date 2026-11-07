@@ -86,7 +86,7 @@ const run = async () => {
       <div v-else class="sec-row">
         <span class="grow" style="overflow: hidden; text-overflow: ellipsis">{{ second.name }}</span>
         <span v-if="meta2" class="sec-meta">{{ meta2.width }}×{{ meta2.height }} · {{ Math.round(meta2.duration) }}s</span>
-        <button class="btn btn-ghost btn-sm" @click="second = null"><X :size="14" /></button>
+        <button class="btn btn-ghost btn-sm" aria-label="移除第二个视频" @click="second = null"><X :size="14" /></button>
       </div>
     </div>
     <div class="opts">

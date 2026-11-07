@@ -23,7 +23,7 @@ const close = (v: string) => {
         <div class="cookie-actions">
           <button class="btn btn-ghost btn-sm" @click="close('rejected')">仅必要</button>
           <button class="btn btn-primary btn-sm" @click="close('accepted')">接受</button>
-          <button class="icon-close" @click="close('dismissed')"><X :size="15" /></button>
+          <button class="icon-close" aria-label="关闭提示" @click="close('dismissed')"><X :size="15" /></button>
         </div>
       </div>
     </div>

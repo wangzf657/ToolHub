@@ -120,6 +120,7 @@ const dlJson = () => {
           解析并显示表格
         </button>
         <span class="muted small">Ctrl+Enter 快速解析</span>
+        <span v-if="csvText.trim() && !data" class="paste-hint small">已粘贴 {{ csvText.length }} 字符，点击左侧按钮或按 Ctrl+Enter 解析</span>
       </div>
     </div>
 
@@ -195,6 +196,9 @@ const dlJson = () => {
   to {
     transform: rotate(360deg);
   }
+}
+.paste-hint {
+  color: var(--accent-text);
 }
 .sortable {
   cursor: pointer;

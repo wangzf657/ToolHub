@@ -15,25 +15,68 @@ export function minifyJson(text: string): string {
   return JSON.stringify(JSON.parse(text))
 }
 
+/** V8 解析器的其余英文消息模式 → 中文提示（覆盖逗号/冒号/引号缺失、未闭合字符串、多余尾部内容等） */
+const V8_JSON_HINTS: [RegExp, string][] = [
+  [/Expected ',' or '}' after property value/i, '对象属性值后缺少逗号「,」或右花括号「}」，请检查是否漏写逗号'],
+  [/Expected ',' or ']' after array element/i, '数组元素后缺少逗号「,」或右方括号「]」，请检查是否漏写逗号'],
+  [/Expected double-quoted property name/i, '属性名必须用双引号包裹，JSON 不支持单引号或无引号的属性名'],
+  [/Expected property name or '}'/i, '缺少合法的属性名，或对象没有用「}」闭合'],
+  [/Expected ':' after property name/i, '属性名后缺少冒号「:」'],
+  [/Unexpected non-whitespace character after JSON/i, 'JSON 已结束但后面还有多余内容，请检查是否多写了字符或混入了第二段 JSON'],
+  [/Unterminated string/i, '字符串没有用双引号闭合'],
+]
+
+/** 把 V8 的英文 JSON 解析错误转成中文提示（供通用 TextTool 复用） */
+export function localizeJsonError(msg: string, text = ''): string {
+  const pos = msg.match(/position (\d+)/)
+  if (/Unexpected end of JSON input|Unexpected end of/i.test(msg)) {
+    return pos
+      ? `JSON 不完整：内容在预期之外结束（第 ${lineAt(text, Number(pos[1]))} 行附近）`
+      : 'JSON 不完整：内容在预期之外结束，请检查是否少写括号或引号'
+  }
+  const token = msg.match(/Unexpected token '?(.+?)'?[, ]/i)
+  if (token) {
+    const t = token[1]
+    const where = pos ? `（第 ${lineAt(text, Number(pos[1]))} 行，第 ${colAt(text, Number(pos[1]))} 列附近）` : ''
+    if (t === '<' || t === 'N' || t === 'u') return `JSON 语法错误：意外符号「${t}」，请检查是否误用了 JS 字面量（如 undefined/NaN）或粘贴了非 JSON 内容${where}`
+    return `JSON 语法错误：意外符号「${t}」，请检查逗号、引号或括号是否正确${where}`
+  }
+  // V8 其余常见消息模式（Expected … / Unterminated … 等），逐类给出可操作的中文提示
+  const where = pos ? `（第 ${lineAt(text, Number(pos[1]))} 行，第 ${colAt(text, Number(pos[1]))} 列附近）` : ''
+  for (const [re, hint] of V8_JSON_HINTS) {
+    if (re.test(msg)) return `JSON 语法错误：${hint}${where}`
+  }
+  if (/Unexpected token/i.test(msg)) return 'JSON 语法错误：存在无法解析的内容，请检查格式'
+  if (/Unexpected .* in JSON/i.test(msg)) return 'JSON 语法错误：结构不符合 JSON 规范'
+  if (/Bad escaped character/i.test(msg)) return 'JSON 语法错误：存在非法转义字符'
+  if (/Bad control character/i.test(msg)) return 'JSON 语法错误：字符串中含非法控制字符'
+  return `JSON 语法错误：${msg}`
+}
+
+function lineAt(text: string, idx: number): number {
+  return text.slice(0, idx).split('\n').length
+}
+function colAt(text: string, idx: number): number {
+  return idx - text.slice(0, idx).lastIndexOf('\n')
+}
+
 export function validateJson(text: string): { ok: boolean; error?: string; line?: number; col?: number } {
   try {
     JSON.parse(text)
     return { ok: true }
   } catch (e) {
-    const msg = (e as Error).message
-    const pos = msg.match(/position (\d+)/)
+    const raw = (e as Error).message
+    const pos = raw.match(/position (\d+)/)
     if (pos) {
       const idx = Number(pos[1])
-      const before = text.slice(0, idx)
-      const line = before.split('\n').length
-      const col = idx - before.lastIndexOf('\n')
-      return { ok: false, error: msg, line, col }
+      return { ok: false, error: localizeJsonError(raw, text), line: lineAt(text, idx), col: colAt(text, idx) }
     }
-    return { ok: false, error: msg }
+    return { ok: false, error: localizeJsonError(raw, text) }
   }
 }
 
 export function jsonToYaml(text: string): string {
+  if (!text.trim()) return ''
   const data = JSON.parse(text)
   return toYamlValue(data, 0)
 }
@@ -63,7 +106,7 @@ export function yamlToJson(text: string): string {
   return JSON.stringify(data, null, 2)
 }
 
-/** 轻量 YAML 解析（常见子集：嵌套映射/序列/标量） */
+/** 轻量 YAML 解析（常见子集：嵌套映射/序列/行内集合/标量），无法识别时报错而非静默丢数据 */
 export function yamlParse(text: string): unknown {
   try {
     const jsYaml = (globalThis as never as { __jsYaml?: typeof import('js-yaml') }).__jsYaml
@@ -89,13 +132,17 @@ export function yamlParse(text: string): unknown {
         pos++
         const item = c === '-' ? null : c.slice(2).trim()
         if (item === null || item === '') {
-          arr.push(parseBlock(indent + 2))
-        } else if (/[:]/.test(item) && !/^["'{[]/.test(item)) {
+          // 子块必须比「-」更深缩进，否则为空项
+          const ni = nextIndent()
+          arr.push(ni > indent ? parseBlock(ni) : null)
+        } else if (item.startsWith('[') || item.startsWith('{')) {
+          arr.push(parseFlowValue(item))
+        } else if ((item.includes(': ') || item.endsWith(':')) && !/^["']/.test(item)) {
           // 行内 map 项：临时重写为缩进行
           lines.splice(pos, 0, ' '.repeat(indent + 2) + item)
           arr.push(parseBlock(indent + 2))
         } else {
-          arr.push(scalar(item))
+          arr.push(parseFlowValue(item))
         }
       }
       return arr
@@ -107,15 +154,85 @@ export function yamlParse(text: string): unknown {
       const c = l.trim()
       if (ind !== indent || c.startsWith('- ')) break
       const m = c.match(/^([^:]+):\s*(.*)$/)
-      if (!m) break
+      if (!m) throw new Error(`无法识别的 YAML 行：「${c}」，请检查缩进与冒号后空格`)
       pos++
       const key = scalar(m[1].trim().replace(/^["']|["']$/g, '')) as string
       const rest = m[2].trim()
-      obj[key] = rest === '' ? parseBlock(indent + 1) : scalar(rest)
+      if (rest !== '') {
+        obj[key] = parseFlowValue(rest)
+        continue
+      }
+      // 值在后续块中：按下一行实际缩进解析（序列可与大键同级）
+      obj[key] = null
+      if (pos < lines.length) {
+        const nl = lines[pos]
+        const ni = nl.match(/^\s*/)![0].length
+        const nc = nl.trim()
+        if (ni > indent) obj[key] = parseBlock(ni)
+        else if (ni >= indent && (nc.startsWith('- ') || nc === '-')) obj[key] = parseBlock(ni)
+      }
     }
     return obj
   }
+  /** 下一行的实际缩进（供子块解析，避免假定固定步长） */
+  const nextIndent = (): number => {
+    if (pos >= lines.length) return 0
+    return lines[pos].match(/^\s*/)![0].length
+  }
   return parseBlock(0)
+}
+
+/** 行内流式值：[a, b]、{a: 1} 或普通标量 */
+function parseFlowValue(s: string): unknown {
+  s = s.trim()
+  if (s.startsWith('[')) {
+    if (!s.endsWith(']')) throw new Error(`YAML 行内序列未闭合：「${s}」，请检查是否缺少 ]`)
+    const inner = s.slice(1, -1).trim()
+    return inner ? splitFlow(inner).map((p) => parseFlowValue(p)) : []
+  }
+  if (s.startsWith('{')) {
+    if (!s.endsWith('}')) throw new Error(`YAML 行内映射未闭合：「${s}」，请检查是否缺少 }`)
+    const inner = s.slice(1, -1).trim()
+    if (!inner) return {}
+    const obj: Record<string, unknown> = {}
+    for (const part of splitFlow(inner)) {
+      const m = part.match(/^([^:]+):(.*)$/)
+      if (!m) return s // 形如 map 却拆不出键值，原样返回
+      obj[String(parseFlowValue(m[1]))] = parseFlowValue(m[2])
+    }
+    return obj
+  }
+  return scalar(s)
+}
+
+/** 按顶层逗号切分行内集合，忽略引号与嵌套括号内的逗号 */
+function splitFlow(s: string): string[] {
+  const parts: string[] = []
+  let depth = 0
+  let quote = ''
+  let cur = ''
+  for (const ch of s) {
+    if (quote) {
+      cur += ch
+      if (ch === quote) quote = ''
+      continue
+    }
+    if (ch === '"' || ch === "'") {
+      quote = ch
+      cur += ch
+      continue
+    }
+    if (ch === '[' || ch === '{') depth++
+    else if (ch === ']' || ch === '}') depth--
+    if (ch === ',' && depth === 0) {
+      parts.push(cur)
+      cur = ''
+      continue
+    }
+    cur += ch
+  }
+  if (cur.trim() || parts.length) parts.push(cur)
+  return parts.map((p) => p.trim()).filter(Boolean)
 }
 
 function scalar(s: string): unknown {
@@ -307,6 +424,7 @@ function nodeToJson(el: Element): unknown {
 }
 
 export function jsonToXml(text: string, rootName = 'root', indentSize = 2): string {
+  if (!text.trim()) return ''
   const data = JSON.parse(text)
   const build = (v: unknown, name: string, depth: number): string => {
     const pad = ' '.repeat(indentSize * depth)

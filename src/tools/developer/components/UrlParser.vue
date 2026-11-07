@@ -85,7 +85,7 @@ const copyParam = async (v: string, i: number) => {
           <div v-for="([k, v], i) in parsed.params" :key="i" class="param-row">
             <code class="p-key mono">{{ k }}</code>
             <code class="p-val mono">{{ v }}</code>
-            <button class="mini-btn" title="复制值" @click="copyParam(v, i)">
+            <button class="mini-btn" title="复制值" aria-label="复制值" @click="copyParam(v, i)">
               <Check v-if="copiedIdx === i" :size="13" color="#34d399" />
               <Copy v-else :size="13" />
             </button>

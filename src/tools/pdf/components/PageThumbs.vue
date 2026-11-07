@@ -193,10 +193,10 @@ const pct = () => (total.value ? Math.round((doneCount.value / total.value) * 10
           <span v-if="selectable" class="tick" :class="{ on: checked.includes(e.index) }">✓</span>
         </div>
         <div v-if="movable || rotatable || removable" class="ops">
-          <button v-if="movable" class="mini" title="上移" @click="move(pos, -1)"><ChevronUp :size="13" /></button>
-          <button v-if="movable" class="mini" title="下移" @click="move(pos, 1)"><ChevronDown :size="13" /></button>
-          <button v-if="rotatable" class="mini" title="旋转 90°" @click="rotate(pos)"><RotateCw :size="13" /></button>
-          <button v-if="removable" class="mini danger" title="删除此页" @click="remove(pos)"><X :size="13" /></button>
+          <button v-if="movable" class="mini" title="上移" aria-label="上移" @click="move(pos, -1)"><ChevronUp :size="13" /></button>
+          <button v-if="movable" class="mini" title="下移" aria-label="下移" @click="move(pos, 1)"><ChevronDown :size="13" /></button>
+          <button v-if="rotatable" class="mini" title="旋转 90°" aria-label="旋转 90°" @click="rotate(pos)"><RotateCw :size="13" /></button>
+          <button v-if="removable" class="mini danger" title="删除此页" aria-label="删除此页" @click="remove(pos)"><X :size="13" /></button>
         </div>
       </div>
     </div>

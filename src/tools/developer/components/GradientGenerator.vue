@@ -65,7 +65,7 @@ const doCopy = async () => {
         <input v-model="s.color" type="text" class="input mono" style="width: 110px" spellcheck="false" />
         <input v-model.number="s.pos" type="range" min="0" max="100" step="1" class="grow" @change="sortStops" />
         <b class="pos mono">{{ s.pos }}%</b>
-        <button class="del-btn" title="删除色标" :disabled="stops.length <= 2" @click="removeStop(i)"><X :size="13" /></button>
+        <button class="del-btn" title="删除色标" aria-label="删除色标" :disabled="stops.length <= 2" @click="removeStop(i)"><X :size="13" /></button>
       </div>
     </div>
 

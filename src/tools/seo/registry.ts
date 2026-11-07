@@ -7,7 +7,7 @@ const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
 const tools: ToolDef[] = [
   {
     slug: 'schema-article-generator', title: '文章 Schema 生成', category: 'seo',
-    desc: '生成 Article / BlogPosting / NewsArticle 的 JSON-LD 结构化数据，助力富摘要。',
+    desc: '生成 Article 等 JSON-LD 结构化数据，助力搜索富摘要。',
     keywords: ['schema', 'article', 'json-ld'],
     component: () => import('./components/SchemaGenerators.vue'),
   },

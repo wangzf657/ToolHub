@@ -145,7 +145,7 @@ const money = (n: number) => `$${n.toLocaleString('zh-CN', { maximumFractionDigi
         <input v-model.number="l.qty" type="number" class="input w-num" min="1" placeholder="数量" />
         <input v-model.number="l.strike" type="number" class="input w-num" step="0.5" placeholder="行权价" />
         <input v-model.number="l.premium" type="number" class="input w-num" step="0.05" placeholder="权利金" />
-        <button class="icon-btn danger" title="删除" @click="removeLeg(i)"><Trash2 :size="14" /></button>
+        <button class="icon-btn danger" title="删除" aria-label="删除" @click="removeLeg(i)"><Trash2 :size="14" /></button>
       </div>
       <button class="btn btn-ghost btn-sm" @click="addLeg"><Plus :size="15" /> 添加期权腿</button>
 

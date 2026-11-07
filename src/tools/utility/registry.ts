@@ -12,6 +12,9 @@ const fmtN = (n: number): string => {
   if (!Number.isFinite(n)) return '—'
   return Number.isInteger(n) ? n.toLocaleString('zh-CN') : n.toFixed(2).replace(/\.?0+$/, '')
 }
+/** 按本地时区格式化 yyyy-mm-dd（toISOString 会按 UTC 偏移导致差一天） */
+const fmtDate = (d: Date): string =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 const moneyCn = (n: number): string =>
   n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b))
@@ -183,7 +186,7 @@ const tools: ToolDef[] = [
   },
   {
     slug: 'morse-code-translator', title: '摩斯电码翻译', category: 'utility',
-    desc: '文本与摩斯电码双向翻译（国际标准），支持中英文字母数字与常用标点。',
+    desc: '文本与摩斯电码双向翻译：字母数字标点按国际标准，中文按 Unicode 码点数字转码、可无损还原。',
     keywords: ['摩斯', '电码', 'morse'],
     textDef: {
       options: [{ key: 'dir', label: '方向', type: 'select', default: 'encode', choices: [
@@ -310,6 +313,7 @@ const tools: ToolDef[] = [
         { key: 'y', label: '期限（年）', type: 'number', default: '' },
       ],
       compute: (v) => {
+        if (!v.p || !v.r || !v.y) return [{ label: '请填写贷款金额、年利率与期限', value: '—' }]
         const r = loanPayment(Number(v.p), Number(v.r), Number(v.y))
         return [
           { label: '每月还款（等额本息）', value: `¥${moneyCn(r.monthly)}`, primary: true },
@@ -603,18 +607,18 @@ const tools: ToolDef[] = [
         const hours = Math.max(1, Number(v.hours) || 8)
         const days = Math.max(1, Number(v.days) || 5)
         const hoursPer: Record<string, number> = {
-          hour: 1, day: hours, week: hours * days, month: hours * days * 4.33, year: hours * days * 52,
+          hour: 1, day: hours, week: hours * days, month: (hours * days * 52) / 12, year: hours * days * 52,
         }
         const hourly = amt / (hoursPer[String(v.period)] || 1)
         return [
           { label: '时薪', value: `¥${moneyCn(hourly)}` },
           { label: '日薪', value: `¥${moneyCn(hourly * hours)}` },
           { label: '周薪', value: `¥${moneyCn(hourly * hours * days)}` },
-          { label: '月薪（按 4.33 周）', value: `¥${moneyCn(hourly * hours * days * 4.33)}`, primary: true },
+          { label: '月薪（年薪 ÷ 12）', value: `¥${moneyCn((hourly * hours * days * 52) / 12)}`, primary: true },
           { label: '年薪', value: `¥${moneyCn(hourly * hours * days * 52)}` },
         ]
       },
-      note: '按你设置的工作小时与每周天数换算，月按 52/12 周、年按 52 周近似。',
+      note: '按你设置的工作小时与每周天数换算；年按 52 周，月为年薪 ÷ 12（月薪与年薪恰好相差 12 倍）。',
     },
   },
   {
@@ -847,10 +851,10 @@ const tools: ToolDef[] = [
         const t2 = new Date(lmp); t2.setDate(t2.getDate() + 91)
         const t3 = new Date(lmp); t3.setDate(t3.getDate() + 189)
         return [
-          { label: '预产期', value: due.toISOString().slice(0, 10), primary: true, hint: '孕 40 周（Naegele 法则：LMP + 280 天）' },
+          { label: '预产期', value: fmtDate(due), primary: true, hint: '孕 40 周（Naegele 法则：LMP + 280 天）' },
           { label: '当前孕周', value: daysPreg >= 0 && daysPreg <= 294 ? `${weeks} 周 ${daysPreg % 7} 天` : '不在常规孕期范围内' },
-          { label: '孕中期开始', value: t2.toISOString().slice(0, 10) },
-          { label: '孕晚期开始', value: t3.toISOString().slice(0, 10) },
+          { label: '孕中期开始', value: fmtDate(t2) },
+          { label: '孕晚期开始', value: fmtDate(t3) },
         ]
       },
       note: '仅供估算，实际预产期以超声测量与医生判断为准。',

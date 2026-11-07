@@ -353,10 +353,10 @@ const exportPdf = () => {
             <span class="pnum">{{ i + 1 }}</span>
             <img :src="t" class="thumb" :alt="`第 ${i + 1} 页`" />
             <div class="pacts">
-              <button class="mini" title="旋转" @click.stop="rotatePage(i)"><RotateCw :size="12" /></button>
-              <button class="mini" title="上移" @click.stop="movePage(i, -1)"><ArrowUp :size="12" /></button>
-              <button class="mini" title="下移" @click.stop="movePage(i, 1)"><ArrowDown :size="12" /></button>
-              <button class="mini danger" title="删除" @click.stop="removePage(i)"><Trash2 :size="12" /></button>
+              <button class="mini" title="旋转" aria-label="旋转" @click.stop="rotatePage(i)"><RotateCw :size="12" /></button>
+              <button class="mini" title="上移" aria-label="上移" @click.stop="movePage(i, -1)"><ArrowUp :size="12" /></button>
+              <button class="mini" title="下移" aria-label="下移" @click.stop="movePage(i, 1)"><ArrowDown :size="12" /></button>
+              <button class="mini danger" title="删除" aria-label="删除" @click.stop="removePage(i)"><Trash2 :size="12" /></button>
               <label class="mini check" title="勾选提取" @click.stop>
                 <input type="checkbox" :checked="checked.includes(i)" @change="toggleCheck(i)" />
               </label>

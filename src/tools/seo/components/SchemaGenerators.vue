@@ -132,7 +132,7 @@ const htmlCode = computed(() => (jsonStr.value ? `<script type="application/ld+j
       <div v-for="(r, i) in faqRows" :key="i" class="faq-row">
         <div class="row"><span class="row-no">Q{{ i + 1 }}</span>
           <input v-model="r.q" class="input grow" :placeholder="`问题 ${i + 1}`" />
-          <button class="icon-btn danger" title="删除" @click="faqRows.splice(i, 1)"><Trash2 :size="14" /></button>
+          <button class="icon-btn danger" title="删除" aria-label="删除" @click="faqRows.splice(i, 1)"><Trash2 :size="14" /></button>
         </div>
         <textarea v-model="r.a" class="textarea mt-1" rows="2" :placeholder="`答案 ${i + 1}`"></textarea>
       </div>
@@ -185,7 +185,7 @@ const htmlCode = computed(() => (jsonStr.value ? `<script type="application/ld+j
         <span class="row-no">{{ i + 1 }}</span>
         <input v-model="r.name" class="input grow" :placeholder="`层级 ${i + 1} 名称，如 首页`" />
         <input v-model="r.url" class="input grow" placeholder="https://…（末级可留空）" />
-        <button class="icon-btn danger" title="删除" @click="crumbRows.splice(i, 1)"><Trash2 :size="14" /></button>
+        <button class="icon-btn danger" title="删除" aria-label="删除" @click="crumbRows.splice(i, 1)"><Trash2 :size="14" /></button>
       </div>
       <button class="btn btn-ghost btn-sm" @click="addCrumb"><Plus :size="14" /> 添加层级</button>
     </div>

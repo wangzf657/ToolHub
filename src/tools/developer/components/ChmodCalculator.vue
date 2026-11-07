@@ -89,17 +89,17 @@ const copy = async (v: string) => {
       <div class="out-row">
         <span>八进制权限</span>
         <b class="mono accent">{{ fullOctal }}</b>
-        <button class="mini-btn" @click="copy(fullOctal)"><Lock :size="13" /></button>
+        <button class="mini-btn" aria-label="复制八进制权限" @click="copy(fullOctal)"><Lock :size="13" /></button>
       </div>
       <div class="out-row">
         <span>符号表示</span>
         <b class="mono">{{ symbol }}</b>
-        <button class="mini-btn" @click="copy(symbol)"><Lock :size="13" /></button>
+        <button class="mini-btn" aria-label="复制符号权限" @click="copy(symbol)"><Lock :size="13" /></button>
       </div>
       <div class="out-row">
         <span>chmod 命令</span>
         <b class="mono">chmod {{ fullOctal }} 文件名</b>
-        <button class="mini-btn" @click="copy(cmd)"><Lock :size="13" /></button>
+        <button class="mini-btn" aria-label="复制 chmod 命令" @click="copy(cmd)"><Lock :size="13" /></button>
       </div>
     </div>
 

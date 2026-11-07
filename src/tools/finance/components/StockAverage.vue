@@ -81,7 +81,7 @@ watch(
         <input v-model.number="l.qty" type="number" class="input w-num" step="1" min="0" placeholder="如 100" />
         <span class="cell-val">{{ money(num(l.price) * num(l.qty)) }}</span>
         <span class="cell-val pct">{{ rowShare(l).toFixed(1) }}%</span>
-        <button class="icon-btn danger" title="删除该笔" @click="removeLot(i)"><Trash2 :size="14" /></button>
+        <button class="icon-btn danger" title="删除该笔" aria-label="删除该笔" @click="removeLot(i)"><Trash2 :size="14" /></button>
       </div>
     </div>
 

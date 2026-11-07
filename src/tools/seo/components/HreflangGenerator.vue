@@ -63,7 +63,7 @@ const tags = computed(() => {
         placeholder="https://example.com/zh/"
       />
       <span class="code" :class="{ bad: !isValid(r) }">{{ codeOf(r) }}</span>
-      <button class="icon-btn danger" title="删除" @click="removeRow(i)"><Trash2 :size="14" /></button>
+      <button class="icon-btn danger" title="删除" aria-label="删除" @click="removeRow(i)"><Trash2 :size="14" /></button>
     </div>
     <button class="btn btn-ghost btn-sm mt-1" @click="addRow"><Plus :size="14" /> 添加语言版本</button>
 

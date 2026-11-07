@@ -56,7 +56,7 @@ void toast
           <option v-for="(pt, g) in GRADE_POINTS" :key="g" :value="g">{{ g }}（{{ pt.toFixed(1) }}）</option>
         </select>
         <input v-model.number="c.credits" type="number" min="0" step="0.5" class="input" style="width: 84px" placeholder="学分" />
-        <button class="mini-btn danger" title="删除" @click="removeAt(i)"><Trash2 :size="14" /></button>
+        <button class="mini-btn danger" title="删除" aria-label="删除" @click="removeAt(i)"><Trash2 :size="14" /></button>
       </div>
     </div>
 

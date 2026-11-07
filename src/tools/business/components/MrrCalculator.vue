@@ -63,7 +63,7 @@ const tabs: { v: 'tiers' | 'moves'; label: string }[] = [
         <input v-model="t.name" class="input" placeholder="如 专业版" />
         <input v-model.number="t.price" type="number" class="input" min="0" placeholder="如 99" />
         <input v-model.number="t.count" type="number" class="input" min="0" placeholder="如 120" />
-        <button class="icon-btn danger" title="删除" @click="removeTier(i)"><Trash2 :size="14" /></button>
+        <button class="icon-btn danger" title="删除" aria-label="删除" @click="removeTier(i)"><Trash2 :size="14" /></button>
       </div>
       <button class="btn btn-ghost btn-sm mt-1" @click="addTier"><Plus :size="14" /> 添加档位</button>
 

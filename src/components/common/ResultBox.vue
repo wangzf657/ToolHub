@@ -50,12 +50,12 @@ watch(
       <span class="rb-title">{{ title }}</span>
       <span class="rb-meta">{{ chars }} 字符</span>
       <span class="rb-actions">
-        <button class="mini-btn" title="复制" :disabled="!modelValue" @click="doCopy">
+        <button class="mini-btn" title="复制" aria-label="复制" :disabled="!modelValue" @click="doCopy">
           <Check v-if="copied" :size="13" color="#34d399" />
           <Copy v-else :size="13" />
         </button>
-        <button v-if="download" class="mini-btn" title="下载为文件" :disabled="!modelValue" @click="doDownload">⬇</button>
-        <button v-if="!readonly" class="mini-btn" title="清空" :disabled="!modelValue" @click="emit('update:modelValue', '')">
+        <button v-if="download" class="mini-btn" title="下载为文件" aria-label="下载为文件" :disabled="!modelValue" @click="doDownload">⬇</button>
+        <button v-if="!readonly" class="mini-btn" title="清空" aria-label="清空" :disabled="!modelValue" @click="emit('update:modelValue', '')">
           <Trash2 :size="13" />
         </button>
       </span>

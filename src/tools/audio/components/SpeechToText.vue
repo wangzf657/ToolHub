@@ -91,8 +91,8 @@ onBeforeUnmount(() => {
       </div>
 
       <div class="stt-cta mt-2">
-        <button v-if="!listening" class="stt-btn" title="开始识别" @click="start"><Mic :size="24" /></button>
-        <button v-else class="stt-btn danger" title="停止识别" @click="stop"><Square :size="20" /></button>
+        <button v-if="!listening" class="stt-btn" title="开始识别" aria-label="开始识别" @click="start"><Mic :size="24" /></button>
+        <button v-else class="stt-btn danger" title="停止识别" aria-label="停止识别" @click="stop"><Square :size="20" /></button>
         <div>
           <p class="stt-status">{{ listening ? '正在聆听，说话即可…' : '点击麦克风开始连续识别' }}</p>
           <p v-if="interim" class="stt-interim">{{ interim }}</p>

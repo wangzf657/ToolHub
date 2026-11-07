@@ -72,7 +72,7 @@ const addPreset = (kind: 'block-dir' | 'allow-dir') => {
           <option value="allow">Allow</option>
         </select>
         <input v-model="r.path" type="text" class="input mono grow" placeholder="/路径/" spellcheck="false" />
-        <button class="del-btn" title="删除" @click="removeRule(i)"><X :size="14" /></button>
+        <button class="del-btn" title="删除" aria-label="删除" @click="removeRule(i)"><X :size="14" /></button>
       </div>
       <button class="btn btn-soft btn-sm mt-1" @click="addRule"><Plus :size="13" /> 添加规则行</button>
     </div>

@@ -92,7 +92,7 @@ const doCopy = async (pw: string, i: number) => {
         <code class="pw-text mono">{{ pw }}</code>
         <div class="pw-meta">
           <span class="pw-label" :style="{ color: strengthOf(pw).color }">{{ strengthOf(pw).label }}</span>
-          <button class="copy-btn" title="复制" @click="doCopy(pw, i)">
+          <button class="copy-btn" title="复制" aria-label="复制" @click="doCopy(pw, i)">
             <Check v-if="copiedIdx === i" :size="14" color="var(--ok)" />
             <Copy v-else :size="14" />
           </button>

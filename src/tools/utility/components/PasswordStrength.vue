@@ -70,7 +70,7 @@ const fmtBits = computed(() => (entropyBits.value >= 1000 ? entropyBits.value.to
         :type="show ? 'text' : 'password'"
         placeholder="输入要检测的密码（仅在本页面内存中计算，不会发送）"
       />
-      <button class="eye-btn" :title="show ? '隐藏' : '显示'" @click="show = !show">
+      <button class="eye-btn" :title="show ? '隐藏' : '显示'" :aria-label="show ? '隐藏' : '显示'" @click="show = !show">
         <EyeOff v-if="show" :size="16" />
         <Eye v-else :size="16" />
       </button>

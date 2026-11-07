@@ -11,7 +11,8 @@ const tools: ToolDef[] = [
       options: [{ key: 'count', label: '摘要句数', type: 'number', default: 3 }],
       transform: (t, o) => {
         const r = summarize(t, Math.max(1, Number(o.count) || 3))
-        return `${r.summary}\n\n（原文共 ${r.sentences.length} 句，摘取 ${Math.min(Number(o.count) || 3, r.sentences.length)} 句）`
+        // 输出保持纯摘要（句数即所选项），统计信息不混入结果文本
+        return r.summary
       },
       placeholder: '粘贴长文章、报告或段落…',
     },

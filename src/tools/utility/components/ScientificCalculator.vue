@@ -240,7 +240,7 @@ const press = (k: Key) => {
         <button class="mini-clear" @click="history = []"><Delete :size="13" /> 清空</button>
       </div>
       <div class="hist-list">
-        <button v-for="(h, i) in history" :key="i" class="hist-row" :title="`插入 ${h.expr}`" @click="expr = h.expr">
+        <button v-for="(h, i) in history" :key="i" class="hist-row" :title="`插入 ${h.expr}`" :aria-label="`插入 ${h.expr}`" @click="expr = h.expr">
           <span class="mono">{{ h.expr }}</span>
           <span class="mono hist-val">= {{ h.val }}</span>
         </button>

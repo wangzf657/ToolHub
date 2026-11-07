@@ -109,8 +109,8 @@ async function copy(v: string) {
             <span class="swatch" :style="{ background: h.hex }"></span>
             <code class="mono">{{ h.hex }}</code>
             <code class="mono muted">{{ h.rgb }}</code>
-            <button class="mini-btn" title="复制 HEX" @click="copy(h.hex)"><Copy :size="13" /></button>
-            <button class="mini-btn" title="复制 RGB" @click="copy(h.rgb)"><Copy :size="13" /></button>
+            <button class="mini-btn" title="复制 HEX" aria-label="复制 HEX" @click="copy(h.hex)"><Copy :size="13" /></button>
+            <button class="mini-btn" title="复制 RGB" aria-label="复制 RGB" @click="copy(h.rgb)"><Copy :size="13" /></button>
           </div>
         </div>
       </div>

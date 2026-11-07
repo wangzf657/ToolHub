@@ -20,7 +20,15 @@ const init = () => {
 
 const recompute = () => {
   try {
-    results.value = props.def.compute({ ...values.value })
+    const rows = props.def.compute({ ...values.value })
+    // 结果出现 NaN/Infinity 时给引导文案而非展示无效数值（如必填项为空）
+    if (rows.some((r) => /NaN|Infinity/.test(r.value))) {
+      results.value = [
+        { label: '请先完整填写上方数值', value: '—', hint: '部分结果暂时无法计算，补全后自动更新' },
+      ]
+    } else {
+      results.value = rows
+    }
     note.value = props.def.note ?? ''
   } catch (e) {
     results.value = []

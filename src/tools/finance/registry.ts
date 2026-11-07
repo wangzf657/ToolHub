@@ -11,7 +11,7 @@ const money = (n: number) => formatMoney(n)
 const tools: ToolDef[] = [
   {
     slug: 'black-scholes-calculator', title: '期权定价计算器', category: 'finance',
-    desc: '用 Black-Scholes-Merton 模型为欧式期权定价，并给出 Delta、Gamma、Theta、Vega、Rho。',
+    desc: '用 Black-Scholes 模型为欧式期权定价，并给出 Delta、Gamma 等希腊字母。',
     keywords: ['期权', 'black-scholes', '希腊字母'],
     calcDef: {
       fields: [
@@ -23,6 +23,10 @@ const tools: ToolDef[] = [
         F('div', '股息率（%，可选）', { step: 0.01 }),
       ],
       compute: (v) => {
+        // 必填项守卫：避免空值打开即显示 NaN
+        if (!v.spot || !v.strike || !v.years || !v.rate || !v.vol) {
+          return [{ label: '请填写标的现价、行权价、期限、无风险利率与波动率', value: '—' }]
+        }
         const r = blackScholes(Number(v.spot), Number(v.strike), Number(v.years), (Number(v.rate) || 0) / 100, (Number(v.vol) || 0) / 100, (Number(v.div) || 0) / 100)
         return [
           { label: '看涨期权（Call）价值', value: money(r.call), primary: true },
@@ -248,6 +252,7 @@ const tools: ToolDef[] = [
         { key: 'freq', label: '年付息次数', type: 'select', default: '2', choices: [{ value: '1', label: '每年 1 次' }, { value: '2', label: '每年 2 次（常见）' }, { value: '4', label: '每季度' }] },
       ],
       compute: (v) => {
+        if (!v.price || !v.coupon || !v.years) return [{ label: '请填写当前价格、票面利率与剩余年限', value: '—' }]
         const r = bondYtm(Number(v.price), Number(v.par), Number(v.coupon), Number(v.years), Number(v.freq))
         return [
           { label: '到期收益率（YTM）', value: `${r.ytm.toFixed(3)}%`, primary: true },

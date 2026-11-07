@@ -83,7 +83,7 @@ const copy = async (i: number) => {
       <div v-for="(r, i) in results" :key="r.algo" class="hash-row">
         <span class="algo">{{ r.algo }}</span>
         <code class="value mono">{{ r.value }}</code>
-        <button class="mini-btn" title="复制" @click="copy(i)">
+        <button class="mini-btn" title="复制" aria-label="复制" @click="copy(i)">
           <Check v-if="copiedIdx === i" :size="13" color="#34d399" />
           <Copy v-else :size="13" />
         </button>

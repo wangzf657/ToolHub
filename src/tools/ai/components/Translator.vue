@@ -35,7 +35,7 @@ const swapToZh = () => {
           <option value="zh">中文</option>
         </select>
       </div>
-      <button class="swap" title="反向翻译（目标改为中文）" @click="swapToZh"><Languages :size="16" /></button>
+      <button class="swap" title="反向翻译（目标改为中文）" aria-label="反向翻译（目标改为中文）" @click="swapToZh"><Languages :size="16" /></button>
       <div class="grow">
         <label class="field-label">目标语言</label>
         <select v-model="target" class="select w-full">

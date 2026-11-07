@@ -64,6 +64,7 @@ watch([text, position, size, color, opacity, rotate], () => {
             :key="p"
             class="pos-cell"
             :class="{ active: position === p }"
+            :aria-label="'水印位置：' + p"
             @click="position = p"
           ></button>
         </div>

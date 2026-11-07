@@ -215,9 +215,9 @@ onBeforeUnmount(() => {
             <span class="clip-name" :title="c.name">{{ c.name }}</span>
             <span class="muted small">{{ fmt(c.duration) }}</span>
             <span class="row" style="gap: 2px">
-              <button class="mini" title="上移" @click.stop="move(c.id, -1)"><ArrowUp :size="12" /></button>
-              <button class="mini" title="下移" @click.stop="move(c.id, 1)"><ArrowDown :size="12" /></button>
-              <button class="mini danger" title="移除" @click.stop="remove(c.id)"><Trash2 :size="12" /></button>
+              <button class="mini" title="上移" aria-label="上移" @click.stop="move(c.id, -1)"><ArrowUp :size="12" /></button>
+              <button class="mini" title="下移" aria-label="下移" @click.stop="move(c.id, 1)"><ArrowDown :size="12" /></button>
+              <button class="mini danger" title="移除" aria-label="移除" @click.stop="remove(c.id)"><Trash2 :size="12" /></button>
             </span>
           </div>
         </div>

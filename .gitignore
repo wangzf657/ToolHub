@@ -41,3 +41,8 @@ desktop.ini
 
 # 本地 AI 工具状态（ZCode 工作区）
 .zcode/
+
+# 测试报告与测试脚本产物
+test-reports/
+scripts/tests/_engines/
+scripts/tests/_bundle-tools.cjs

@@ -49,6 +49,36 @@ async function bytesOf(file: File | Blob | ArrayBuffer): Promise<Uint8Array> {
   return new Uint8Array(await file.arrayBuffer())
 }
 
+/** 创建输出 PDF 文档并统一写入 ToolHub 元数据（producer/creator 契约） */
+async function createDoc(): Promise<import('@cantoo/pdf-lib').PDFDocument> {
+  const { PDFDocument } = await loadPdfLib()
+  const doc = await PDFDocument.create()
+  doc.setProducer('ToolHub')
+  doc.setCreator('ToolHub')
+  return doc
+}
+
+/** pdf-lib 的 save() 返回 Uint8Array，统一包装为可直接下载的 PDF Blob */
+export function toPdfBlob(bytes: Uint8Array | Blob): Blob {
+  return bytes instanceof Blob ? bytes : new Blob([bytes as BlobPart], { type: 'application/pdf' })
+}
+
+/**
+ * 统一保存：pdf-lib 的 updateInfoDict 会在 save 时无条件把 producer 强制写回
+ * 「pdf-lib (https://github.com/Hopding/pdf-lib)」，故以 updateMetadata:false 跳过，
+ * 由引擎维护元数据契约——producer=ToolHub，creator 缺失时补 ToolHub。
+ */
+async function savePdf(
+  doc: import('@cantoo/pdf-lib').PDFDocument,
+  opts: { useObjectStreams?: boolean } = {},
+): Promise<Blob> {
+  doc.setProducer('ToolHub')
+  if (!doc.getCreator()) doc.setCreator('ToolHub')
+  doc.setModificationDate(new Date())
+  // updateMetadata 运行时支持但 .d.ts 未声明，这里以断言传入
+  return toPdfBlob(await doc.save({ updateMetadata: false, ...opts } as never))
+}
+
 /* ---------------- 基本信息 ---------------- */
 
 export async function pdfInfo(file: File | Blob): Promise<{ pages: number; size: number }> {
@@ -63,14 +93,14 @@ export async function pdfInfo(file: File | Blob): Promise<{ pages: number; size:
 
 export async function mergePdfs(files: (File | Blob)[], onProgress?: (p: number) => void): Promise<Blob> {
   const { PDFDocument } = await loadPdfLib()
-  const out = await PDFDocument.create()
+  const out = await createDoc()
   for (let i = 0; i < files.length; i++) {
     const src = await PDFDocument.load(await bytesOf(files[i]), { ignoreEncryption: true })
     const pages = await out.copyPages(src, src.getPageIndices())
     pages.forEach((p) => out.addPage(p))
     onProgress?.((i + 1) / files.length)
   }
-  return out.save() as unknown as Promise<Blob>
+  return await savePdf(out)
 }
 
 export async function splitPdf(
@@ -81,10 +111,10 @@ export async function splitPdf(
   const src = await PDFDocument.load(await bytesOf(file), { ignoreEncryption: true })
   const out: { name: string; blob: Blob }[] = []
   for (let i = 0; i < src.getPageCount(); i++) {
-    const doc = await PDFDocument.create()
+    const doc = await createDoc()
     const [p] = await doc.copyPages(src, [i])
     doc.addPage(p)
-    out.push({ name: `第${i + 1}页.pdf`, blob: (await doc.save()) as unknown as Blob })
+    out.push({ name: `第${i + 1}页.pdf`, blob: await savePdf(doc) })
     onProgress?.((i + 1) / src.getPageCount())
   }
   return out
@@ -97,7 +127,7 @@ export async function rotatePdf(file: File | Blob, deg: 90 | 180 | 270): Promise
     const cur = page.getRotation().angle ?? 0
     page.setRotation(degrees((cur + deg) % 360))
   }
-  return doc.save() as unknown as Blob
+  return await savePdf(doc)
 }
 
 export async function rotatePage(file: File | Blob, pageIndex: number, deg: 90 | 180 | 270): Promise<Blob> {
@@ -106,7 +136,7 @@ export async function rotatePage(file: File | Blob, pageIndex: number, deg: 90 |
   const page = doc.getPage(pageIndex)
   const cur = page.getRotation().angle ?? 0
   page.setRotation(degrees((cur + deg) % 360))
-  return doc.save() as unknown as Blob
+  return await savePdf(doc)
 }
 
 export async function deletePages(file: File | Blob, spec: PageSpec): Promise<Blob> {
@@ -114,10 +144,10 @@ export async function deletePages(file: File | Blob, spec: PageSpec): Promise<Bl
   const doc = await PDFDocument.load(await bytesOf(file), { ignoreEncryption: true })
   const del = new Set(parsePageSpec(spec, doc.getPageCount()))
   const keep = doc.getPageIndices().filter((i) => !del.has(i))
-  const out = await PDFDocument.create()
+  const out = await createDoc()
   const pages = await out.copyPages(doc, keep)
   pages.forEach((p) => out.addPage(p))
-  return out.save() as unknown as Blob
+  return await savePdf(out)
 }
 
 export async function extractPages(file: File | Blob, spec: PageSpec): Promise<Blob> {
@@ -125,29 +155,29 @@ export async function extractPages(file: File | Blob, spec: PageSpec): Promise<B
   const src = await PDFDocument.load(await bytesOf(file), { ignoreEncryption: true })
   const idx = parsePageSpec(spec, src.getPageCount())
   if (!idx.length) throw new Error('请至少选择一页')
-  const out = await PDFDocument.create()
+  const out = await createDoc()
   const pages = await out.copyPages(src, idx)
   pages.forEach((p) => out.addPage(p))
-  return out.save() as unknown as Blob
+  return await savePdf(out)
 }
 
 export async function reorderPages(file: File | Blob, order0: number[]): Promise<Blob> {
   const { PDFDocument } = await loadPdfLib()
   const src = await PDFDocument.load(await bytesOf(file), { ignoreEncryption: true })
-  const out = await PDFDocument.create()
+  const out = await createDoc()
   const pages = await out.copyPages(src, order0)
   pages.forEach((p) => out.addPage(p))
-  return out.save() as unknown as Blob
+  return await savePdf(out)
 }
 
 export async function reversePages(file: File | Blob): Promise<Blob> {
   const { PDFDocument } = await loadPdfLib()
   const src = await PDFDocument.load(await bytesOf(file), { ignoreEncryption: true })
   const idx = src.getPageIndices().reverse()
-  const out = await PDFDocument.create()
+  const out = await createDoc()
   const pages = await out.copyPages(src, idx)
   pages.forEach((p) => out.addPage(p))
-  return out.save() as unknown as Blob
+  return await savePdf(out)
 }
 
 export async function insertBlankPages(
@@ -158,7 +188,7 @@ export async function insertBlankPages(
   const src = await PDFDocument.load(await bytesOf(file), { ignoreEncryption: true })
   const first = src.getPage(0)
   const size = first.getSize()
-  const out = await PDFDocument.create()
+  const out = await createDoc()
   const total = src.getPageCount()
   const blank = () => out.addPage([size.width, size.height])
   const copyAll = async () => {
@@ -178,7 +208,7 @@ export async function insertBlankPages(
       if (i + 1 === opts.after) for (let k = 0; k < opts.count; k++) blank()
     })
   }
-  return out.save() as unknown as Blob
+  return await savePdf(out)
 }
 
 /* ---------------- 加密 / 解密 ---------------- */
@@ -186,7 +216,9 @@ export async function insertBlankPages(
 export async function protectPdf(file: File | Blob, password: string): Promise<Blob> {
   const { PDFDocument } = await loadPdfLib()
   const doc = await PDFDocument.load(await bytesOf(file), { ignoreEncryption: true })
-  return doc.encrypt({ userPassword: password, ownerPassword: password, permissions: {} }) as unknown as Promise<Blob>
+  // encrypt() 是 void 方法，加密结果须经 save() 序列化输出
+  doc.encrypt({ userPassword: password, ownerPassword: password, permissions: {} })
+  return await savePdf(doc)
 }
 
 export async function unlockPdf(file: File | Blob, password: string): Promise<Blob> {
@@ -195,7 +227,7 @@ export async function unlockPdf(file: File | Blob, password: string): Promise<Bl
     ignoreEncryption: false,
     password,
   })
-  return doc.save() as unknown as Promise<Blob>
+  return await savePdf(doc)
 }
 
 /* ---------------- 水印 / 页码 / 页眉页脚 / 编号 ---------------- */
@@ -242,7 +274,7 @@ export async function stampText(file: File | Blob, opts: TextStampOptions): Prom
       draw(x, y)
     }
   }
-  return doc.save() as unknown as Blob
+  return await savePdf(doc)
 }
 
 export async function addPageNumbers(
@@ -275,7 +307,7 @@ export async function addPageNumbers(
     const y = pos.startsWith('top') ? height - size - margin : margin
     page.drawText(text, { x, y, size, font, color: rgb(0.35, 0.38, 0.45) })
   })
-  return doc.save() as unknown as Blob
+  return await savePdf(doc)
 }
 
 export async function addHeaderFooter(
@@ -308,7 +340,7 @@ export async function addHeaderFooter(
       page.drawText(text, { x: (width - tw) / 2, y: m, size, font, color: rgb(0.35, 0.38, 0.45) })
     }
   })
-  return doc.save() as unknown as Blob
+  return await savePdf(doc)
 }
 
 /** 贝茨编号：如 ABC-000001 */
@@ -331,7 +363,7 @@ export async function batesNumbering(
       page.drawText(text, { x, y: 24, size: opts.fontSize ?? 10, font, color: rgb(0.2, 0.2, 0.25) })
       counter++
     }
-    out.push({ name: `${opts.prefix ?? 'bates'}-已编号.pdf`, blob: (await doc.save()) as unknown as Blob })
+    out.push({ name: `${opts.prefix ?? 'bates'}-已编号.pdf`, blob: await savePdf(doc) })
   }
   return out
 }
@@ -353,8 +385,10 @@ export async function setMetadata(file: File | Blob, meta: PdfMetadata): Promise
   if (meta.author !== undefined) doc.setAuthor(meta.author)
   if (meta.subject !== undefined) doc.setSubject(meta.subject)
   if (meta.keywords !== undefined) doc.setKeywords(meta.keywords.split(/[,，]/).map((k) => k.trim()).filter(Boolean))
-  if (meta.creator !== undefined) doc.setCreator(meta.creator)
-  return doc.save() as unknown as Blob
+  // 契约：producer/creator 统一写 ToolHub（用户显式传入 creator 时以用户值为准）
+  doc.setProducer('ToolHub')
+  doc.setCreator(meta.creator ?? 'ToolHub')
+  return await savePdf(doc)
 }
 
 export async function getMetadata(file: File | Blob): Promise<PdfMetadata & { pages: number }> {
@@ -386,7 +420,7 @@ export async function cropPdf(
     const h = height - ((pct.top + pct.bottom) / 100) * height
     if (w > 0 && h > 0) page.setCropBox(x, y, w, h)
   }
-  return doc.save() as unknown as Blob
+  return await savePdf(doc)
 }
 
 export const PAGE_SIZES: Record<string, [number, number]> = {
@@ -402,7 +436,7 @@ export async function resizePdfTo(file: File | Blob, sizeName: string, landscape
   const doc = await PDFDocument.load(await bytesOf(file), { ignoreEncryption: true })
   let [w, h] = PAGE_SIZES[sizeName] ?? PAGE_SIZES.A4
   if (landscape) [w, h] = [h, w]
-  const out = await PDFDocument.create()
+  const out = await createDoc()
   const srcPages = await out.embedPdf(await bytesOf(file))
   for (const emb of srcPages) {
     const page = out.addPage([w, h])
@@ -412,7 +446,7 @@ export async function resizePdfTo(file: File | Blob, sizeName: string, landscape
     page.drawText('', { x: 0, y: 0, size: 1 })
     page.drawPage(emb, { x: (w - dw) / 2, y: (h - dh) / 2, width: dw, height: dh })
   }
-  return out.save() as unknown as Blob
+  return await savePdf(out)
 }
 
 /** N-up 多页合一 */
@@ -426,7 +460,7 @@ export async function nupPdf(file: File | Blob, per: 2 | 4 | 6 | 9): Promise<Blo
   const rows = per === 2 ? 2 : per === 4 ? 2 : 3
   const sheetW = per === 2 ? pw : pw * cols
   const sheetH = ph * rows
-  const out = await PDFDocument.create()
+  const out = await createDoc()
   const embedded = await out.embedPdf(await bytesOf(file))
   for (let i = 0; i < embedded.length; i += per) {
     const page = out.addPage([sheetW, sheetH])
@@ -439,7 +473,7 @@ export async function nupPdf(file: File | Blob, per: 2 | 4 | 6 | 9): Promise<Blo
       page.drawPage(embedded[i + k], { x, y, width: pw, height: ph })
     }
   }
-  return out.save() as unknown as Blob
+  return await savePdf(out)
 }
 
 /* ---------------- 图片转 PDF ---------------- */
@@ -448,8 +482,7 @@ export async function imagesToPdf(
   files: (File | Blob)[],
   opts: { pageSize?: 'auto' | 'A4' | 'Letter'; margin?: number; landscape?: boolean } = {},
 ): Promise<Blob> {
-  const { PDFDocument } = await loadPdfLib()
-  const doc = await PDFDocument.create()
+  const doc = await createDoc()
   for (const f of files) {
     const { decodeToCanvas } = await import('./imageEngine')
     const canvas = await decodeToCanvas(f)
@@ -474,7 +507,7 @@ export async function imagesToPdf(
     const dh = img.height * scale
     page.drawImage(img, { x: (pw - dw) / 2, y: (ph - dh) / 2, width: dw, height: dh })
   }
-  return doc.save() as unknown as Blob
+  return await savePdf(doc)
 }
 
 /* ---------------- 渲染（pdf.js） ---------------- */
@@ -777,7 +810,7 @@ export async function fillForm(file: File | Blob, values: Record<string, string 
   } catch {
     /* 某些字段不可扁平化 */
   }
-  return doc.save() as unknown as Blob
+  return await savePdf(doc)
 }
 
 /** 汇总多个已填表单 PDF 的字段为行数据 */
@@ -817,7 +850,7 @@ export async function appendTextAt(
     x, y, size: opts.size ?? 14, font,
     color: rgb(opts.color?.[0] ?? 0.1, opts.color?.[1] ?? 0.1, opts.color?.[2] ?? 0.1),
   })
-  return doc.save() as unknown as Blob
+  return await savePdf(doc)
 }
 
 /** 黑条遮盖指定区域（坐标为页面比例 0-1） */
@@ -838,7 +871,7 @@ export async function blackenRegions(
       color: rgb(0, 0, 0),
     })
   }
-  return doc.save() as unknown as Blob
+  return await savePdf(doc)
 }
 
 /* ---------------- 压缩（栅格化逼近目标体积） ---------------- */
@@ -881,14 +914,13 @@ export async function compressPdf(
       const q = (lo + hi) / 2
       const pages: Blob[] = []
       await render(q, scale, (b) => pages.push(b))
-      const { PDFDocument } = await loadPdfLib()
-      const doc = await PDFDocument.create()
+      const doc = await createDoc()
       for (const p of pages) {
         const img = await doc.embedJpg(new Uint8Array(await p.arrayBuffer()))
         const page = doc.addPage([img.width, img.height])
         page.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height })
       }
-      const out = (await doc.save()) as unknown as Blob
+      const out = await savePdf(doc)
       const kb = out.size / 1024
       best = out
       opts.onProgress?.((iter + 1) / 5)
@@ -909,14 +941,13 @@ export async function compressPdf(
     pages.push(b)
     opts.onProgress?.(i / 10)
   })
-  const { PDFDocument } = await loadPdfLib()
-  const doc = await PDFDocument.create()
+  const doc = await createDoc()
   for (const p of pages) {
     const img = await doc.embedJpg(new Uint8Array(await p.arrayBuffer()))
     const page = doc.addPage([img.width, img.height])
     page.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height })
   }
-  const out = (await doc.save()) as unknown as Blob
+  const out = await savePdf(doc)
   return { blob: out, originalKB, resultKB: out.size / 1024 }
 }
 
@@ -931,7 +962,7 @@ export async function pdfToPdfa(file: File | Blob): Promise<Blob> {
   // 标记 XMP 元数据（简化实现：设置 Info 字典并保存）
   const font = await doc.embedFont(StandardFonts.Helvetica)
   void font
-  return doc.save({ useObjectStreams: false }) as unknown as Promise<Blob>
+  return await savePdf(doc, { useObjectStreams: false })
 }
 
 /** 清理扫描件：每页转灰度增强后重排 */
@@ -968,14 +999,13 @@ export async function cleanScannedPdf(
   } finally {
     doc0.destroy()
   }
-  const { PDFDocument } = await loadPdfLib()
-  const out = await PDFDocument.create()
+  const out = await createDoc()
   for (const p of pages) {
     const img = await out.embedJpg(new Uint8Array(await p.arrayBuffer()))
     const page = out.addPage([img.width, img.height])
     page.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height })
   }
-  return out.save() as unknown as Blob
+  return await savePdf(out)
 }
 
 /* ---------------- 渲染工具复用 ---------------- */

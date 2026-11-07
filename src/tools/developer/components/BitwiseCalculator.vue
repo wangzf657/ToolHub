@@ -82,7 +82,7 @@ const copyResult = async () => {
     </div>
 
     <div class="row row-wrap mt-2" style="gap: 8px">
-      <button v-for="o in OPS" :key="o.op" class="btn btn-primary btn-sm" :title="o.hint" @click="run(o)">{{ o.op }}</button>
+      <button v-for="o in OPS" :key="o.op" class="btn btn-primary btn-sm" :title="o.hint" aria-label="o.hint" @click="run(o)">{{ o.op }}</button>
     </div>
 
     <div v-if="!AV.ok || !BV.ok" class="notice notice-warn mt-2">输入需为 0 ~ 4294967295 的整数，支持 0x（十六进制）与 0b（二进制）前缀。</div>

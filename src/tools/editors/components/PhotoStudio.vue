@@ -379,7 +379,7 @@ onBeforeUnmount(() => {
               <div class="row" style="gap: 6px">
                 <input v-model.number="t.size" type="number" min="8" max="400" class="input" style="width: 72px" title="字号 px" @input="render" />
                 <input v-model="t.color" type="color" @input="render" />
-                <button class="mini danger" title="删除图层" @click="removeText(t.id)"><Trash2 :size="12" /></button>
+                <button class="mini danger" title="删除图层" aria-label="删除图层" @click="removeText(t.id)"><Trash2 :size="12" /></button>
               </div>
               <div class="row small muted" style="gap: 6px">
                 X <input v-model.number="t.x" type="number" min="0" max="1" step="0.01" class="input" style="width: 70px" @input="render" />

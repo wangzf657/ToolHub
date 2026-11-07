@@ -3,7 +3,7 @@
  * 坐标为页面比例（0-1），y 自页顶起（与 blackenRegions 约定一致）。
  * 说明：位置按文本项内「字符占比」估算，复杂排版可能存在少量偏移。
  */
-import { loadPdfJs, loadPdfLib } from '@/lib/pdfEngine'
+import { toPdfBlob, loadPdfJs, loadPdfLib } from '@/lib/pdfEngine'
 import { hasCJK, textToPng } from './cjkText'
 
 export interface TextHit {
@@ -122,5 +122,5 @@ export async function overlayHits(
       }
     }
   }
-  return doc.save() as unknown as Blob
+  return toPdfBlob(await doc.save())
 }

@@ -232,7 +232,7 @@ watch(mode, drawOverlay)
       <div v-if="regions.length" class="mt-2 region-list">
         <span v-for="(r, i) in regions" :key="i" class="badge badge-plain">
           #{{ i + 1 }} {{ MODE_LABEL[r.mode] }} {{ Math.round(r.w) }} × {{ Math.round(r.h) }} px
-          <button class="mini-x" title="删除" @click="(regions.splice(i, 1), renderWork(), drawOverlay())"><X :size="11" /></button>
+          <button class="mini-x" title="删除" aria-label="删除" @click="(regions.splice(i, 1), renderWork(), drawOverlay())"><X :size="11" /></button>
         </span>
       </div>
 

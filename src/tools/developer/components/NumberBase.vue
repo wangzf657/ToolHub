@@ -124,7 +124,7 @@ const copy = async (value: string, i: number) => {
       <div v-for="(r, i) in outputs" :key="r.base" class="res-row">
         <span class="r-label">{{ r.label }}</span>
         <code class="r-value mono" :class="{ dim: !toBigInt.ok }">{{ r.value }}</code>
-        <button class="mini-btn" title="复制" :disabled="!toBigInt.ok" @click="copy(r.value, i)">
+        <button class="mini-btn" title="复制" aria-label="复制" :disabled="!toBigInt.ok" @click="copy(r.value, i)">
           <Copy v-if="!results[i]?.copied" :size="13" />
           <span v-else class="ok-mark">✓</span>
         </button>

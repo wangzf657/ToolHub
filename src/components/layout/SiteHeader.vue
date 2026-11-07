@@ -46,7 +46,7 @@ watch(
       </nav>
 
       <div class="header-actions">
-        <button class="icon-btn" title="搜索工具" @click="openSearch">
+        <button class="icon-btn" title="搜索工具" aria-label="搜索工具" @click="openSearch">
           <SearchIcon :size="17" />
         </button>
         <a
@@ -64,11 +64,11 @@ watch(
           <span class="hide-mobile">收藏</span>
           <span v-if="saved.length" class="saved-count">{{ saved.length }}</span>
         </RouterLink>
-        <button class="icon-btn" :title="theme === 'dark' ? '切换浅色' : '切换深色'" @click="toggle">
+        <button class="icon-btn" :title="theme === 'dark' ? '切换浅色' : '切换深色'" :aria-label="theme === 'dark' ? '切换浅色' : '切换深色'" @click="toggle">
           <Sun v-if="theme === 'dark'" :size="17" />
           <Moon v-else :size="17" />
         </button>
-        <button class="icon-btn hide-desktop" @click="mobileOpen = !mobileOpen">
+        <button class="icon-btn hide-desktop" :aria-label="mobileOpen ? '关闭菜单' : '打开菜单'" @click="mobileOpen = !mobileOpen">
           <X v-if="mobileOpen" :size="19" />
           <Menu v-else :size="19" />
         </button>

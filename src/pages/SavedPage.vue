@@ -24,7 +24,7 @@ const tools = computed(() => saved.value.map((s) => toolMap.get(s)).filter((t): 
     <div v-if="tools.length" class="tools-grid">
       <div v-for="t in tools" :key="t.slug" class="saved-item">
         <ToolCard :tool="t" />
-        <button class="remove-btn" title="移除收藏" @click="remove(t.slug)"><Trash2 :size="14" /></button>
+        <button class="remove-btn" title="移除收藏" aria-label="移除收藏" @click="remove(t.slug)"><Trash2 :size="14" /></button>
       </div>
     </div>
 

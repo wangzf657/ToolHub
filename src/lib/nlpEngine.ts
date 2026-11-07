@@ -54,15 +54,19 @@ export function summarize(text: string, sentenceCount = 3): { sentences: string[
 
 /* ---------------- 关键词 ---------------- */
 
+/** 常见虚词字符：出现在候选词首/尾时视为碎片过滤 */
+const CN_STOP_CHARS = new Set(
+  '的了和是与就都在不有我你他她们这那也被把让给向对于从以为之其或并且很挺更最又再才只等吧吗呢啊呀哦嗯个上下中里外来说去看着过地得着之',
+)
+
 export function extractKeywords(text: string, n = 10): { word: string; score: number }[] {
   const sentences = splitSentences(text)
-  const tokens = sentences.map((s) => tokenizeWords(s).map((w) => w.toLowerCase()))
+  const tokens = sentences.map((s) => keywordTokens(s))
   const tf = new Map<string, number>()
   const df = new Map<string, number>()
   for (const toks of tokens) {
     const seen = new Set<string>()
     for (const t of toks) {
-      if (STOPWORDS.has(t) || t.length < 2) continue
       tf.set(t, (tf.get(t) ?? 0) + 1)
       if (!seen.has(t)) {
         seen.add(t)
@@ -75,17 +79,53 @@ export function extractKeywords(text: string, n = 10): { word: string; score: nu
     .filter(([w]) => !/^\d+$/.test(w))
     .map(([w, count]) => ({
       word: w,
-      score: count * Math.log(N / Math.max(1, (df.get(w) ?? 1))) * Math.min(3, w.length / 2),
+      // 平滑 IDF：即使词出现在所有句子（df = N）权重也不为 0；长度因子封顶 2.5，
+      // 保证只出现一次的完整长词（5–6 字）不会压过出现两次的核心短词
+      score: count * Math.log(1 + N / Math.max(1, df.get(w) ?? 1)) * Math.min(2.5, w.length / 2),
     }))
-    .sort((a, b) => b.score - a.score)
-  // 去重：包含关系的 bigram 去掉（如 "人工智能" 与 "工智能"）
+    // 同分时长词优先：完整词与少首字的滑窗碎片同分时，让完整词先入选（碎片随后被去重掉）
+    .sort((a, b) => b.score - a.score || b.word.length - a.word.length || a.word.localeCompare(b.word))
+  // 去重：包含关系 + 高度重叠（与已选词共享 ≥3 字连续子串的跨词碎片，如「工智能技」之于「人工智能」）
   const out: { word: string; score: number }[] = []
   for (const s of scored) {
     if (out.some((o) => o.word.includes(s.word) || s.word.includes(o.word))) continue
+    if (s.word.length >= 3 && out.some((o) => sharesSubstring(o.word, s.word, 3))) continue
     out.push(s)
     if (out.length >= n) break
   }
   return out
+}
+
+/** 两词是否共享长度 ≥ k 的连续公共子串 */
+function sharesSubstring(a: string, b: string, k: number): boolean {
+  for (let i = 0; i + k <= b.length; i++) {
+    if (a.includes(b.slice(i, i + k))) return true
+  }
+  return false
+}
+
+/** 关键词候选：英文按词，中文按 2–6 字滑窗（5–6 字保证「计算机视觉」类完整长词成为候选），并过滤首尾含虚词的碎片 */
+function keywordTokens(s: string): string[] {
+  const en = s.match(/[a-zA-Z][a-zA-Z0-9'-]+/g) ?? []
+  const cn = s.match(/[\u4e00-\u9fff]+/g) ?? []
+  const cnTokens: string[] = []
+  for (const seg of cn) {
+    if (seg.length === 1) {
+      cnTokens.push(seg)
+      continue
+    }
+    for (let len = 2; len <= Math.min(6, seg.length); len++) {
+      for (let i = 0; i + len <= seg.length; i++) cnTokens.push(seg.slice(i, i + len))
+    }
+  }
+  return [...en, ...cnTokens]
+    .map((t) => t.toLowerCase())
+    .filter((t) => !/^\d+$/.test(t) && t.length >= 2)
+    .filter((t) => {
+      if (!/[\u4e00-\u9fff]/.test(t)) return true
+      // 任意位置含虚词字符的中文候选视为碎片（如「的时」「能的应用」）
+      return ![...t].some((ch) => CN_STOP_CHARS.has(ch))
+    })
 }
 
 /* ---------------- 情感分析（中文情感词典 + 规则） ---------------- */

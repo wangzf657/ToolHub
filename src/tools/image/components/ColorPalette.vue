@@ -46,7 +46,7 @@ async function copy(hex: string) {
     <div v-if="main.length" class="mt-3">
       <div class="field-label">主色（按占比）</div>
       <div class="pal mt-1">
-        <button v-for="s in main" :key="'m' + s.hex" class="pal-cell" :style="{ background: s.hex }" :title="`点击复制 ${s.hex}`" @click="copy(s.hex)">
+        <button v-for="s in main" :key="'m' + s.hex" class="pal-cell" :style="{ background: s.hex }" :title="`点击复制 ${s.hex}`" :aria-label="`点击复制 ${s.hex}`" @click="copy(s.hex)">
           <span class="pal-ratio">{{ (s.ratio * 100).toFixed(1) }}%</span>
           <span class="pal-hex" :class="{ light: isLight(s.hex) }">{{ s.hex }}</span>
         </button>
@@ -55,7 +55,7 @@ async function copy(hex: string) {
     <div v-if="vivid.length" class="mt-3">
       <div class="field-label">鲜艳点缀色（按饱和度）</div>
       <div class="pal mt-1">
-        <button v-for="s in vivid" :key="'v' + s.hex" class="pal-cell" :style="{ background: s.hex }" :title="`点击复制 ${s.hex}`" @click="copy(s.hex)">
+        <button v-for="s in vivid" :key="'v' + s.hex" class="pal-cell" :style="{ background: s.hex }" :title="`点击复制 ${s.hex}`" :aria-label="`点击复制 ${s.hex}`" @click="copy(s.hex)">
           <span class="pal-hex" :class="{ light: isLight(s.hex) }">{{ s.hex }}</span>
         </button>
       </div>

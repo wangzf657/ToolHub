@@ -122,7 +122,7 @@ const sorted = computed(() => [...events.value].sort((a, b) => new Date(a.target
         <div class="ev-head">
           <CalendarClock :size="16" />
           <span class="ev-name">{{ e.name }}</span>
-          <button class="mini-del" title="删除" @click="removeEvent(e.id)"><Trash2 :size="14" /></button>
+          <button class="mini-del" title="删除" aria-label="删除" @click="removeEvent(e.id)"><Trash2 :size="14" /></button>
         </div>
         <p class="muted small">目标：{{ partsOf(e.target).date }}</p>
         <div v-if="partsOf(e.target).past" class="ev-past">已到达 / 已过期</div>

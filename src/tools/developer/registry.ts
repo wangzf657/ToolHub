@@ -15,6 +15,7 @@ const tools: ToolDef[] = [
         { value: ',', label: '逗号 ,' }, { value: ';', label: '分号 ;' }, { value: '\t', label: '制表符' },
       ] }],
       transform: (t, o) => {
+        if (!t.trim()) return ''
         const data = JSON.parse(t)
         const arr: Record<string, unknown>[] = Array.isArray(data) ? data : [data]
         if (!arr.length) return ''

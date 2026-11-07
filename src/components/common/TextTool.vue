@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import type { TextToolDef, TextOptionDef } from '@/types'
 import { copyText } from '@/lib/download'
+import { localizeJsonError } from '@/lib/jsEngine'
 import { useToast } from '@/composables/useToast'
 import { Trash2, Copy, ArrowLeftRight } from 'lucide-vue-next'
 
@@ -20,11 +21,17 @@ const initOpts = () => {
 watch(() => props.def, initOpts, { immediate: true })
 
 const run = () => {
+  // 空输入直接清空结果，不弹错误（避免清空即报 toast）
+  if (!input.value.trim()) {
+    output.value = ''
+    return
+  }
   try {
     output.value = props.def.transform(input.value, { ...opts.value })
   } catch (e) {
     output.value = ''
-    toast.err((e as Error).message || '转换失败')
+    const msg = (e as Error).message || '转换失败'
+    toast.err(/JSON|Unexpected token/i.test(msg) ? localizeJsonError(msg, input.value) : msg)
   }
 }
 
@@ -98,8 +105,8 @@ const clearAll = () => {
       </div>
 
       <div class="io-actions">
-        <button class="btn btn-soft btn-sm" title="用输出替换输入" @click="swap"><ArrowLeftRight :size="14" /></button>
-        <button class="btn btn-ghost btn-sm" title="清空" @click="clearAll"><Trash2 :size="14" /></button>
+        <button class="btn btn-soft btn-sm" title="用输出替换输入" aria-label="用输出替换输入" @click="swap"><ArrowLeftRight :size="14" /></button>
+        <button class="btn btn-ghost btn-sm" title="清空" aria-label="清空输入与输出" @click="clearAll"><Trash2 :size="14" /></button>
       </div>
 
       <div class="io-pane">

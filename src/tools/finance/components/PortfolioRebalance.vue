@@ -90,7 +90,7 @@ const copyReport = async () => {
         <input v-model="h.name" class="input" placeholder="如 股票型基金" />
         <input v-model.number="h.value" type="number" class="input" min="0" placeholder="如 50000" />
         <input v-model.number="h.target" type="number" class="input" min="0" max="100" step="0.5" placeholder="如 50" />
-        <button class="icon-btn danger" title="删除" @click="removeHolding(i)"><Trash2 :size="14" /></button>
+        <button class="icon-btn danger" title="删除" aria-label="删除" @click="removeHolding(i)"><Trash2 :size="14" /></button>
       </div>
     </div>
     <div class="row row-wrap mt-2">

@@ -153,7 +153,7 @@ const printInvoice = () => {
               <td><input v-model.number="it.taxRate" type="number" class="input item-in num" min="0" /></td>
               <td class="mono">{{ meta.currency }}{{ fmt((Number(it.qty) || 0) * (Number(it.price) || 0)) }}</td>
               <td>
-                <button class="mini-del" title="删除此行" @click="removeItem(i)"><Trash2 :size="14" /></button>
+                <button class="mini-del" title="删除此行" aria-label="删除此行" @click="removeItem(i)"><Trash2 :size="14" /></button>
               </td>
             </tr>
           </tbody>

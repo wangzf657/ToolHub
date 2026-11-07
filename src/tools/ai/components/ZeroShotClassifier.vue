@@ -82,7 +82,7 @@ const confidence = (s: number) => (totalScore.value > 0 ? (s / totalScore.value)
       <div v-for="(l, i) in labels" :key="i" class="label-row">
         <input v-model="l.label" class="input w-label" placeholder="标签，如 好评" />
         <input v-model="l.example" class="input grow" placeholder="示例句（可选），如 物流很快非常满意" />
-        <button class="icon-btn danger" title="删除" @click="labels.splice(i, 1)"><Trash2 :size="14" /></button>
+        <button class="icon-btn danger" title="删除" aria-label="删除" @click="labels.splice(i, 1)"><Trash2 :size="14" /></button>
       </div>
       <button class="btn btn-ghost btn-sm mt-1" @click="addLabel"><Plus :size="14" /> 添加标签</button>
     </div>

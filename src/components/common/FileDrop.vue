@@ -103,7 +103,7 @@ void toast
         <span class="row gap4">
           <button v-if="multiple && files.length > 1" class="mini-btn" title="上移" @click="move(i, -1)">↑</button>
           <button v-if="multiple && files.length > 1" class="mini-btn" title="下移" @click="move(i, 1)">↓</button>
-          <button class="mini-btn danger" title="移除" @click="removeAt(i)"><X :size="13" /></button>
+          <button class="mini-btn danger" title="移除" aria-label="移除" @click="removeAt(i)"><X :size="13" /></button>
         </span>
       </div>
       <button class="btn btn-ghost btn-sm mt-1" @click="clear">

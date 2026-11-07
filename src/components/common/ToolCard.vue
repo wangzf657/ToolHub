@@ -22,7 +22,7 @@ const cat = categoryMap.get(props.tool.category)
         <button
           class="star-btn"
           :class="{ on: isSaved(tool.slug) }"
-          :title="isSaved(tool.slug) ? '取消收藏' : '收藏'"
+          :title="isSaved(tool.slug) ? '取消收藏' : '收藏'" :aria-label="isSaved(tool.slug) ? '取消收藏' : '收藏'"
           @click.prevent="toggle(tool.slug)"
         >
           <Star :size="15" :fill="isSaved(tool.slug) ? 'currentColor' : 'none'" />

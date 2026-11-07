@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { RouterLink, useRoute } from 'vue-router'
-import { Zap, Star, Sun, Moon, Menu, X, Search as SearchIcon } from 'lucide-vue-next'
+import { Zap, Star, Sun, Moon, Menu, X, Github, Search as SearchIcon } from 'lucide-vue-next'
 import { categories } from '@/data/categories'
+import { site } from '@/data/site'
 import { useTheme } from '@/composables/useTheme'
 import { useSaved } from '@/composables/useSaved'
 import { useSearch } from '@/composables/useSearch'
@@ -48,6 +49,16 @@ watch(
         <button class="icon-btn" title="搜索工具" @click="openSearch">
           <SearchIcon :size="17" />
         </button>
+        <a
+          class="icon-btn"
+          :href="site.repoUrl"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="GitHub 开源仓库"
+          aria-label="GitHub 开源仓库"
+        >
+          <Github :size="17" />
+        </a>
         <RouterLink to="/saved" class="saved-link" :class="{ active: route.path === '/saved' }">
           <Star :size="16" :fill="saved.length ? 'currentColor' : 'none'" />
           <span class="hide-mobile">收藏</span>
@@ -165,6 +176,7 @@ watch(
   border: 1px solid var(--border);
   background: transparent;
   color: var(--text-2);
+  text-decoration: none !important;
   cursor: pointer;
   transition: all 0.15s ease;
 }

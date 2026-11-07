@@ -1,0 +1,49 @@
+/* 设计令牌 —— 明暗双主题 */
+:root {
+  --font-sans:
+    system-ui, -apple-system, 'Segoe UI', Roboto, 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Code', Consolas, 'JetBrains Mono', monospace;
+
+  /* 深色主题（默认） */
+  --bg: #0b1120;
+  --bg-soft: #0e1528;
+  --panel: rgba(21, 30, 53, 0.55);
+  --panel-solid: #141d33;
+  --panel-hover: rgba(30, 41, 70, 0.6);
+  --border: rgba(148, 163, 205, 0.14);
+  --border-strong: rgba(148, 163, 205, 0.26);
+  --text: #e6eaf3;
+  --text-2: #a8b3c9;
+  --text-3: #6f7d99;
+  --accent: #6366f1;
+  --accent-2: #818cf8;
+  --accent-soft: rgba(99, 102, 241, 0.14);
+  --accent-text: #a5b4fc;
+  --ok: #34d399;
+  --warn: #fbbf24;
+  --err: #f87171;
+  --shadow: 0 12px 40px rgba(2, 6, 18, 0.45);
+  --radius: 16px;
+  --radius-sm: 12px;
+  --code-bg: #0d1426;
+}
+
+html[data-theme='light'] {
+  --bg: #f4f6fb;
+  --bg-soft: #eef1f8;
+  --panel: #ffffff;
+  --panel-solid: #ffffff;
+  --panel-hover: #f6f7fd;
+  --border: rgba(30, 41, 80, 0.1);
+  --border-strong: rgba(30, 41, 80, 0.2);
+  --text: #101828;
+  --text-2: #46536b;
+  --text-3: #8792ad;
+  --accent: #5457e8;
+  --accent-2: #6366f1;
+  --accent-soft: rgba(84, 87, 232, 0.1);
+  --accent-text: #4f46e5;
+  --shadow: 0 10px 30px rgba(30, 41, 80, 0.08);
+  --code-bg: #f1f3fa;
+}

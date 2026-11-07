@@ -18,6 +18,12 @@
 
 独立实现、可私有部署的纯前端工程：无后端、无 Node 运行时依赖，构建产物为纯静态文件，可放置于任意静态托管。
 
+## 🖼️ 界面预览
+
+| **首页**<br>![首页](docs/screenshots/home.png) | **全部工具**<br>![全部工具](docs/screenshots/tools.png) |
+|:---:|:---:|
+| **照片工作台**<br>![照片工作台](docs/screenshots/photo-studio.png) | **工具页 · 浅色主题**<br>![工具页](docs/screenshots/tool-light.png) |
+
 ## ✨ 特性
 
 - **🔒 零上传** —— 文件与文本只留在浏览器标签页中，不向任何服务器传输。

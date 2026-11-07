@@ -53,7 +53,10 @@ import { site } from '@/data/site'
     </div>
 
     <div class="container footer-bottom">
-      <p class="muted small">© 2026 {{ site.name }} · 每个工具都完全运行在你的浏览器中，文件永远不会被上传。</p>
+      <p class="muted small">
+        © 2026 {{ site.name }} · 每个工具都完全运行在你的浏览器中，文件永远不会被上传。
+        <a v-if="site.icp" class="icp-link" href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">{{ site.icp }}</a>
+      </p>
     </div>
   </footer>
 </template>
@@ -119,5 +122,13 @@ import { site } from '@/data/site'
   margin-top: 30px;
   padding-top: 18px;
   border-top: 1px solid var(--border);
+}
+.icp-link {
+  margin-left: 8px;
+  color: var(--text-2);
+  text-decoration: none !important;
+}
+.icp-link:hover {
+  color: var(--accent-text);
 }
 </style>

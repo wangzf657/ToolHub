@@ -3,7 +3,8 @@ import vue from '@vitejs/plugin-vue'
 import { fileURLToPath, URL } from 'node:url'
 
 export default defineConfig({
-  base: './',
+  // history 路由 + SPA 回退要求绝对资源路径（不再支持子目录部署）
+  base: '/',
   plugins: [vue()],
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },

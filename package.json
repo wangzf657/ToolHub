@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc -b && vite build",
+    "build": "vue-tsc -b && vite build && node scripts/gen-sitemap.mjs",
     "preview": "vite preview",
     "test": "node scripts/tests/run-textcalc-tests.mjs && node scripts/tests/run-engine-tests.mjs && node scripts/tests/verify-defects.mjs",
     "typecheck": "vue-tsc -b --noEmit"

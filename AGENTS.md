@@ -18,7 +18,7 @@ npm run test        # 纯 Node 引擎/注册表测试（scripts/tests/，222+41+
 ## 技术栈与硬约束
 
 - Vue 3.5 `<script setup lang="ts">` + TypeScript strict + Vite 6；路径别名 `@` → `src/`。
-- 路由为 **hash 模式**（`createWebHashHistory`，`src/router.ts`），配合 `base: './'`，产物可放任意静态目录——不要改成 history 模式。
+- 路由为 **history 模式**（`createWebHistory`，`src/router.ts`），配合 `base: '/'`（静态资源一律绝对路径）：SEO 要求，百度不收录 hash SPA。宿主必须支持 SPA 回退（EdgeOne Pages/Cloudflare Pages/`vite preview` 均支持），**不再支持子目录部署**。构建时 `scripts/gen-sitemap.mjs` 依 `site.siteUrl` 生成 sitemap.xml/robots.txt（域名在 `src/data/site.ts` 填写）。
 - **懒加载纪律**：重依赖（pdfjs-dist、@cantoo/pdf-lib、lamejs、gifenc、chart.js、heic2any、utif、qrcode、jsbarcode、prettier、@ffmpeg/ffmpeg 等）一律 `await import(...)` 动态引入；静态入口只保留 Vue/router/样式。
 - 所有用户可见文案为简体中文，代码注释用中文。
 - 品牌名为 **ToolHub / 百宝工具箱**（`src/data/site.ts` 为唯一品牌来源）。所有文案与视觉资产均为原创（中文文案 + 自绘 SVG），**不得引入任何第三方站点的文案、品牌或素材**。

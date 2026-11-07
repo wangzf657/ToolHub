@@ -6,6 +6,10 @@ export const site = {
   toolCountLabel: '370+ 工具 · 100% 本地处理',
   /** GitHub 开源仓库地址（header/footer 入口共用） */
   repoUrl: 'https://github.com/wangzf657/ToolHub',
+  /** 站点正式域名（含 https://，结尾不带斜杠）。国内线备案下来后填入：sitemap/og:url 依赖它，留空则不生成 sitemap */
+  siteUrl: '',
+  /** ICP 备案号（如 粤ICP备XXXXXXXX号）。备案通过后填入，页脚自动展示；留空不显示 */
+  icp: '',
 }
 
 /** 首页四大特性卡 */

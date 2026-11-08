@@ -70,7 +70,8 @@ export interface TextOptionDef {
 
 /** 文本转换工具定义（注册在通用 TextTool 上运行） */
 export interface TextToolDef {
-  transform: (input: string, opts: Record<string, string | number | boolean>) => string
+  /** 允许返回 Promise（首次动态加载词典/词库等重依赖，TextTool 会自动等待） */
+  transform: (input: string, opts: Record<string, string | number | boolean>) => string | Promise<string>
   options?: TextOptionDef[]
   /** 输入占位提示 */
   placeholder?: string

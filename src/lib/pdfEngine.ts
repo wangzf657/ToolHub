@@ -510,6 +510,48 @@ export async function imagesToPdf(
   return await savePdf(doc)
 }
 
+/** 给指定页按比例坐标插入图片（透明 PNG 图章 / 插图），走 imageEngine 解码统一格式 */
+export async function insertImagesAt(
+  file: File | Blob,
+  placements: {
+    image: File | Blob
+    /** 目标页（0 基） */
+    pageIndex: number
+    /** 点击点相对页面宽高的比例（0~1） */
+    xRatio: number
+    yRatio: number
+    /** 图片显示宽度占页宽百分比 */
+    scalePct: number
+  }[],
+): Promise<Blob> {
+  const PDFDocument = (await loadPdfLib()).PDFDocument
+  const doc = await PDFDocument.load(new Uint8Array(await file.arrayBuffer()))
+  const { decodeToCanvas, canvasToBlob } = await import('./imageEngine')
+  const pngCache = new Map<File | Blob, Awaited<ReturnType<typeof doc.embedPng>>>()
+  const embed = async (img: File | Blob) => {
+    let png = pngCache.get(img)
+    if (!png) {
+      const canvas = await decodeToCanvas(img)
+      const blob = await canvasToBlob(canvas, 'image/png')
+      png = await doc.embedPng(new Uint8Array(await blob.arrayBuffer()))
+      pngCache.set(img, png)
+    }
+    return png
+  }
+  for (const p of placements) {
+    const pages = doc.getPages()
+    const page = pages[Math.max(0, Math.min(pages.length - 1, p.pageIndex))]
+    const img = await embed(p.image)
+    const w = (page.getWidth() * Math.max(1, Math.min(100, p.scalePct))) / 100
+    const h = (img.height / img.width) * w
+    // 点击点为图片中心，坐标翻转（PDF 原点在左下），并夹在页面内
+    const x = Math.max(0, Math.min(page.getWidth() - w, p.xRatio * page.getWidth() - w / 2))
+    const y = Math.max(0, Math.min(page.getHeight() - h, (1 - p.yRatio) * page.getHeight() - h / 2))
+    page.drawImage(img, { x, y, width: w, height: h })
+  }
+  return await savePdf(doc)
+}
+
 /* ---------------- 渲染（pdf.js） ---------------- */
 
 export async function renderPageToCanvas(

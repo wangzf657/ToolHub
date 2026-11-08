@@ -1,6 +1,6 @@
 import type { ToolDef } from '@/types'
 
-/** PDF 工具注册表（45 项） */
+/** PDF 工具注册表（48 项） */
 const tools: ToolDef[] = [
   { slug: 'merge-pdf', title: '合并 PDF', category: 'pdf', desc: '把多个 PDF 按顺序合并成一个文件，可拖动调整先后次序。', keywords: ['pdf', '合并', 'merge'], component: () => import('./components/MergePdf.vue'), steps: ['拖入两个或以上 PDF', '拖动卡片调整顺序', '点击合并下载'] },
   { slug: 'split-pdf', title: '拆分 PDF', category: 'pdf', desc: '把 PDF 拆成单页文件分别下载，或打包为 ZIP 一次拿走。', keywords: ['pdf', '拆分', 'split'], component: () => import('./components/SplitPdf.vue') },
@@ -14,6 +14,11 @@ const tools: ToolDef[] = [
   { slug: 'watermark-pdf', title: 'PDF 水印', category: 'pdf', desc: '给每页盖上斜向文字水印（如「机密」「草稿」），可调字号、颜色与透明度。', keywords: ['pdf', '水印', 'watermark'], component: () => import('./components/WatermarkPdf.vue') },
   { slug: 'delete-pdf-pages', title: '删除 PDF 页面', category: 'pdf', desc: '点击缩略图选中要删除的页，一键移除并下载剩余部分。', keywords: ['pdf', '删除', '页面'], component: () => import('./components/PagePickerTool.vue') },
   { slug: 'pdf-editor', title: 'PDF 编辑器', category: 'pdf', desc: '浏览器里的完整 PDF 工作台：删页/转页/排序/文字/签名/水印一站完成。', keywords: ['pdf', '编辑', '编辑器'], studio: true, component: () => import('../editors/components/PdfStudio.vue'), steps: ['打开 PDF 查看缩略图', '删除、旋转或重排页面', '添加文字、签名与水印后导出'] },
+  /* ---- P0 新增：签名板 ---- */
+  { slug: 'signature-drawing', title: '手写签名板', category: 'pdf', desc: '触屏/鼠标手写签名，导出透明背景 PNG，可直接作 PDF 签名图章。', keywords: ['签名', '手写', '电子签名'], component: () => import('./components/SignatureDrawing.vue'), steps: ['手写签名（触屏可变笔宽）', '撤销/清空调整', '下载透明 PNG'] },
+  /* ---- P1 新增 ---- */
+  { slug: 'insert-image-pdf', title: 'PDF 插入图片', category: 'pdf', desc: '页面预览上点击定位插入图片或签名图章，支持透明 PNG 与逐页放置。', keywords: ['pdf', '插入图片', '图章', '签名'], component: () => import('./components/InsertImagePdf.vue'), steps: ['载入 PDF 并添加图片', '预览上点击放置', '生成下载副本'] },
+  { slug: 'compress-pptx', title: 'PPTX 压缩瘦身', category: 'pdf', desc: '本地解包重压缩 PPT 内嵌图片、清理未引用媒体，体积立减不传服务器。', keywords: ['ppt', 'pptx', '压缩', '瘦身'], component: () => import('./components/CompressPptx.vue'), steps: ['拖入 .pptx', '选 JPG 质量', '下载压缩副本'] },
   { slug: 'jpg-to-pdf', title: 'JPG 转 PDF', category: 'pdf', desc: 'JPG/JPEG 图片转单个 PDF，不限数量与大小，本地即时完成。', keywords: ['jpg', 'pdf', '转换'], imgcvt: undefined, component: () => import('./components/ImagesToPdf.vue') },
   { slug: 'png-to-pdf', title: 'PNG 转 PDF', category: 'pdf', desc: 'PNG 图片转单个 PDF，保留透明区域（铺白底），批量支持。', keywords: ['png', 'pdf', '转换'], component: () => import('./components/ImagesToPdf.vue') },
   { slug: 'rotate-pdf', title: '旋转 PDF', category: 'pdf', desc: '把整个 PDF 或指定页旋转 90°/180°/270°，方向永久写入。', keywords: ['pdf', '旋转', 'rotate'], component: () => import('./components/RotatePdf.vue') },

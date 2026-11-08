@@ -1,6 +1,6 @@
 import type { ToolDef } from '@/types'
 
-/** 图片工具注册表（60 项）—— imgcvt 走通用转换组件，其余为专用组件 */
+/** 图片工具注册表（64 项）—— imgcvt 走通用转换组件，其余为专用组件 */
 const tools: ToolDef[] = [
   { slug: 'compress-image-to-size', title: '压缩图片到指定大小', category: 'image', desc: '把 JPG/PNG/WebP 压到精确的 KB 目标（二分质量），适配上传限制。', keywords: ['压缩', 'kb', '大小'], component: () => import('./components/CompressToSize.vue'), steps: ['拖入图片', '输入目标体积（如 200KB）', '自动压缩并下载'] },
   { slug: 'resize-image', title: '调整图片尺寸', category: 'image', desc: '缩放到精确像素尺寸，支持锁定比例与缩放模式，画质平滑。', keywords: ['尺寸', '缩放', 'resize'], component: () => import('./components/ResizeImage.vue') },
@@ -14,6 +14,12 @@ const tools: ToolDef[] = [
   { slug: 'add-watermark', title: '图片加水印', category: 'image', desc: '文字水印：位置、字号、颜色、透明度与斜排角度全部可调。', keywords: ['水印', '版权', 'watermark'], component: () => import('./components/AddWatermark.vue') },
   { slug: 'photo-filters', title: '照片滤镜', category: 'image', desc: '复古、黑白、暖阳、冷调等一键滤镜，叠加手动微调。', keywords: ['滤镜', '复古', '调色'], component: () => import('./components/PhotoFilters.vue') },
   { slug: 'meme-generator', title: '表情包制作', category: 'image', desc: '经典上下白字表情包生成器，字号描边可调，一键下载。', keywords: ['表情包', 'meme', '梗图'], component: () => import('./components/MemeGenerator.vue') },
+  /* ---- P0 新增：批量与拼接 ---- */
+  { slug: 'merge-images-long', title: '长图拼接', category: 'image', desc: '多张图按统一宽度纵向拼成一张长图，聊天记录、截图归档专用。', keywords: ['长图', '拼接', '合并图片', '聊天记录'], component: () => import('./components/MergeImagesLong.vue'), steps: ['拖入多张图片并可调顺序', '选方向与间距', '下载拼接长图'] },
+  { slug: 'batch-image-process', title: '图片批量处理', category: 'image', desc: '几十张图批量压缩到目标体积、批量改尺寸或转格式，并发处理打包 ZIP。', keywords: ['批量', '批量压缩', '批量改尺寸'], component: () => import('./components/BatchImageProcess.vue'), steps: ['拖入多张图片', '选压缩 / 改尺寸 / 转格式', '打包下载 ZIP'] },
+  /* ---- P1 新增 ---- */
+  { slug: 'gif-frame-extractor', title: 'GIF 逐帧提取', category: 'image', desc: '把 GIF 拆成逐帧 PNG，展示帧延迟表，单帧下载或全帧打包 ZIP。', keywords: ['gif', '逐帧', '帧提取', '分解'], component: () => import('./components/GifFrameExtractor.vue'), steps: ['拖入 GIF', '浏览每一帧与延迟', '下载单帧或 ZIP'] },
+  { slug: 'screen-color-picker', title: '屏幕取色器', category: 'image', desc: '浏览器原生吸管取屏幕任意像素色值，历史色板本地保存。', keywords: ['取色', '吸管', 'eyedropper', '屏幕'], component: () => import('./components/ScreenColorPicker.vue'), steps: ['点「从屏幕取色」', '单击目标位置', '复制色值或去转换器'] },
   { slug: 'heic-to-jpg', title: 'HEIC 转 JPG', category: 'image', desc: 'iPhone HEIC 照片转通用 JPG，批量转换，照片不出设备。', keywords: ['heic', 'iphone', 'jpg'], imgcvt: { target: 'image/jpeg', label: 'JPG', quality: true } },
   { slug: 'heic-to-png', title: 'HEIC 转 PNG', category: 'image', desc: 'HEIC/HEIF 转 PNG，无损无损透明支持，可批量。', keywords: ['heic', 'png'], imgcvt: { target: 'image/png', label: 'PNG', quality: false } },
   { slug: 'jpg-to-webp', title: 'JPG 转 WebP', category: 'image', desc: 'JPG 转 WebP：同等画质体积更小，网页加载更快。', keywords: ['jpg', 'webp'], imgcvt: { target: 'image/webp', label: 'WebP', quality: true } },

@@ -12,6 +12,9 @@ const toast = useToast()
 const input = ref('')
 const output = ref('')
 const opts = ref<Record<string, string | number | boolean>>({})
+const pending = ref(false)
+/** 异步转换（首次加载词典）竞态守卫：只采纳最后一次调用的结果 */
+let runId = 0
 
 const initOpts = () => {
   const o: Record<string, string | number | boolean> = {}
@@ -20,18 +23,24 @@ const initOpts = () => {
 }
 watch(() => props.def, initOpts, { immediate: true })
 
-const run = () => {
+const run = async () => {
   // 空输入直接清空结果，不弹错误（避免清空即报 toast）
   if (!input.value.trim()) {
     output.value = ''
     return
   }
+  const id = ++runId
+  pending.value = true
   try {
-    output.value = props.def.transform(input.value, { ...opts.value })
+    const r = props.def.transform(input.value, { ...opts.value })
+    const out = r instanceof Promise ? await r : r
+    if (id === runId) output.value = out
   } catch (e) {
-    output.value = ''
+    if (id === runId) output.value = ''
     const msg = (e as Error).message || '转换失败'
     toast.err(/JSON|Unexpected token/i.test(msg) ? localizeJsonError(msg, input.value) : msg)
+  } finally {
+    if (id === runId) pending.value = false
   }
 }
 

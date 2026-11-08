@@ -7,6 +7,8 @@ import {
 } from '@/lib/textEngine'
 import { loanPayment, compoundInterest } from '@/lib/finance'
 import { calcAge, convertTimezone, dateDiff, COMMON_TIMEZONES } from '@/lib/dateEngine'
+import { annualIncomeTax, annualBonusTax, computeInsurance, CITY_INSURANCE } from '@/lib/chinaPayroll'
+import { pinyinOf, variantConvert, type VariantMode } from '@/lib/chineseText'
 
 const fmtN = (n: number): string => {
   if (!Number.isFinite(n)) return '—'
@@ -25,7 +27,7 @@ const fmtDuration = (mins: number): string => {
 }
 const TZ_CHOICES = COMMON_TIMEZONES.map((t) => ({ value: t.value, label: t.label }))
 
-/** 实用工具注册表（65 项）—— 文本/编码类走内联 textDef，其余为自定义组件 */
+/** 实用工具注册表（74 项）—— 文本/编码类走内联 textDef，其余为自定义组件 */
 const tools: ToolDef[] = [
   { slug: 'qr-code-generator', title: '二维码生成器', category: 'utility', desc: '为链接、文本、电话生成高清二维码，可选中心 Logo，支持 PNG 与 SVG 下载。', keywords: ['qr', '二维码', 'qrcode'], component: () => import('./components/QrGenerator.vue'), steps: ['输入链接或文本内容', '调整尺寸与纠错级别', '下载 PNG 或 SVG'] },
   { slug: 'unit-converter', title: '单位换算', category: 'utility', desc: '长度、重量、温度、面积、体积、速度、数据容量等常用单位即时互转。', keywords: ['单位', '换算', 'converter'], component: () => import('./components/UnitConverter.vue') },
@@ -184,6 +186,170 @@ const tools: ToolDef[] = [
   },
   { slug: 'wifi-qr-code', title: 'WiFi 二维码生成', category: 'utility', desc: '生成扫码即可加入 WiFi 的二维码，客人无需手动输入密码。', keywords: ['wifi', '无线', '二维码'], component: () => import('./components/WifiQr.vue'), steps: ['填写 WiFi 名称与密码', '选择加密方式', '下载二维码供客人扫码'] },
   { slug: 'qr-code-scanner', title: '二维码识别', category: 'utility', desc: '上传含二维码的截图或图片，本地立即解码出链接、文本或 WiFi 信息。', keywords: ['扫码', '识别', 'decode'], component: () => import('./components/QrScanner.vue'), steps: ['上传或拖入二维码图片', '查看解码内容', '一键复制或打开链接'] },
+  /* ---- P0 新增：生活计算与中文处理 ---- */
+  {
+    slug: 'income-tax-calculator', title: '个税计算器', category: 'utility',
+    desc: '按现行累进税率计算年度个税、年终奖单独计税与全年到手，提示年终奖临界点陷阱。',
+    keywords: ['个税', '个人所得税', '年终奖', '税率'],
+    calcDef: {
+      fields: [
+        { key: 'salary', label: '月薪（税前）', type: 'number', default: '', suffix: '元' },
+        { key: 'bonus', label: '年终奖', type: 'number', default: 0, suffix: '元' },
+        { key: 'insurance', label: '个人五险一金（月）', type: 'number', default: 0, suffix: '元', hint: '可用「五险一金计算器」算出' },
+        { key: 'special', label: '专项附加扣除（月）', type: 'number', default: 0, suffix: '元', hint: '子女教育/房贷/赡养老人等合计' },
+      ],
+      compute: (v) => {
+        const salary = Number(v.salary)
+        if (!salary || salary <= 0) return [{ label: '请填写税前月薪', value: '—' }]
+        const insurance = Number(v.insurance) || 0
+        const special = Number(v.special) || 0
+        const r = annualIncomeTax({
+          monthlySalary: salary,
+          annualBonus: Number(v.bonus) || 0,
+          insuranceMonthly: insurance,
+          specialDeductionMonthly: special,
+        })
+        const bonus = Number(v.bonus) || 0
+        const bt = annualBonusTax(bonus)
+        const rows: CalcResultRow[] = [
+          { label: '年度应纳税所得额（工资）', value: `¥${moneyCn(r.taxable)}`, hint: '（月薪 − 5000 − 个人五险一金 − 专项附加）× 12' },
+          { label: '工资部分年度个税', value: `¥${moneyCn(r.tax)}`, hint: `适用税率 ${(r.rate * 100).toFixed(0)}%（七级累进）` },
+        ]
+        if (special > 0) {
+          // 展示抵税额（精确差额）：澄清专项附加是「少缴税」而非「从工资里扣钱」
+          const without = annualIncomeTax({ monthlySalary: salary, annualBonus: 0, insuranceMonthly: insurance, specialDeductionMonthly: 0 })
+          rows.push({ label: '其中专项附加抵税', value: `¥${moneyCn(without.tax - r.tax)}`, hint: '专项附加是报税抵扣项（让你少缴税），不从工资中扣除' })
+        }
+        if (bonus > 0) {
+          rows.push({ label: '年终奖个税（单独计税）', value: `¥${moneyCn(bt.tax)}`, hint: bt.trapHint || `税率 ${(bt.rate * 100).toFixed(0)}%，奖金 ÷ 12 查月度税率表` })
+        }
+        rows.push(
+          { label: '全年税后到手合计', value: `¥${moneyCn(r.monthlyNet * 12 + (bonus > 0 ? bt.net : 0))}`, primary: true },
+          { label: '月均到手（工资部分）', value: `¥${moneyCn(r.monthlyNet)}` },
+        )
+        return rows
+      },
+      note: '口径：现行个人所得税法综合所得年度税率表（起征 5000/月），年终奖按全年一次性奖金单独计税政策；政策可能调整，以官方公布为准。',
+    },
+  },
+  {
+    slug: 'social-insurance-calculator', title: '五险一金计算器', category: 'utility',
+    desc: '选城市输月薪，算出养老/医疗/失业/工伤/生育与公积金的个人、单位分摊明细。',
+    keywords: ['五险一金', '社保', '公积金', '社保计算'],
+    calcDef: {
+      fields: [
+        { key: 'city', label: '城市', type: 'select', default: '北京', choices: CITY_INSURANCE.map((c) => ({ value: c.name, label: c.name })) },
+        { key: 'salary', label: '月薪', type: 'number', default: '', suffix: '元' },
+        { key: 'fundRate', label: '公积金比例', type: 'select', default: '', choices: [
+          { value: '', label: '按城市默认' },
+          { value: '5', label: '5%' }, { value: '8', label: '8%' }, { value: '10', label: '10%' }, { value: '12', label: '12%' },
+        ] },
+      ],
+      compute: (v) => {
+        const salary = Number(v.salary)
+        if (!salary || salary <= 0) return [{ label: '请填写月薪', value: '—' }]
+        const city = CITY_INSURANCE.find((c) => c.name === v.city) ?? CITY_INSURANCE[0]
+        const fundRate = v.fundRate === '' ? city.fund : Number(v.fundRate)
+        const r = computeInsurance(salary, city, fundRate)
+        const m = (n: number) => `¥${moneyCn(n)}`
+        return [
+          { label: '缴费基数', value: `¥${moneyCn(r.base)}`, hint: `下限 ${city.floor} / 上限 ${city.ceil} · ${city.year}` },
+          { label: '个人缴纳合计', value: m(r.personalTotal), primary: true, hint: `养老 ${m(r.personal.pension)} · 医疗 ${m(r.personal.medical)} · 失业 ${m(r.personal.unemployment)} · 公积金 ${m(r.personal.fund)}` },
+          { label: '单位缴纳合计', value: m(r.companyTotal), hint: `养老 ${m(r.company.pension)} · 医疗 ${m(r.company.medical)} · 失业 ${m(r.company.unemployment)} · 工伤 ${m(r.company.injury)} · 生育 ${m(r.company.birth)} · 公积金 ${m(r.company.fund)}` },
+          { label: '单位用工总成本', value: m(salary + r.companyTotal), hint: '月薪 + 单位部分；个人部分可作个税税前扣除' },
+        ]
+      },
+      note: '口径：主要城市社保年度常用比例与基数上下限估算（公积金比例可调，个人=单位），每年 7 月前后可能调整，实际以当地人社局与公积金中心公布为准。',
+    },
+  },
+  {
+    slug: 'pinyin-converter', title: '文字转拼音', category: 'utility',
+    desc: '中文转带声调拼音，多音字按词组智能判断（重庆/重量），支持无声调与数字声调。',
+    keywords: ['拼音', '多音字', '声调', 'pinyin'],
+    textDef: {
+      options: [
+        { key: 'tone', label: '声调样式', type: 'select', default: 'symbol', choices: [
+          { value: 'symbol', label: '符号声调（hàn yǔ）' },
+          { value: 'num', label: '数字声调（han4 yu3）' },
+          { value: 'none', label: '无声调（han yu）' },
+        ] },
+        { key: 'spaced', label: '字间以空格分隔', type: 'toggle', default: true },
+      ],
+      placeholder: '输入中文文字，如：重庆的重量…',
+      transform: (t, o) => pinyinOf(t, { tone: o.tone as never, spaced: !!o.spaced }),
+    },
+  },
+  {
+    slug: 'chinese-variant-converter', title: '简繁中文转换', category: 'utility',
+    desc: 'OpenCC 词表简繁转换，支持台湾/香港正体与词汇级转换（内存→記憶體）。',
+    keywords: ['简繁', '繁体', '台湾正体', 'opencc'],
+    textDef: {
+      options: [
+        { key: 'mode', label: '转换方向', type: 'select', default: 's2t', choices: [
+          { value: 's2t', label: '简 → 繁（通用）' },
+          { value: 't2s', label: '繁 → 简' },
+          { value: 's2tw', label: '简 → 台湾正体' },
+          { value: 's2twp', label: '简 → 台湾正体 + 词汇' },
+          { value: 's2hk', label: '简 → 香港繁体' },
+          { value: 't2tw', label: '繁 → 台湾正体' },
+          { value: 't2hk', label: '繁 → 香港繁体' },
+        ] },
+      ],
+      placeholder: '输入中文，首次转换需加载词表…',
+      transform: (t, o) => variantConvert(t, o.mode as VariantMode),
+    },
+  },
+  { slug: 'lunar-calendar', title: '农历万年历', category: 'utility', desc: '公农历对照月历，节气、节日、干支、宜忌与公农历互转一览。', keywords: ['农历', '万年历', '黄历', '节气'], component: () => import('./components/LunarCalendar.vue'), steps: ['浏览月历点选日期', '查看农历/干支/宜忌', '下方公农历互转'] },
+  {
+    slug: 'id-card-validator', title: '身份证号校验器', category: 'utility',
+    desc: '按 GB 11643 校验位规则本地校验 18 位身份证号，解析省份/生日/性别，不联网查询。',
+    keywords: ['身份证', '校验', '地区码'],
+    calcDef: {
+      fields: [
+        { key: 'id', label: '18 位身份证号', type: 'text', default: '', placeholder: '如 11010519491231002X' },
+      ],
+      compute: (v) => {
+        const id = String(v.id).trim().toUpperCase()
+        if (!id) return [{ label: '请输入身份证号', value: '—' }]
+        if (!/^\d{17}[\dX]$/.test(id)) return [{ label: '格式无效', value: '✗', hint: '需 18 位：前 17 位数字 + 校验码（数字或 X）' }]
+        // GB 11643-1999 加权因子与校验码表
+        const weights = [7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2]
+        const codes = ['1', '0', 'X', '9', '8', '7', '6', '5', '4', '3', '2']
+        const sum = id.slice(0, 17).split('').reduce((s, d, i) => s + Number(d) * weights[i], 0)
+        const expect = codes[sum % 11]
+        const valid = expect === id[17]
+        const PROV: Record<string, string> = {
+          '11': '北京', '12': '天津', '13': '河北', '14': '山西', '15': '内蒙古', '21': '辽宁', '22': '吉林', '23': '黑龙江',
+          '31': '上海', '32': '江苏', '33': '浙江', '34': '安徽', '35': '福建', '36': '江西', '37': '山东', '41': '河南',
+          '42': '湖北', '43': '湖南', '44': '广东', '45': '广西', '46': '海南', '50': '重庆', '51': '四川', '52': '贵州',
+          '53': '云南', '54': '西藏', '61': '陕西', '62': '甘肃', '63': '青海', '64': '宁夏', '65': '新疆', '71': '台湾', '81': '香港', '82': '澳门',
+        }
+        const prov = PROV[id.slice(0, 2)] ?? '未知地区码'
+        const birth = `${id.slice(6, 10)}-${id.slice(10, 12)}-${id.slice(12, 14)}`
+        const bd = new Date(birth)
+        const birthOk = !Number.isNaN(bd.getTime()) && bd.getFullYear() === Number(id.slice(6, 10))
+        const gender = Number(id[16]) % 2 === 1 ? '男' : '女'
+        const rows: CalcResultRow[] = [
+          { label: '校验结果', value: valid ? '✓ 校验通过' : '✗ 校验位不符', primary: true, hint: valid ? `校验码应为 ${expect}` : `按 GB 11643 计算，末位校验码应为 ${expect}` },
+        ]
+        if (birthOk && prov !== '未知地区码') {
+          rows.push(
+            { label: '省份/地区', value: prov, hint: `地区码 ${id.slice(0, 2)}` },
+            { label: '出生日期', value: birth },
+            { label: '性别', value: gender, hint: '由第 17 位奇偶判定' },
+          )
+        } else {
+          rows.push({ label: '详情', value: prov === '未知地区码' ? `地区码 ${id.slice(0, 2)} 不存在` : '出生日期段无效', hint: '号码结构不完整' })
+        }
+        return rows
+      },
+      note: '仅按 GB 11643-1999 编码规则做本地校验（校验位/地区码/生日结构），结果不代表号码真实存在或仍有效；本工具不做任何联网查询。',
+    },
+  },
+  /* ---- P1 新增 ---- */
+  { slug: 'qr-code-styled', title: '艺术二维码', category: 'utility', desc: '圆点/优雅点型 + 渐变配色 + 中心 Logo 的风格化二维码，PNG/SVG 下载。', keywords: ['二维码', '艺术', '美化', 'logo'], component: () => import('./components/QrCodeStyled.vue'), steps: ['输入内容选点型配色', '可选上传中心 Logo', '下载 PNG/SVG'] },
+  { slug: 'qr-code-batch', title: '二维码批量生成', category: 'utility', desc: 'CSV 或多行文本一次生成上百个二维码 PNG，打包 ZIP 下载。', keywords: ['二维码', '批量', 'csv'], component: () => import('./components/QrCodeBatch.vue'), steps: ['粘贴多行或 CSV', '选尺寸批量生成', '打包下载 ZIP'] },
+  { slug: 'copybook-generator', title: '字帖生成器', category: 'utility', desc: '输入汉字生成田字格/米字格硬笔字帖 PDF，浅红描红可打印。', keywords: ['字帖', '田字格', '练字', '描红'], component: () => import('./components/CopybookGenerator.vue'), steps: ['输入练习汉字', '选格子类型', '下载 A4 PDF 打印'] },
   { slug: 'barcode-generator', title: '条形码生成器', category: 'utility', desc: '生成 CODE128、EAN-13、UPC、CODE39 等格式的条形码，可下载 PNG。', keywords: ['barcode', 'ean', 'upc'], component: () => import('./components/BarcodeGenerator.vue'), steps: ['输入条码内容', '选择码制', '下载 PNG 图片'] },
   { slug: 'password-strength-checker', title: '密码强度检测', category: 'utility', desc: '检测密码长度、字符多样性、信息熵与被暴力破解所需时间，纯本地检测。', keywords: ['强度', 'entropy', '安全'], component: () => import('./components/PasswordStrength.vue') },
   { slug: 'random-string-generator', title: '随机字符串生成', category: 'utility', desc: '批量生成指定长度与字符集的随机字符串，适合作 API 密钥、测试数据。', keywords: ['随机', 'token', '密钥'], component: () => import('./components/RandomString.vue') },

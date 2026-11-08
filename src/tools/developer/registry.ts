@@ -2,7 +2,7 @@ import type { ToolDef } from '@/types'
 import { b64encode, b64decode, urlEncode, urlDecode, htmlEntityEncode, htmlEntityDecode, jsonEscapeEncode, jsonEscapeDecode, b32encode, b32decode } from '@/lib/textEngine'
 import { formatJson, minifyJson, validateJson, jsonToYaml, yamlToJson, yamlToJsonHeavy, jsonToXml, xmlToJson, jsonToTs, jsonSchemaFrom, jsonPathQuery, generateMock, fakeRows, FAKE_FIELDS, uaParse, curlToFetch, HTTP_STATUS, formatXml, chmodToSymbol, chmodFromSymbol } from '@/lib/jsEngine'
 
-/** 开发工具注册表（60 项） */
+/** 开发工具注册表（71 项） */
 const tools: ToolDef[] = [
   { slug: 'json-formatter', title: 'JSON 格式化校验', category: 'developer', desc: '粘贴 JSON 即时格式化、压缩与校验，错误定位到行列。', keywords: ['json', '格式化', '校验'], component: () => import('./components/JsonFormatter.vue'), steps: ['粘贴 JSON 文本', '选择格式化或压缩', '复制或下载结果'] },
   { slug: 'timestamp-converter', title: 'Unix 时间戳转换', category: 'developer', desc: '秒/毫秒时间戳与可读日期互转，本地与 UTC 双时区显示。', keywords: ['时间戳', 'unix', 'epoch'], component: () => import('./components/TimestampConverter.vue') },
@@ -66,6 +66,19 @@ const tools: ToolDef[] = [
   { slug: 'number-base-converter', title: '进制转换', category: 'developer', desc: '二、八、十、十六进制与任意 2–36 进制互转，支持大数。', keywords: ['进制', 'hex', 'binary'], component: () => import('./components/NumberBase.vue') },
   { slug: 'sql-formatter', title: 'SQL 格式化', category: 'developer', desc: '格式化杂乱 SQL 为缩进清晰的可读查询，支持多方言关键字风格。', keywords: ['sql', '格式化', 'beautify'], component: () => import('./components/SqlFormatter.vue') },
   { slug: 'javascript-formatter', title: 'JS 格式化 / 压缩', category: 'developer', desc: '用 Prettier 规则格式化 JavaScript，也可压缩去除空白与注释。', keywords: ['javascript', '格式化', 'prettier'], component: () => import('./components/CodeFormatter.vue'), steps: ['粘贴 JS 代码', '选择格式化或压缩', '复制结果'] },
+  { slug: 'docx-to-markdown', title: 'Word 转 Markdown', category: 'developer', desc: 'docx 文档转为 Markdown：保留标题层级、列表、表格与加粗斜体。', keywords: ['word', 'docx', 'markdown', 'md'], component: () => import('./components/DocxToMarkdown.vue'), steps: ['拖入 .docx 文件', '自动转换', '复制或下载 .md'] },
+  { slug: 'markdown-to-docx', title: 'Markdown 转 Word', category: 'developer', desc: 'Markdown 生成排版规范的 Word 文档：标题、列表、表格、代码块样式齐全。', keywords: ['markdown', 'md', 'word', 'docx'], component: () => import('./components/MarkdownToDocx.vue'), steps: ['粘贴或拖入 .md', '点「生成 Word 文档」', '下载 .docx'] },
+  { slug: 'html-to-markdown', title: 'HTML 转 Markdown', category: 'developer', desc: '粘贴网页富文本即转 Markdown，表格/删除线/任务列表全支持，笔记迁移利器。', keywords: ['html', 'markdown', 'md', '富文本'], component: () => import('./components/HtmlToMarkdown.vue'), steps: ['Ctrl+V 粘贴网页内容', '自动转换', '复制或下载 .md'] },
+  { slug: 'markdown-to-wechat', title: 'Markdown 公众号排版', category: 'developer', desc: 'Markdown 一键转公众号排版：内联样式不丢失，复制后直接粘贴后台。', keywords: ['公众号', 'markdown', '排版', '微信'], component: () => import('./components/MarkdownToWechat.vue'), steps: ['输入 Markdown 并选主题', '点「复制到公众号」', '粘贴进公众号后台'] },
+  /* ---- P0 新增：运行器与 Markdown 全家桶 ---- */
+  { slug: 'code-playground', title: '在线代码运行器', category: 'developer', desc: 'HTML/CSS/JS 三栏编辑，iframe 沙盒即时运行，console 输出与报错回显。', keywords: ['在线运行', 'playground', 'sandbox', 'js 运行'], component: () => import('./components/CodePlayground.vue'), steps: ['编辑 HTML / CSS / JS', '点「运行」即时预览', '控制台查看输出'] },
+  { slug: 'json-to-excel', title: 'JSON 转 Excel', category: 'developer', desc: '对象数组一键转 xlsx 表格，嵌套字段拍平为 a.b.c 列，多数组自动分 sheet。', keywords: ['json', 'excel', 'xlsx', '表格'], component: () => import('./components/JsonToExcel.vue'), steps: ['粘贴 JSON 数组', '选择是否拍平嵌套', '下载 xlsx'] },
+  /* ---- P1 新增：生态补全 ---- */
+  { slug: 'regex-visualizer', title: '正则可视化', category: 'developer', desc: '正则转铁路结构图：序列、分支、量词、分组一眼看懂，支持下载 SVG。', keywords: ['正则', '可视化', 'regex', '铁路图'], component: () => import('./components/RegexVisualizer.vue'), steps: ['输入正则表达式', '点「可视化」', '下载 SVG 或对照阅读'] },
+  { slug: 'color-converter', title: '颜色转换器', category: 'developer', desc: 'HEX/RGB/HSL/OKLCH/CMYK 任意格式互转，自动识别输入，一键复制。', keywords: ['颜色', 'hex', 'rgb', 'hsl', 'oklch'], component: () => import('./components/ColorConverter.vue'), steps: ['粘贴任意颜色格式', '自动识别并全量转换', '逐行复制'] },
+  { slug: 'markdown-formatter', title: 'Markdown 格式化', category: 'developer', desc: 'Prettier 规范 Markdown：表格对齐、列表符号统一、标题空行规范化。', keywords: ['markdown', '格式化', 'prettier', '规范'], component: () => import('./components/MarkdownFormatter.vue'), steps: ['粘贴 Markdown', '选换行与列表规则', '复制规范输出'] },
+  { slug: 'markdown-toc', title: 'Markdown 目录生成', category: 'developer', desc: '提取标题生成带锚点的目录（GitHub 规则），长文写作与文档站必备。', keywords: ['markdown', '目录', 'toc', '锚点'], component: () => import('./components/MarkdownToc.vue'), steps: ['粘贴 Markdown', '选层级与格式', '复制目录插回文档'] },
+  { slug: 'markdown-to-image', title: 'Markdown 转长图', category: 'developer', desc: 'Markdown 渲染成知识卡片长图 PNG，主题可选，社区分享利器。', keywords: ['markdown', '长图', '卡片', '分享'], component: () => import('./components/MarkdownToImage.vue'), steps: ['输入 Markdown 选主题', '选宽度/透明底', '导出 PNG 长图'] },
   {
     slug: 'json-to-yaml', title: 'JSON 转 YAML', category: 'developer',
     desc: 'JSON 转 YAML，适合编写 Docker Compose、Kubernetes 与 CI 配置。',

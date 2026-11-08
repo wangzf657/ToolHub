@@ -1,6 +1,6 @@
 # AGENTS.md — ToolHub 百宝工具箱
 
-百宝工具箱 ToolHub：纯浏览器端工具聚合平台（**373 个工具，文件永不上传，无任何后端**），独立实现，构建产物为纯静态文件。
+百宝工具箱 ToolHub：纯浏览器端工具聚合平台（**402 个工具，文件永不上传，无任何后端**），独立实现，构建产物为纯静态文件。
 
 ## 命令
 
@@ -10,7 +10,7 @@ npm run dev         # 开发服务器 http://localhost:5173
 npm run typecheck   # vue-tsc -b --noEmit（类型门禁）
 npm run build       # 先 vue-tsc -b 类型检查，再 vite build → dist/
 npm run preview     # 预览构建产物
-npm run test        # 纯 Node 引擎/注册表测试（scripts/tests/，222+41+34 用例）
+npm run test        # 纯 Node 引擎/注册表测试（scripts/tests/，229+41+34 用例）
 ```
 
 没有 lint；`npm run build` 自带类型检查，改完代码至少跑 `npm run typecheck`；改动引擎或注册表后跑 `npm run test` 防回归。

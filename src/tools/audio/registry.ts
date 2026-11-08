@@ -1,6 +1,6 @@
 import type { ToolDef } from '@/types'
 
-/** 音频工具注册表（29 项）—— WebAudio 快路径 + ffmpeg 兜底 */
+/** 音频工具注册表（30 项）—— WebAudio 快路径 + ffmpeg 兜底 */
 const tools: ToolDef[] = [
   { slug: 'text-to-speech', title: '文字转语音', category: 'audio', desc: '调用系统内置语音朗读文本，可调语速音调，选中文本试听。', keywords: ['tts', '朗读', '配音'], component: () => import('./components/TextToSpeech.vue') },
   { slug: 'audio-transcribe', title: '音频转文字', category: 'audio', desc: '端侧语音识别模型把录音转成文字（首次需下载模型，之后离线）。', keywords: ['转写', '字幕', 'transcribe'], needModel: true, component: () => import('./components/AudioTranscribe.vue') },
@@ -13,6 +13,7 @@ const tools: ToolDef[] = [
   { slug: 'merge-audio', title: '合并音频', category: 'audio', desc: '多段音频首尾拼接，可加间隔，自动对齐声道与采样率。', keywords: ['合并', '拼接', 'merge'], component: () => import('./components/MergeAudio.vue') },
   { slug: 'vocal-remover', title: '人声消除 / 伴奏提取', category: 'audio', desc: '中置声像抵消提取伴奏，或只留中置人声，无需 AI 即时完成。', keywords: ['伴奏', '卡拉ok', '人声'], component: () => import('./components/VocalRemover.vue') },
   { slug: 'remove-noise-from-audio', title: '音频降噪', category: 'audio', desc: '谱减法降噪：去嘶声、风扇与底噪，再统一响度。', keywords: ['降噪', '底噪', '噪音'], component: () => import('./components/DenoiseAudio.vue') },
+  { slug: 'audio-pitch-shift', title: '音频变调', category: 'audio', desc: '变调不变速、变速不变调（SoundTouch 算法），升降 Key 与倍速独立可调。', keywords: ['变调', '升降调', '变速', 'key'], component: () => import('./components/AudioPitchShift.vue'), steps: ['拖入音频', '调半音与速度', '生成下载'] },
   { slug: 'm4a-to-mp3', title: 'M4A 转 MP3', category: 'audio', desc: 'iPhone 语音备忘录 / QuickTime 的 M4A 转通用 MP3。', keywords: ['m4a', 'mp3'], needModel: true, component: () => import('./components/AudioConvert.vue') },
   { slug: 'mp3-to-m4a', title: 'MP3 转 M4A', category: 'audio', desc: '转成苹果友好的 AAC/M4A 容器，同码率音质更优。', keywords: ['mp3', 'm4a'], needModel: true, component: () => import('./components/AudioConvert.vue') },
   { slug: 'm4a-to-wav', title: 'M4A 转 WAV', category: 'audio', desc: 'M4A 解码为 WAV，供后期处理。', keywords: ['m4a', 'wav'], needModel: true, component: () => import('./components/AudioConvert.vue') },

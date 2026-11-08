@@ -68,18 +68,23 @@ function expectText(tool, caseName, rows, labelRe, valRe, sev = 'C') {
   if (!row) return record(tool, caseName, false, sev, `未找到结果行 ${labelRe};实际:${rowsText(rows)}`)
   record(tool, caseName, valRe.test(row.value), sev, `期望含 ${valRe} 实际「${row.label}=${row.value}」`)
 }
+/** 异步 transform(Promise 结果)排空队列:汇总前统一 await,断言仍在真实输出上进行 */
+const pending = []
 function T(tool, caseName, input, opts, expected, sev = 'C') {
-  try {
-    const out = textRun(tool, input, opts)
-    const ok = typeof expected === 'function' ? expected(out) : eq(out, expected)
-    record(tool, caseName, ok, sev, ok ? '' : `输入${JSON.stringify(input).slice(0, 60)} opts${JSON.stringify(opts)} → 实际「${String(out).slice(0, 120)}」期望「${String(expected).slice(0, 120)}」`)
-  } catch (e) {
-    // 产品口径:引擎抛错、UI 以中文 toast 呈现。谓词断言改为对异常文案求值,
-    // 中文提示视为通过(空串/中文/英文 invalid 均可接受,见各用例定义)
-    const msg = String(e.message || e)
-    const ok = typeof expected === 'function' ? expected(msg) : false
-    record(tool, caseName, ok, sev, ok ? `抛中文异常(可接受): ${msg}` : `抛异常: ${msg}`)
-  }
+  pending.push((async () => {
+    try {
+      const raw = textRun(tool, input, opts)
+      const out = raw instanceof Promise ? await raw : raw
+      const ok = typeof expected === 'function' ? expected(out) : eq(out, expected)
+      record(tool, caseName, ok, sev, ok ? '' : `输入${JSON.stringify(input).slice(0, 60)} opts${JSON.stringify(opts)} → 实际「${String(out).slice(0, 120)}」期望「${String(expected).slice(0, 120)}」`)
+    } catch (e) {
+      // 产品口径:引擎抛错、UI 以中文 toast 呈现。谓词断言改为对异常文案求值,
+      // 中文提示视为通过(空串/中文/英文 invalid 均可接受,见各用例定义)
+      const msg = String(e.message || e)
+      const ok = typeof expected === 'function' ? expected(msg) : false
+      record(tool, caseName, ok, sev, ok ? `抛中文异常(可接受): ${msg}` : `抛异常: ${msg}`)
+    }
+  })())
 }
 
 // ---------- 独立公式(与实现无关地重算) ----------
@@ -309,18 +314,22 @@ C('saas-pricing-calculator', '目标毛利60%→250', { cost: 100, mode: choiceV
 
 // ---------- 通用健壮性:全部 textDef ----------
 for (const t of allTools.filter((x) => x.textDef)) {
-  try {
-    const out = t.textDef.transform('', defaults(t))
-    if (typeof out !== 'string') record(t.slug, 'R-空输入返回字符串', false, 'M', `类型:${typeof out}`)
-    else record(t.slug, 'R-空输入返回字符串', true, 'M', '')
-  } catch (e) { record(t.slug, 'R-空输入返回字符串', 'warn', 'm', `空输入抛错(${e.message.slice(0, 60)})→ UI 将弹错误 toast`) }
-  try {
-    const big = '测试'.repeat(50000)
-    const st = Date.now()
-    const out = t.textDef.transform(big, defaults(t))
-    const ms = Date.now() - st
-    record(t.slug, 'R-10万字符性能', ms < 2000 && typeof out === 'string', 'M', `耗时 ${ms}ms`)
-  } catch (e) { record(t.slug, 'R-10万字符性能', 'warn', 'm', `大输入抛错:${e.message.slice(0, 60)}`) }
+  pending.push((async () => {
+    try {
+      const raw = t.textDef.transform('', defaults(t))
+      const out = raw instanceof Promise ? await raw : raw
+      if (typeof out !== 'string') record(t.slug, 'R-空输入返回字符串', false, 'M', `类型:${typeof out}`)
+      else record(t.slug, 'R-空输入返回字符串', true, 'M', '')
+    } catch (e) { record(t.slug, 'R-空输入返回字符串', 'warn', 'm', `空输入抛错(${e.message.slice(0, 60)})→ UI 将弹错误 toast`) }
+    try {
+      const big = '测试'.repeat(50000)
+      const st = Date.now()
+      const raw = t.textDef.transform(big, defaults(t))
+      const out = raw instanceof Promise ? await raw : raw
+      const ms = Date.now() - st
+      record(t.slug, 'R-10万字符性能', ms < 2000 && typeof out === 'string', 'M', `耗时 ${ms}ms`)
+    } catch (e) { record(t.slug, 'R-10万字符性能', 'warn', 'm', `大输入抛错:${e.message.slice(0, 60)}`) }
+  })())
 }
 function defaults(t) { const o = {}; for (const od of t.textDef.options ?? []) o[od.key] = od.default ?? ''; return o }
 
@@ -338,6 +347,7 @@ for (const t of allTools.filter((x) => x.calcDef)) {
 }
 
 // ---------- 汇总输出 ----------
+await Promise.all(pending)
 mkdirSync(path.join(root, 'test-reports'), { recursive: true })
 writeFileSync(path.join(root, 'test-reports', 'engine-test-results.json'), JSON.stringify(results, null, 1), 'utf8')
 const fails = results.filter((r) => !r.pass && !r.warn)

@@ -49,9 +49,9 @@ export const popularSlugs = [
   'compress-video',
   'json-formatter',
   'qr-code-generator',
-  'timestamp-converter',
+  'income-tax-calculator',
   'word-counter',
-  'audio-transcribe',
+  'merge-images-long',
 ]
 export const popularTools = popularSlugs
   .map((s) => toolMap.get(s))

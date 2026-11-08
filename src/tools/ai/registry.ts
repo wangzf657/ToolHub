@@ -18,24 +18,6 @@ const tools: ToolDef[] = [
     },
   },
   {
-    slug: 'sentiment-analyzer', title: '情感倾向分析', category: 'ai',
-    desc: '基于中文情感词典的本地分析：判断好评/差评倾向并高亮关键词。',
-    keywords: ['情感', '好评', '差评'],
-    component: () => import('./components/SentimentAnalyzer.vue'),
-  },
-  {
-    slug: 'entity-extractor', title: '实体识别抽取', category: 'ai',
-    desc: '本地规则引擎识别人名、机构、地点、金额、日期与联系方式并高亮。',
-    keywords: ['实体', 'ner', '识别'],
-    component: () => import('./components/EntityExtractor.vue'),
-  },
-  {
-    slug: 'question-answering', title: '文本问答抽取', category: 'ai',
-    desc: '粘贴一段资料再提问，本地匹配算法直接从原文抽出最相关的答案句。',
-    keywords: ['问答', 'qa', '抽取'],
-    component: () => import('./components/QuestionAnswering.vue'),
-  },
-  {
     slug: 'keyword-extractor', title: '关键词提取', category: 'ai',
     desc: 'TF-IDF 算法在本地运行，按重要度提取文中最具代表性的短语。',
     keywords: ['关键词', '提取', 'tfidf'],
@@ -54,6 +36,12 @@ const tools: ToolDef[] = [
     keywords: ['翻译', 'translate', '英语'],
     needModel: false,
     component: () => import('./components/Translator.vue'),
+  },
+  {
+    slug: 'sentiment-analyzer', title: '情感倾向分析', category: 'ai',
+    desc: '基于中文情感词典的本地分析：判断好评/差评倾向并高亮关键词。',
+    keywords: ['情感', '好评', '差评'],
+    component: () => import('./components/SentimentAnalyzer.vue'),
   },
   {
     slug: 'grammar-corrector', title: 'AI 语法纠错', category: 'ai',
@@ -88,6 +76,19 @@ const tools: ToolDef[] = [
     },
   },
   {
+    slug: 'entity-extractor', title: '实体识别抽取', category: 'ai',
+    desc: '本地规则引擎识别人名、机构、地点、金额、日期与联系方式并高亮。',
+    keywords: ['实体', 'ner', '识别'],
+    component: () => import('./components/EntityExtractor.vue'),
+  },
+  { slug: 'chat-with-pdf', title: '与 PDF 对话', category: 'ai', desc: '上传 PDF 后用自然语言提问，答案直接引用文档原文（本地匹配）。', keywords: ['pdf', '问答', 'chatpdf'], component: () => import('./components/ChatWithPdf.vue') },
+  {
+    slug: 'question-answering', title: '文本问答抽取', category: 'ai',
+    desc: '粘贴一段资料再提问，本地匹配算法直接从原文抽出最相关的答案句。',
+    keywords: ['问答', 'qa', '抽取'],
+    component: () => import('./components/QuestionAnswering.vue'),
+  },
+  {
     slug: 'emotion-detector', title: '情绪识别', category: 'ai',
     desc: '识别文本中的喜悦、悲伤、愤怒、恐惧等六类情绪及占比。',
     keywords: ['情绪', 'emotion', '识别'],
@@ -101,7 +102,6 @@ const tools: ToolDef[] = [
   },
   { slug: 'image-caption', title: '图像描述生成', category: 'ai', desc: '为图片生成中文描述与可直接使用的 alt 文本（本地启发式分析）。', keywords: ['图像描述', 'alt', '无障碍'], needModel: true, component: () => import('./components/ImageCaption.vue') },
   { slug: 'object-detector', title: '图像物体检测', category: 'ai', desc: '检测并标注照片中的常见物体（端侧模型，首次需下载）。', keywords: ['物体检测', '识别', 'detection'], needModel: true, component: () => import('./components/ObjectDetector.vue') },
-  { slug: 'chat-with-pdf', title: '与 PDF 对话', category: 'ai', desc: '上传 PDF 后用自然语言提问，答案直接引用文档原文（本地匹配）。', keywords: ['pdf', '问答', 'chatpdf'], component: () => import('./components/ChatWithPdf.vue') },
 ]
 
 export default tools

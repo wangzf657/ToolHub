@@ -38,15 +38,19 @@ export function toolsByCategory(category: string): ToolDef[] {
 /** 编辑器工作室（首页编辑器区展示） */
 export const studioTools = allTools.filter((t) => t.studio)
 
-/** 热门工具（首页展示） */
+/** 热门工具（首页展示，按曝光优先级排序：高频刚需 + 端侧旗舰，轻重搭配） */
 export const popularSlugs = [
-  'restore-old-photo',
-  'add-subtitles-to-video',
   'compress-pdf',
+  'merge-pdf',
   'remove-background',
+  'ocr',
+  'pdf-to-word',
+  'passport-photo',
   'compress-video',
-  'colorize-photo',
-  'unlock-pdf',
+  'json-formatter',
+  'qr-code-generator',
+  'timestamp-converter',
+  'word-counter',
   'audio-transcribe',
 ]
 export const popularTools = popularSlugs

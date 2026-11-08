@@ -46,3 +46,4 @@ desktop.ini
 test-reports/
 scripts/tests/_engines/
 scripts/tests/_bundle-tools.cjs
+scripts/_bundle-tool-list.cjs

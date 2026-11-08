@@ -31,7 +31,12 @@ import { site } from '@/data/site'
 
       <div class="footer-col">
         <h4>分类</h4>
-        <RouterLink v-for="c in categories.slice(5, 11)" :key="c.id" :to="c.path">{{ c.name }}</RouterLink>
+        <!-- 显式指定,避免分类数组顺序调整后错位 -->
+        <RouterLink
+          v-for="c in categories.filter((c) => ['utility', 'developer', 'finance', 'business', 'seo', 'ai'].includes(c.id))"
+          :key="c.id"
+          :to="c.path"
+        >{{ c.name }}</RouterLink>
       </div>
 
       <div class="footer-col">

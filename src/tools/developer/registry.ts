@@ -2,9 +2,41 @@ import type { ToolDef } from '@/types'
 import { b64encode, b64decode, urlEncode, urlDecode, htmlEntityEncode, htmlEntityDecode, jsonEscapeEncode, jsonEscapeDecode, b32encode, b32decode } from '@/lib/textEngine'
 import { formatJson, minifyJson, validateJson, jsonToYaml, yamlToJson, yamlToJsonHeavy, jsonToXml, xmlToJson, jsonToTs, jsonSchemaFrom, jsonPathQuery, generateMock, fakeRows, FAKE_FIELDS, uaParse, curlToFetch, HTTP_STATUS, formatXml, chmodToSymbol, chmodFromSymbol } from '@/lib/jsEngine'
 
-/** 开发工具注册表（64 项） */
+/** 开发工具注册表（60 项） */
 const tools: ToolDef[] = [
   { slug: 'json-formatter', title: 'JSON 格式化校验', category: 'developer', desc: '粘贴 JSON 即时格式化、压缩与校验，错误定位到行列。', keywords: ['json', '格式化', '校验'], component: () => import('./components/JsonFormatter.vue'), steps: ['粘贴 JSON 文本', '选择格式化或压缩', '复制或下载结果'] },
+  { slug: 'timestamp-converter', title: 'Unix 时间戳转换', category: 'developer', desc: '秒/毫秒时间戳与可读日期互转，本地与 UTC 双时区显示。', keywords: ['时间戳', 'unix', 'epoch'], component: () => import('./components/TimestampConverter.vue') },
+  { slug: 'regex-tester', title: '正则表达式测试', category: 'developer', desc: '输入正则与标志位，实时高亮所有匹配与捕获组，附常用正则速查。', keywords: ['正则', 'regex', '匹配'], component: () => import('./components/RegexTester.vue') },
+  { slug: 'text-diff', title: '文本差异对比', category: 'developer', desc: '逐行对比两段文本，绿色新增、红色删除，适合代码与文档审阅。', keywords: ['对比', 'diff', '差异'], component: () => import('./components/TextDiff.vue') },
+  {
+    slug: 'base64-encoder', title: 'Base64 编解码', category: 'developer',
+    desc: '文本与 Base64 双向转换，完整支持 UTF-8 中文，也可编码文件。',
+    keywords: ['base64', '编码', '解码'],
+    textDef: {
+      options: [{ key: 'dir', label: '方向', type: 'select', default: 'encode', choices: [
+        { value: 'encode', label: '编码（文本 → Base64）' }, { value: 'decode', label: '解码（Base64 → 文本）' },
+      ] }],
+      transform: (t, o) => (o.dir === 'decode' ? b64decode(t) : b64encode(t)),
+    },
+  },
+  {
+    slug: 'url-encoder', title: 'URL 编解码', category: 'developer',
+    desc: '对 URL 组件或整个地址进行百分号编码与解码，处理中文与特殊字符。',
+    keywords: ['url', '编码', 'encode'],
+    textDef: {
+      options: [
+        { key: 'dir', label: '方向', type: 'select', default: 'encode', choices: [
+          { value: 'encode', label: '编码' }, { value: 'decode', label: '解码' },
+        ] },
+        { key: 'scope', label: '范围', type: 'select', default: 'component', choices: [
+          { value: 'component', label: 'URI 组件（常用）' }, { value: 'full', label: '整个 URI' },
+        ] },
+      ],
+      transform: (t, o) => (o.dir === 'decode' ? urlDecode(t, o.scope === 'component') : urlEncode(t, o.scope === 'component')),
+    },
+  },
+  { slug: 'jwt-decoder', title: 'JWT 解析器', category: 'developer', desc: '解码 JWT 的 Header 与 Payload 为可读 JSON，校验过期时间，不发送令牌。', keywords: ['jwt', 'token', '解析'], component: () => import('./components/JwtDecoder.vue') },
+  { slug: 'hash-generator', title: '哈希生成器', category: 'developer', desc: 'MD5、SHA-1/256/384/512 文本与文件哈希，一次算全部算法。', keywords: ['哈希', 'md5', 'sha256'], component: () => import('./components/HashGenerator.vue') },
   { slug: 'csv-to-json', title: 'CSV 转 JSON', category: 'developer', desc: 'CSV 转 JSON，支持自定义分隔符与表头识别，引号字段处理正确。', keywords: ['csv', 'json', '转换'], component: () => import('./components/CsvToJson.vue') },
   {
     slug: 'json-to-csv', title: 'JSON 转 CSV', category: 'developer',
@@ -31,6 +63,9 @@ const tools: ToolDef[] = [
       placeholder: '粘贴 JSON 对象数组…',
     },
   },
+  { slug: 'number-base-converter', title: '进制转换', category: 'developer', desc: '二、八、十、十六进制与任意 2–36 进制互转，支持大数。', keywords: ['进制', 'hex', 'binary'], component: () => import('./components/NumberBase.vue') },
+  { slug: 'sql-formatter', title: 'SQL 格式化', category: 'developer', desc: '格式化杂乱 SQL 为缩进清晰的可读查询，支持多方言关键字风格。', keywords: ['sql', '格式化', 'beautify'], component: () => import('./components/SqlFormatter.vue') },
+  { slug: 'javascript-formatter', title: 'JS 格式化 / 压缩', category: 'developer', desc: '用 Prettier 规则格式化 JavaScript，也可压缩去除空白与注释。', keywords: ['javascript', '格式化', 'prettier'], component: () => import('./components/CodeFormatter.vue'), steps: ['粘贴 JS 代码', '选择格式化或压缩', '复制结果'] },
   {
     slug: 'json-to-yaml', title: 'JSON 转 YAML', category: 'developer',
     desc: 'JSON 转 YAML，适合编写 Docker Compose、Kubernetes 与 CI 配置。',
@@ -81,17 +116,6 @@ const tools: ToolDef[] = [
   { slug: 'env-to-json', title: 'ENV 与 JSON 互转', category: 'developer', desc: '.env 文件转 JSON 对象，或 JSON 转回 .env 行，处理注释与引号。', keywords: ['env', 'dotenv', 'json'], component: () => import('./components/EnvToJson.vue') },
   { slug: 'base64-to-image', title: 'Base64 转图片', category: 'developer', desc: '粘贴 Base64 或 data URI，预览图片并下载为真实文件。', keywords: ['base64', '图片', 'data uri'], component: () => import('./components/Base64ToImage.vue') },
   {
-    slug: 'base64-encoder', title: 'Base64 编解码', category: 'developer',
-    desc: '文本与 Base64 双向转换，完整支持 UTF-8 中文，也可编码文件。',
-    keywords: ['base64', '编码', '解码'],
-    textDef: {
-      options: [{ key: 'dir', label: '方向', type: 'select', default: 'encode', choices: [
-        { value: 'encode', label: '编码（文本 → Base64）' }, { value: 'decode', label: '解码（Base64 → 文本）' },
-      ] }],
-      transform: (t, o) => (o.dir === 'decode' ? b64decode(t) : b64encode(t)),
-    },
-  },
-  {
     slug: 'base32-converter', title: 'Base32 编解码', category: 'developer',
     desc: 'RFC 4648 Base32 编码与解码，完整 UTF-8 支持，本地即时计算。',
     keywords: ['base32', '编码'],
@@ -100,22 +124,6 @@ const tools: ToolDef[] = [
         { value: 'encode', label: '编码' }, { value: 'decode', label: '解码' },
       ] }],
       transform: (t, o) => (o.dir === 'decode' ? b32decode(t) : b32encode(t)),
-    },
-  },
-  {
-    slug: 'url-encoder', title: 'URL 编解码', category: 'developer',
-    desc: '对 URL 组件或整个地址进行百分号编码与解码，处理中文与特殊字符。',
-    keywords: ['url', '编码', 'encode'],
-    textDef: {
-      options: [
-        { key: 'dir', label: '方向', type: 'select', default: 'encode', choices: [
-          { value: 'encode', label: '编码' }, { value: 'decode', label: '解码' },
-        ] },
-        { key: 'scope', label: '范围', type: 'select', default: 'component', choices: [
-          { value: 'component', label: 'URI 组件（常用）' }, { value: 'full', label: '整个 URI' },
-        ] },
-      ],
-      transform: (t, o) => (o.dir === 'decode' ? urlDecode(t, o.scope === 'component') : urlEncode(t, o.scope === 'component')),
     },
   },
   {
@@ -129,13 +137,8 @@ const tools: ToolDef[] = [
       transform: (t, o) => (o.dir === 'decode' ? htmlEntityDecode(t) : htmlEntityEncode(t)),
     },
   },
-  { slug: 'hash-generator', title: '哈希生成器', category: 'developer', desc: 'MD5、SHA-1/256/384/512 文本与文件哈希，一次算全部算法。', keywords: ['哈希', 'md5', 'sha256'], component: () => import('./components/HashGenerator.vue') },
   { slug: 'hmac-generator', title: 'HMAC 签名生成', category: 'developer', desc: '用共享密钥生成 HMAC-SHA1/256/512 签名，支持 Hex 与 Base64 输出。', keywords: ['hmac', '签名', 'secret'], component: () => import('./components/HmacGenerator.vue') },
-  { slug: 'jwt-decoder', title: 'JWT 解析器', category: 'developer', desc: '解码 JWT 的 Header 与 Payload 为可读 JSON，校验过期时间，不发送令牌。', keywords: ['jwt', 'token', '解析'], component: () => import('./components/JwtDecoder.vue') },
   { slug: 'jwt-generator', title: 'JWT 生成器', category: 'developer', desc: '在浏览器中构建并签名 HS256/384/512 JWT，编辑头部与负载，即签即得。', keywords: ['jwt', '签名', '生成'], component: () => import('./components/JwtGenerator.vue') },
-  { slug: 'timestamp-converter', title: 'Unix 时间戳转换', category: 'developer', desc: '秒/毫秒时间戳与可读日期互转，本地与 UTC 双时区显示。', keywords: ['时间戳', 'unix', 'epoch'], component: () => import('./components/TimestampConverter.vue') },
-  { slug: 'regex-tester', title: '正则表达式测试', category: 'developer', desc: '输入正则与标志位，实时高亮所有匹配与捕获组，附常用正则速查。', keywords: ['正则', 'regex', '匹配'], component: () => import('./components/RegexTester.vue') },
-  { slug: 'text-diff', title: '文本差异对比', category: 'developer', desc: '逐行对比两段文本，绿色新增、红色删除，适合代码与文档审阅。', keywords: ['对比', 'diff', '差异'], component: () => import('./components/TextDiff.vue') },
   { slug: 'json-diff', title: 'JSON 结构对比', category: 'developer', desc: '深度对比两份 JSON，列出所有新增、删除与修改的路径，适合接口评审。', keywords: ['json', '对比', 'diff'], component: () => import('./components/JsonDiff.vue') },
   { slug: 'markdown-preview', title: 'Markdown 预览', category: 'developer', desc: '输入 Markdown 实时渲染预览，可复制生成的 HTML 用于 CMS 或文档。', keywords: ['markdown', '预览', 'html'], component: () => import('./components/MarkdownPreview.vue') },
   { slug: 'markdown-table-generator', title: 'Markdown 表格生成', category: 'developer', desc: '在可编辑网格里填数据，实时生成对齐的 GFM 表格并复制。', keywords: ['markdown', '表格', 'table'], component: () => import('./components/MarkdownTable.vue') },
@@ -161,12 +164,9 @@ const tools: ToolDef[] = [
   },
   { slug: 'cron-explainer', title: 'Cron 表达式解读', category: 'developer', desc: '把 crontab 表达式翻译成中文说明，并给出接下来几次的执行时间。', keywords: ['cron', 'crontab', '定时'], component: () => import('./components/CronExplainer.vue') },
   { slug: 'crontab-builder', title: 'Cron 表达式构建', category: 'developer', desc: '用下拉菜单选择分钟、小时、日、月、星期，实时生成 cron 表达式与说明。', keywords: ['cron', '构建', '定时'], component: () => import('./components/CrontabBuilder.vue') },
-  { slug: 'number-base-converter', title: '进制转换', category: 'developer', desc: '二、八、十、十六进制与任意 2–36 进制互转，支持大数。', keywords: ['进制', 'hex', 'binary'], component: () => import('./components/NumberBase.vue') },
   { slug: 'bitwise-calculator', title: '位运算计算器', category: 'developer', desc: 'AND/OR/XOR/NOT 与左右移位，十进制、十六进制、二进制同时显示。', keywords: ['位运算', 'xor', 'shift'], component: () => import('./components/BitwiseCalculator.vue') },
   { slug: 'chmod-calculator', title: 'Chmod 权限计算', category: 'developer', desc: '勾选属主/组/其他的读写执行权限，实时得到八进制、符号式与命令。', keywords: ['chmod', '权限', 'linux'], component: () => import('./components/ChmodCalculator.vue') },
   { slug: 'subnet-calculator', title: '子网计算器', category: 'developer', desc: '输入 IPv4 与 CIDR，得到网络地址、广播、掩码、可用主机范围与数量。', keywords: ['子网', 'cidr', '网络'], component: () => import('./components/SubnetCalculator.vue') },
-  { slug: 'sql-formatter', title: 'SQL 格式化', category: 'developer', desc: '格式化杂乱 SQL 为缩进清晰的可读查询，支持多方言关键字风格。', keywords: ['sql', '格式化', 'beautify'], component: () => import('./components/SqlFormatter.vue') },
-  { slug: 'javascript-formatter', title: 'JS 格式化 / 压缩', category: 'developer', desc: '用 Prettier 规则格式化 JavaScript，也可压缩去除空白与注释。', keywords: ['javascript', '格式化', 'prettier'], component: () => import('./components/CodeFormatter.vue'), steps: ['粘贴 JS 代码', '选择格式化或压缩', '复制结果'] },
   { slug: 'css-formatter', title: 'CSS 格式化 / 压缩', category: 'developer', desc: '整理 CSS 缩进或压缩为生产版本，同一工具双向切换。', keywords: ['css', '格式化', '压缩'], component: () => import('./components/CodeFormatter.vue') },
   { slug: 'html-formatter', title: 'HTML 格式化', category: 'developer', desc: '缩进杂乱的 HTML 标记，或压缩去除注释与冗余空白。', keywords: ['html', '格式化'], component: () => import('./components/CodeFormatter.vue') },
   { slug: 'html-minifier', title: 'HTML 压缩', category: 'developer', desc: '删除注释与多余空白减小 HTML 体积，随时可再格式化还原可读性。', keywords: ['html', '压缩', 'minify'], component: () => import('./components/CodeFormatter.vue') },

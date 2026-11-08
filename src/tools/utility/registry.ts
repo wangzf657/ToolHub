@@ -25,23 +25,171 @@ const fmtDuration = (mins: number): string => {
 }
 const TZ_CHOICES = COMMON_TIMEZONES.map((t) => ({ value: t.value, label: t.label }))
 
-/** 实用工具注册表（64 项）—— 文本/编码类走内联 textDef，其余为自定义组件 */
+/** 实用工具注册表（65 项）—— 文本/编码类走内联 textDef，其余为自定义组件 */
 const tools: ToolDef[] = [
   { slug: 'qr-code-generator', title: '二维码生成器', category: 'utility', desc: '为链接、文本、电话生成高清二维码，可选中心 Logo，支持 PNG 与 SVG 下载。', keywords: ['qr', '二维码', 'qrcode'], component: () => import('./components/QrGenerator.vue'), steps: ['输入链接或文本内容', '调整尺寸与纠错级别', '下载 PNG 或 SVG'] },
+  { slug: 'unit-converter', title: '单位换算', category: 'utility', desc: '长度、重量、温度、面积、体积、速度、数据容量等常用单位即时互转。', keywords: ['单位', '换算', 'converter'], component: () => import('./components/UnitConverter.vue') },
+  { slug: 'word-counter', title: '字数统计', category: 'utility', desc: '实时统计字数、字符数（含/不含空格）、行数、段落数与阅读时长。', keywords: ['字数', '统计', 'count'], component: () => import('./components/WordCounter.vue') },
+  {
+    slug: 'loan-calculator', title: '贷款计算器', category: 'utility',
+    desc: '等额本息月供、总利息与总还款一步算清，支持任意金额利率期限。',
+    keywords: ['贷款', '月供', '等额本息'],
+    calcDef: {
+      fields: [
+        { key: 'p', label: '贷款金额', type: 'number', default: '' },
+        { key: 'r', label: '年利率（%）', type: 'number', default: '' },
+        { key: 'y', label: '期限（年）', type: 'number', default: '' },
+      ],
+      compute: (v) => {
+        if (!v.p || !v.r || !v.y) return [{ label: '请填写贷款金额、年利率与期限', value: '—' }]
+        const r = loanPayment(Number(v.p), Number(v.r), Number(v.y))
+        return [
+          { label: '每月还款（等额本息）', value: `¥${moneyCn(r.monthly)}`, primary: true },
+          { label: '还款总期数', value: `${Math.round(Number(v.y) * 12)} 期` },
+          { label: '利息总额', value: `¥${moneyCn(r.totalInterest)}` },
+          { label: '本息合计', value: `¥${moneyCn(r.total)}` },
+          { label: '利息占本金', value: Number(v.p) ? `${((r.totalInterest / Number(v.p)) * 100).toFixed(1)}%` : '—' },
+        ]
+      },
+      note: '月供公式：P × r × (1+r)^n ÷ ((1+r)^n − 1)，r 为月利率、n 为总月数。',
+    },
+  },
+  {
+    slug: 'mortgage-calculator', title: '房贷计算器', category: 'utility',
+    desc: '由房价、首付、利率与年限计算月供、利息总额与还款明细。',
+    keywords: ['房贷', '月供', '买房'],
+    calcDef: {
+      fields: [
+        { key: 'price', label: '房价', type: 'number', default: '' },
+        { key: 'down', label: '首付比例（%）', type: 'number', default: 30 },
+        { key: 'r', label: '年利率（%）', type: 'number', default: 4.2 },
+        { key: 'y', label: '年限（年）', type: 'number', default: 30 },
+      ],
+      compute: (v) => {
+        const price = Number(v.price)
+        const down = price * ((Number(v.down) || 0) / 100)
+        const loan = price - down
+        const r = loanPayment(loan, Number(v.r), Number(v.y))
+        return [
+          { label: '每月月供', value: `¥${moneyCn(r.monthly)}`, primary: true },
+          { label: '贷款本金', value: `¥${moneyCn(loan)}` },
+          { label: '首付金额', value: `¥${moneyCn(down)}` },
+          { label: '利息总额', value: `¥${moneyCn(r.totalInterest)}` },
+          { label: '购房总支出', value: `¥${moneyCn(down + r.total)}` },
+        ]
+      },
+      note: '按等额本息计算，未考虑公积金组合贷、提前还款与利率重定价。',
+    },
+  },
+  { slug: 'password-generator', title: '强密码生成器', category: 'utility', desc: '用密码学随机源生成高强度密码，自定义长度与字符集，永不外发。', keywords: ['密码', 'password', '随机'], component: () => import('./components/PasswordGenerator.vue'), steps: ['设置长度与字符类型', '点击生成', '复制使用'] },
+  { slug: 'uuid-generator', title: 'UUID 生成器', category: 'utility', desc: '生成密码学随机的 UUIDv4（GUID），支持单个或批量，适合数据库主键。', keywords: ['uuid', 'guid', 'id'], component: () => import('./components/UuidGenerator.vue') },
+  {
+    slug: 'age-calculator', title: '年龄计算器', category: 'utility',
+    desc: '由出生日期精确计算周岁（年月日）、总天数与距离下一个生日的天数。',
+    keywords: ['年龄', '生日', '周岁'],
+    calcDef: {
+      fields: [
+        { key: 'birth', label: '出生日期', type: 'date', default: '' },
+      ],
+      compute: (v) => {
+        if (!v.birth) return [{ label: '请选择出生日期', value: '—' }]
+        const a = calcAge(String(v.birth))
+        return [
+          { label: '精确年龄', value: `${a.years} 岁 ${a.months} 个月 ${a.days} 天`, primary: true },
+          { label: '总天数', value: `${a.totalDays.toLocaleString()} 天` },
+          { label: '总周数', value: `${a.totalWeeks.toLocaleString()} 周` },
+          { label: '总小时', value: `${a.totalHours.toLocaleString()} 小时` },
+          { label: '下一个生日', value: `${a.nextBirthday.date}（还有 ${a.nextBirthday.days} 天）` },
+        ]
+      },
+    },
+  },
+  /* ---- 计算器（内联 calcDef） ---- */
+  {
+    slug: 'percentage-calculator', title: '百分比计算器', category: 'utility',
+    desc: '三种百分比问题一次算完：求占比、求数值、求增减幅，边输入边出结果。',
+    keywords: ['百分比', 'percent', '增减'],
+    calcDef: {
+      fields: [
+        { key: 'x', label: '数值 X', type: 'number', default: '' },
+        { key: 'y', label: '数值 Y', type: 'number', default: '' },
+      ],
+      compute: (v) => {
+        const x = Number(v.x)
+        const y = Number(v.y)
+        const rows: CalcResultRow[] = []
+        rows.push({ label: `X 的 Y%（${x} 的 30% 类问题）`, value: fmtN(x * (y / 100)) })
+        rows.push({ label: `X 是 Y 的百分之几`, value: y ? `${fmtN((x / y) * 100)}%` : '—' })
+        if (x && y) {
+          rows.push({ label: 'X 相对 Y 的增减幅', value: `${fmtN(((x - y) / y) * 100)}%`, primary: true, hint: x >= y ? '增长' : '下降' })
+        }
+        return rows
+      },
+      note: '三个问题分别对应：求一个数的百分之几、求占比、求变化率。',
+    },
+  },
+  {
+    slug: 'bmi-calculator', title: 'BMI 计算器', category: 'utility',
+    desc: '输入身高体重即时计算身体质量指数与 WHO 分类，附健康范围提示。',
+    keywords: ['bmi', '体重', '健康'],
+    calcDef: {
+      fields: [
+        { key: 'h', label: '身高（cm）', type: 'number', default: '' },
+        { key: 'w', label: '体重（kg）', type: 'number', default: '' },
+      ],
+      compute: (v) => {
+        const h = Number(v.h) / 100
+        const w = Number(v.w)
+        if (!h || !w) return [{ label: '请填写身高与体重', value: '—' }]
+        const bmi = w / (h * h)
+        const cat = bmi < 18.5 ? '偏瘦' : bmi < 24 ? '正常' : bmi < 28 ? '超重' : '肥胖'
+        const ideal = (18.5 * h * h).toFixed(1) + ' ~ ' + (24 * h * h).toFixed(1)
+        return [
+          { label: 'BMI 指数', value: bmi.toFixed(1), primary: true },
+          { label: '分类（中国标准）', value: cat },
+          { label: '该身高的健康体重范围', value: `${ideal} kg` },
+        ]
+      },
+      note: 'BMI = 体重(kg) ÷ 身高²(m²)。中国成人标准：18.5–23.9 为正常。仅供参考，不构成医疗建议。',
+    },
+  },
+  { slug: 'currency-converter', title: '货币换算', category: 'utility', desc: '150+ 货币之间的换算，内置常用汇率快照，支持手动更新汇率。', keywords: ['汇率', '货币', 'currency'], component: () => import('./components/CurrencyConverter.vue') },
+  { slug: 'scientific-calculator', title: '科学计算器', category: 'utility', desc: '支持三角函数、对数、幂、阶乘、括号的表达式计算器，键盘友好。', keywords: ['计算器', '科学', 'calculator'], component: () => import('./components/ScientificCalculator.vue') },
+  {
+    slug: 'date-difference-calculator', title: '日期间隔计算', category: 'utility',
+    desc: '两个日期之间的天数、周数、月数、年数与工作日统计。',
+    keywords: ['日期', '间隔', '天数'],
+    calcDef: {
+      fields: [
+        { key: 'a', label: '开始日期', type: 'date', default: '' },
+        { key: 'b', label: '结束日期', type: 'date', default: '' },
+      ],
+      compute: (v) => {
+        if (!v.a || !v.b) return [{ label: '请选择两个日期', value: '—' }]
+        try {
+          const d = dateDiff(String(v.a), String(v.b))
+          return [
+            { label: '总天数', value: `${d.days.toLocaleString()} 天`, primary: true },
+            { label: '周数', value: `${d.weeks} 周 ${d.days % 7} 天` },
+            { label: '月数', value: `${d.months} 个月` },
+            { label: '年数', value: `${d.years} 年` },
+            { label: '工作日（周一至周五）', value: `${d.businessDays} 天` },
+            { label: '总小时', value: `${(d.days * 24).toLocaleString()} 小时` },
+          ]
+        } catch (e) {
+          return [{ label: '错误', value: (e as Error).message }]
+        }
+      },
+    },
+  },
   { slug: 'wifi-qr-code', title: 'WiFi 二维码生成', category: 'utility', desc: '生成扫码即可加入 WiFi 的二维码，客人无需手动输入密码。', keywords: ['wifi', '无线', '二维码'], component: () => import('./components/WifiQr.vue'), steps: ['填写 WiFi 名称与密码', '选择加密方式', '下载二维码供客人扫码'] },
   { slug: 'qr-code-scanner', title: '二维码识别', category: 'utility', desc: '上传含二维码的截图或图片，本地立即解码出链接、文本或 WiFi 信息。', keywords: ['扫码', '识别', 'decode'], component: () => import('./components/QrScanner.vue'), steps: ['上传或拖入二维码图片', '查看解码内容', '一键复制或打开链接'] },
   { slug: 'barcode-generator', title: '条形码生成器', category: 'utility', desc: '生成 CODE128、EAN-13、UPC、CODE39 等格式的条形码，可下载 PNG。', keywords: ['barcode', 'ean', 'upc'], component: () => import('./components/BarcodeGenerator.vue'), steps: ['输入条码内容', '选择码制', '下载 PNG 图片'] },
-  { slug: 'password-generator', title: '强密码生成器', category: 'utility', desc: '用密码学随机源生成高强度密码，自定义长度与字符集，永不外发。', keywords: ['密码', 'password', '随机'], component: () => import('./components/PasswordGenerator.vue'), steps: ['设置长度与字符类型', '点击生成', '复制使用'] },
   { slug: 'password-strength-checker', title: '密码强度检测', category: 'utility', desc: '检测密码长度、字符多样性、信息熵与被暴力破解所需时间，纯本地检测。', keywords: ['强度', 'entropy', '安全'], component: () => import('./components/PasswordStrength.vue') },
   { slug: 'random-string-generator', title: '随机字符串生成', category: 'utility', desc: '批量生成指定长度与字符集的随机字符串，适合作 API 密钥、测试数据。', keywords: ['随机', 'token', '密钥'], component: () => import('./components/RandomString.vue') },
   { slug: 'random-number', title: '随机数生成器', category: 'utility', desc: '在自定义范围内生成一个或多个随机数，可选允许重复，用于抽奖与抽样。', keywords: ['随机数', '抽奖', '抽样'], component: () => import('./components/RandomNumber.vue') },
   { slug: 'dice-roller', title: '掷骰子', category: 'utility', desc: '支持 2d6+3、4d6dl1、2d20kh1 等桌游记法，密码学公平随机。', keywords: ['骰子', 'dice', '桌游'], component: () => import('./components/DiceRoller.vue') },
-  { slug: 'uuid-generator', title: 'UUID 生成器', category: 'utility', desc: '生成密码学随机的 UUIDv4（GUID），支持单个或批量，适合数据库主键。', keywords: ['uuid', 'guid', 'id'], component: () => import('./components/UuidGenerator.vue') },
   { slug: 'lorem-ipsum-generator', title: '占位文本生成', category: 'utility', desc: '生成 Lorem Ipsum 或中文占位段落，自定义段落数与句长，用于设计稿填充。', keywords: ['lorem', '占位', '假文'], component: () => import('./components/LoremIpsum.vue') },
-  { slug: 'unit-converter', title: '单位换算', category: 'utility', desc: '长度、重量、温度、面积、体积、速度、数据容量等常用单位即时互转。', keywords: ['单位', '换算', 'converter'], component: () => import('./components/UnitConverter.vue') },
-  { slug: 'currency-converter', title: '货币换算', category: 'utility', desc: '150+ 货币之间的换算，内置常用汇率快照，支持手动更新汇率。', keywords: ['汇率', '货币', 'currency'], component: () => import('./components/CurrencyConverter.vue') },
-  { slug: 'word-counter', title: '字数统计', category: 'utility', desc: '实时统计字数、字符数（含/不含空格）、行数、段落数与阅读时长。', keywords: ['字数', '统计', 'count'], component: () => import('./components/WordCounter.vue') },
-  { slug: 'scientific-calculator', title: '科学计算器', category: 'utility', desc: '支持三角函数、对数、幂、阶乘、括号的表达式计算器，键盘友好。', keywords: ['计算器', '科学', 'calculator'], component: () => import('./components/ScientificCalculator.vue') },
   { slug: 'invoice-generator', title: '发票生成器', category: 'utility', desc: '在浏览器里填写抬头、明细与税率，直接生成可打印的发票页面。', keywords: ['发票', 'invoice', '账单'], component: () => import('./components/InvoiceGenerator.vue') },
   { slug: 'file-encryptor', title: '文件加密', category: 'utility', desc: '用 AES-256-GCM + 密码加密任意文件，也可解密回来，密钥从不出设备。', keywords: ['加密', 'aes', 'encrypt'], component: () => import('./components/FileEncryptor.vue'), needModel: false },
   { slug: 'screen-recorder', title: '屏幕录制', category: 'utility', desc: '录制屏幕或窗口（可含麦克风），本地编码为 WebM，无水印无时长限制。', keywords: ['录屏', '屏幕', 'recorder'], component: () => import('./components/ScreenRecorder.vue') },
@@ -55,7 +203,6 @@ const tools: ToolDef[] = [
   { slug: 'word-frequency-counter', title: '词频统计', category: 'utility', desc: '统计每个词出现的次数与排名，可忽略大小写并过滤停用词。', keywords: ['词频', '频率', 'frequency'], component: () => import('./components/WordFrequency.vue') },
   { slug: 'palindrome-checker', title: '回文与变位词检查', category: 'utility', desc: '判断短语是否为回文、两个词是否互为变位词，自动忽略大小写与标点。', keywords: ['回文', '变位', 'anagram'], component: () => import('./components/PalindromeChecker.vue') },
   { slug: 'pii-scrubber', title: '隐私信息脱敏', category: 'utility', desc: '贴入文本自动识别并遮盖邮箱、手机号、身份证、IP 等敏感信息。', keywords: ['脱敏', '隐私', 'pii'], component: () => import('./components/PiiScrubber.vue') },
-
   /* ---- 纯文本转换（内联 textDef） ---- */
   {
     slug: 'case-converter', title: '大小写转换', category: 'utility',
@@ -252,101 +399,6 @@ const tools: ToolDef[] = [
       placeholder: '输入数字，如 1234.56',
     },
   },
-
-  /* ---- 计算器（内联 calcDef） ---- */
-  {
-    slug: 'percentage-calculator', title: '百分比计算器', category: 'utility',
-    desc: '三种百分比问题一次算完：求占比、求数值、求增减幅，边输入边出结果。',
-    keywords: ['百分比', 'percent', '增减'],
-    calcDef: {
-      fields: [
-        { key: 'x', label: '数值 X', type: 'number', default: '' },
-        { key: 'y', label: '数值 Y', type: 'number', default: '' },
-      ],
-      compute: (v) => {
-        const x = Number(v.x)
-        const y = Number(v.y)
-        const rows: CalcResultRow[] = []
-        rows.push({ label: `X 的 Y%（${x} 的 30% 类问题）`, value: fmtN(x * (y / 100)) })
-        rows.push({ label: `X 是 Y 的百分之几`, value: y ? `${fmtN((x / y) * 100)}%` : '—' })
-        if (x && y) {
-          rows.push({ label: 'X 相对 Y 的增减幅', value: `${fmtN(((x - y) / y) * 100)}%`, primary: true, hint: x >= y ? '增长' : '下降' })
-        }
-        return rows
-      },
-      note: '三个问题分别对应：求一个数的百分之几、求占比、求变化率。',
-    },
-  },
-  {
-    slug: 'bmi-calculator', title: 'BMI 计算器', category: 'utility',
-    desc: '输入身高体重即时计算身体质量指数与 WHO 分类，附健康范围提示。',
-    keywords: ['bmi', '体重', '健康'],
-    calcDef: {
-      fields: [
-        { key: 'h', label: '身高（cm）', type: 'number', default: '' },
-        { key: 'w', label: '体重（kg）', type: 'number', default: '' },
-      ],
-      compute: (v) => {
-        const h = Number(v.h) / 100
-        const w = Number(v.w)
-        if (!h || !w) return [{ label: '请填写身高与体重', value: '—' }]
-        const bmi = w / (h * h)
-        const cat = bmi < 18.5 ? '偏瘦' : bmi < 24 ? '正常' : bmi < 28 ? '超重' : '肥胖'
-        const ideal = (18.5 * h * h).toFixed(1) + ' ~ ' + (24 * h * h).toFixed(1)
-        return [
-          { label: 'BMI 指数', value: bmi.toFixed(1), primary: true },
-          { label: '分类（中国标准）', value: cat },
-          { label: '该身高的健康体重范围', value: `${ideal} kg` },
-        ]
-      },
-      note: 'BMI = 体重(kg) ÷ 身高²(m²)。中国成人标准：18.5–23.9 为正常。仅供参考，不构成医疗建议。',
-    },
-  },
-  {
-    slug: 'loan-calculator', title: '贷款计算器', category: 'utility',
-    desc: '等额本息月供、总利息与总还款一步算清，支持任意金额利率期限。',
-    keywords: ['贷款', '月供', '等额本息'],
-    calcDef: {
-      fields: [
-        { key: 'p', label: '贷款金额', type: 'number', default: '' },
-        { key: 'r', label: '年利率（%）', type: 'number', default: '' },
-        { key: 'y', label: '期限（年）', type: 'number', default: '' },
-      ],
-      compute: (v) => {
-        if (!v.p || !v.r || !v.y) return [{ label: '请填写贷款金额、年利率与期限', value: '—' }]
-        const r = loanPayment(Number(v.p), Number(v.r), Number(v.y))
-        return [
-          { label: '每月还款（等额本息）', value: `¥${moneyCn(r.monthly)}`, primary: true },
-          { label: '还款总期数', value: `${Math.round(Number(v.y) * 12)} 期` },
-          { label: '利息总额', value: `¥${moneyCn(r.totalInterest)}` },
-          { label: '本息合计', value: `¥${moneyCn(r.total)}` },
-          { label: '利息占本金', value: Number(v.p) ? `${((r.totalInterest / Number(v.p)) * 100).toFixed(1)}%` : '—' },
-        ]
-      },
-      note: '月供公式：P × r × (1+r)^n ÷ ((1+r)^n − 1)，r 为月利率、n 为总月数。',
-    },
-  },
-  {
-    slug: 'age-calculator', title: '年龄计算器', category: 'utility',
-    desc: '由出生日期精确计算周岁（年月日）、总天数与距离下一个生日的天数。',
-    keywords: ['年龄', '生日', '周岁'],
-    calcDef: {
-      fields: [
-        { key: 'birth', label: '出生日期', type: 'date', default: '' },
-      ],
-      compute: (v) => {
-        if (!v.birth) return [{ label: '请选择出生日期', value: '—' }]
-        const a = calcAge(String(v.birth))
-        return [
-          { label: '精确年龄', value: `${a.years} 岁 ${a.months} 个月 ${a.days} 天`, primary: true },
-          { label: '总天数', value: `${a.totalDays.toLocaleString()} 天` },
-          { label: '总周数', value: `${a.totalWeeks.toLocaleString()} 周` },
-          { label: '总小时', value: `${a.totalHours.toLocaleString()} 小时` },
-          { label: '下一个生日', value: `${a.nextBirthday.date}（还有 ${a.nextBirthday.days} 天）` },
-        ]
-      },
-    },
-  },
   {
     slug: 'timezone-converter', title: '时区换算', category: 'utility',
     desc: '在 14 个常用时区间换算日期时间，使用浏览器 Intl 数据，无需联网。',
@@ -490,33 +542,6 @@ const tools: ToolDef[] = [
     },
   },
   {
-    slug: 'date-difference-calculator', title: '日期间隔计算', category: 'utility',
-    desc: '两个日期之间的天数、周数、月数、年数与工作日统计。',
-    keywords: ['日期', '间隔', '天数'],
-    calcDef: {
-      fields: [
-        { key: 'a', label: '开始日期', type: 'date', default: '' },
-        { key: 'b', label: '结束日期', type: 'date', default: '' },
-      ],
-      compute: (v) => {
-        if (!v.a || !v.b) return [{ label: '请选择两个日期', value: '—' }]
-        try {
-          const d = dateDiff(String(v.a), String(v.b))
-          return [
-            { label: '总天数', value: `${d.days.toLocaleString()} 天`, primary: true },
-            { label: '周数', value: `${d.weeks} 周 ${d.days % 7} 天` },
-            { label: '月数', value: `${d.months} 个月` },
-            { label: '年数', value: `${d.years} 年` },
-            { label: '工作日（周一至周五）', value: `${d.businessDays} 天` },
-            { label: '总小时', value: `${(d.days * 24).toLocaleString()} 小时` },
-          ]
-        } catch (e) {
-          return [{ label: '错误', value: (e as Error).message }]
-        }
-      },
-    },
-  },
-  {
     slug: 'reading-time-calculator', title: '阅读时长估算', category: 'utility',
     desc: '由字数或原文估算阅读时间，支持自定义每分钟阅读速度。',
     keywords: ['阅读', '时长', '演讲'],
@@ -537,33 +562,6 @@ const tools: ToolDef[] = [
         ]
       },
       note: '成人默读平均约 200–300 字/分钟；演讲/朗读约 130–240 字/分钟。',
-    },
-  },
-  {
-    slug: 'mortgage-calculator', title: '房贷计算器', category: 'utility',
-    desc: '由房价、首付、利率与年限计算月供、利息总额与还款明细。',
-    keywords: ['房贷', '月供', '买房'],
-    calcDef: {
-      fields: [
-        { key: 'price', label: '房价', type: 'number', default: '' },
-        { key: 'down', label: '首付比例（%）', type: 'number', default: 30 },
-        { key: 'r', label: '年利率（%）', type: 'number', default: 4.2 },
-        { key: 'y', label: '年限（年）', type: 'number', default: 30 },
-      ],
-      compute: (v) => {
-        const price = Number(v.price)
-        const down = price * ((Number(v.down) || 0) / 100)
-        const loan = price - down
-        const r = loanPayment(loan, Number(v.r), Number(v.y))
-        return [
-          { label: '每月月供', value: `¥${moneyCn(r.monthly)}`, primary: true },
-          { label: '贷款本金', value: `¥${moneyCn(loan)}` },
-          { label: '首付金额', value: `¥${moneyCn(down)}` },
-          { label: '利息总额', value: `¥${moneyCn(r.totalInterest)}` },
-          { label: '购房总支出', value: `¥${moneyCn(down + r.total)}` },
-        ]
-      },
-      note: '按等额本息计算，未考虑公积金组合贷、提前还款与利率重定价。',
     },
   },
   {

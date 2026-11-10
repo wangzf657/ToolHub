@@ -120,7 +120,9 @@ const fmtVal = (v: unknown): string => (Array.isArray(v) ? v.join('\n') : String
 .hint { font-size: 12px; color: var(--muted); }
 .inline { vertical-align: -2px; }
 .list { display: flex; flex-direction: column; gap: 6px; max-height: 480px; overflow: auto; }
-.item { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+/* flex-shrink:0 必须保留：flex 子项带 overflow:hidden 时自动最小尺寸失效，
+   缺失会让宽泛查询的大量结果被均分压扁成细线而非撑出滚动（REG-01） */
+.item { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; flex-shrink: 0; }
 .head { padding: 10px 14px; cursor: pointer; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 .head:hover { background: var(--surface-2, rgba(127,127,127,.06)); }
 .primary { font-size: 16px; color: var(--accent-text); }

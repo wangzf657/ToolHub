@@ -39,6 +39,10 @@ const filteredSections = computed(() => {
 
 const latestGuides = guides.slice(0, 3)
 
+// 编辑器区只展示 editors 分类下的 4 个标准工作台；image/pdf/video/data 分类注册表里
+// 另有 4 个同组件入口（photo-editor 等），全量渲染会出现 4 组重复卡（BUG-30）
+const homeStudios = studioTools.filter((t) => t.category === 'editors')
+
 const goSearch = () => {
   if (input.value.trim()) toast.warn('按回车或在搜索框中继续查看各分类的匹配结果')
 }
@@ -78,7 +82,7 @@ const goSearch = () => {
       <h2 class="sec-title">浏览器里运行的免费编辑器</h2>
       <p class="sec-sub">完整编辑器，不是单一用途的转换器——通常这类软件按月收费，这里免费且不联网。</p>
       <div class="studio-grid">
-        <div v-for="s in studioTools" :key="s.slug" class="studio-card">
+        <div v-for="s in homeStudios" :key="s.slug" class="studio-card">
           <div class="studio-head">
             <span class="studio-icon"><Zap :size="18" /></span>
             <h3>{{ s.title }}</h3>

@@ -252,7 +252,7 @@ await run('jsEngine', 'curlToFetch', async () => {
 })
 
 // ---------------- 汇总 ----------------
-mkdirSync(path.join(root, 'test-reports'), { recursive: true })
-writeFileSync(path.join(root, 'test-reports', 'engine2-test-results.json'), JSON.stringify(results, null, 1), 'utf8')
+mkdirSync(path.join(root, 'qa'), { recursive: true })
+writeFileSync(path.join(root, 'qa', 'engine2-test-results.json'), JSON.stringify(results, null, 1), 'utf8')
 console.log(`引擎用例 ${results.length}:通过 ${passN},失败 ${failN},警告 ${warnN}`)
 for (const r of results.filter((x) => !x.ok)) console.log(`[${r.warn ? 'warn' : r.sev}] ${r.engine}.${r.name}: ${r.detail}`)

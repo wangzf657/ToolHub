@@ -2,13 +2,13 @@
 
 # 百宝工具箱 ToolHub
 
-> **你的文件，永不离机** —— 373 个纯浏览器端工具，聚合一页。
+> **你的文件，永不离机** —— 520 个纯浏览器端工具，聚合一页。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Vue](https://img.shields.io/badge/Vue-3.5-42b883.svg)](https://vuejs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6.svg)](https://www.typescriptlang.org)
 [![Vite](https://img.shields.io/badge/Vite-6-646cff.svg)](https://vite.dev)
-[![Tools](https://img.shields.io/badge/Tools-373%20%E6%9C%AC%E5%9C%B0%E5%A4%84%E7%90%86-f59e0b.svg)](#-工具分类)
+[![Tools](https://img.shields.io/badge/Tools-520%20%E6%9C%AC%E5%9C%B0%E5%A4%84%E7%90%86-f59e0b.svg)](#-工具分类)
 
 图片 · 视频 · 音频 · PDF · 数据 · 开发 · 金融 · SEO · 端侧 AI —— **全部在你的浏览器本地运行，文件永不上传。**
 
@@ -20,9 +20,9 @@
 
 ## 🖼️ 界面预览
 
-| **首页**<br>![首页](docs/screenshots/home.png) | **全部工具**<br>![全部工具](docs/screenshots/tools.png) |
+| **首页**<br>![首页](assets/home.png) | **全部工具**<br>![全部工具](assets/tools.png) |
 |:---:|:---:|
-| **照片工作台**<br>![照片工作台](docs/screenshots/photo-studio.png) | **工具页 · 浅色主题**<br>![工具页](docs/screenshots/tool-light.png) |
+| **照片工作台**<br>![照片工作台](assets/photo-studio.png) | **工具页 · 浅色主题**<br>![工具页](assets/tool-light.png) |
 
 ## ✨ 特性
 
@@ -37,19 +37,19 @@
 
 | 分类 | 工具数 | 代表能力 |
 |---|---:|---|
-| 图片工具 | 60 | 压缩、转格式、调整尺寸、裁剪、滤镜、OCR、抠图、GIF 制作 |
-| 实用工具 | 65 | 二维码、密码生成、单位换算、各类计算器、文本处理 |
-| 开发工具 | 60 | JSON 格式化、哈希、Base64、JWT、正则测试 |
-| PDF 工具 | 45 | 合并、拆分、加密、页码、水印、转图片、转 Office |
+| 图片工具 | 73 | 压缩、转格式、调整尺寸、裁剪、滤镜、OCR、抠图、GIF 制作 |
+| 实用工具 | 135 | 二维码、密码生成、单位换算、各类计算器、文本处理 |
+| 开发工具 | 92 | JSON 格式化、哈希、Base64、JWT、正则测试、TOTP/加密 |
+| PDF 工具 | 54 | 合并、拆分、加密、页码、水印、转图片、转 Office |
 | 视频工具 | 42 | 压缩到指定大小、MP4/WebM/MOV 转换、裁剪合并、变速、抽帧、转 GIF |
-| 音频工具 | 29 | MP3/WAV/M4A/FLAC 转换、压缩、裁剪、降噪、人声消除、转写 |
-| 金融交易 | 15 | 期权定价、仓位管理、夏普比率、年化收益等计算器（附计算口径） |
-| 商业 SaaS | 15 | LTV、CAC、流失率、MRR/ARR、留存热力图、简历生成器 |
+| 音频工具 | 38 | MP3/WAV/M4A/FLAC 转换、压缩、降噪、变调、白噪音、调音器 |
+| 金融交易 | 20 | 期权定价、仓位管理、IRR/NPV、还款计划表等计算器（附计算口径） |
+| 商业 SaaS | 16 | LTV、CAC、流失率、MRR/ARR、留存热力图、简历生成器 |
 | SEO 工具 | 13 | JSON-LD 结构化数据、hreflang、站点地图、搜索结果预览、关键词分析 |
-| AI 工具 | 13 | 端侧 AI：摘要、情感分析、关键词、翻译、OCR、抠图（本地推理） |
-| 数据工具 | 12 | 浏览器内分析 CSV / Excel / Parquet：SQL 查询、透视、图表、对比、合并 |
+| AI 工具 | 15 | 端侧 AI：摘要、情感分析、关键词、翻译、OCR、抠图、图像分类（本地推理） |
+| 数据工具 | 18 | 浏览器内分析 CSV / Excel / Parquet / SQLite：SQL 查询、透视、图表、对比 |
 | 编辑器工作室 | 4 | PDF 工作台、视频工作台、照片工作台、数据工作台 |
-| **合计** | **373** | |
+| **合计** | **520** | |
 
 ## 🚀 快速开始
 
@@ -109,21 +109,20 @@ npm run build
 # 将 dist/ 目录内容发布到任意静态托管即可
 ```
 
-hash 路由意味着不需要任何 SPA fallback / rewrite 规则，子路径部署也无需改动。
+history 路由要求宿主支持 SPA 回退（Cloudflare Pages / Netlify / Vercel 默认支持；Nginx 需配 `try_files ... /index.html`）。
 
 ## 🧑‍💻 开发
 
-新增一个工具通常只需两步：在对应分类的 `registry.ts` 中注册 `ToolDef`，再提供一个懒加载组件（或复用通用 TextTool / CalcTool / ImageConvertTool 实现）。完整契约见工程文档。
+新增一个工具通常只需两步：在对应分类的 `registry.ts` 中注册 `ToolDef`，再提供一个懒加载组件（或复用通用 TextTool / CalcTool / ImageConvertTool 实现）。完整契约见 `docs/基础设计规约.md`。
 
 | 文档 | 内容 |
 |---|---|
-| [docs/01-产品结构与设计说明.md](docs/01-产品结构与设计说明.md) | 产品定位、信息架构、视觉体系与技术选型 |
-| [docs/02-工具清单.md](docs/02-工具清单.md) | 373 个工具总表 |
-| [docs/03-实现模式与引擎规格.md](docs/03-实现模式与引擎规格.md) | 工程契约：注册表格式、11 种实现模式、引擎 API |
-| [docs/04-依赖清单.md](docs/04-依赖清单.md) | 每个依赖的仓库、许可证与引入理由 |
+| [docs/基础设计规约.md](docs/基础设计规约.md) | 唯一全版本规约：产品定位、信息架构、视觉体系、工程契约（注册表格式、实现模式、引擎 API） |
+| [docs/V1.1/](docs/V1.1/) | 当前版本基线（520 项）：需求文档、设计文档、工具清单、依赖清单 |
+| [docs/V1.0/](docs/V1.0/) | 上一版本基线（402 项）快照，只读留档 |
 
 提交前请确保 `npm run typecheck` 通过（`npm run build` 自带类型检查）。
 
 ## 📄 License
 
-[MIT](LICENSE)（本项目自有代码）。第三方依赖的许可见 [docs/04-依赖清单.md](docs/04-依赖清单.md)。
+[MIT](LICENSE)（本项目自有代码）。第三方依赖的许可见 [docs/V1.1/依赖清单-V1.1.md](docs/V1.1/依赖清单-V1.1.md)。

@@ -42,8 +42,11 @@ desktop.ini
 # 本地 AI 工具状态（ZCode 工作区）
 .zcode/
 
-# 测试报告与测试脚本产物
-test-reports/
+# 数据集清洗临时目录（scripts/toolgen/prepare-data.mjs 的中间产物）
+.tmp-data/
+
+# 测试文档与测试产物（本地留存，不入库；规约见 AGENTS.md 文档规约节）
+qa/
 scripts/tests/_engines/
 scripts/tests/_bundle-tools.cjs
 scripts/_bundle-tool-list.cjs

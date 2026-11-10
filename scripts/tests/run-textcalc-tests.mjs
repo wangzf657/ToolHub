@@ -348,8 +348,8 @@ for (const t of allTools.filter((x) => x.calcDef)) {
 
 // ---------- 汇总输出 ----------
 await Promise.all(pending)
-mkdirSync(path.join(root, 'test-reports'), { recursive: true })
-writeFileSync(path.join(root, 'test-reports', 'engine-test-results.json'), JSON.stringify(results, null, 1), 'utf8')
+mkdirSync(path.join(root, 'qa'), { recursive: true })
+writeFileSync(path.join(root, 'qa', 'engine-test-results.json'), JSON.stringify(results, null, 1), 'utf8')
 const fails = results.filter((r) => !r.pass && !r.warn)
 const warns = results.filter((r) => r.warn)
 console.log(`用例总数 ${results.length}:通过 ${passN},失败 ${failN},警告 ${warnN}`)

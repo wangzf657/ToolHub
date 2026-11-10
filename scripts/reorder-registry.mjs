@@ -18,19 +18,19 @@ import { dirname, join } from 'node:path'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 
-/** 期望条目数(与 docs/02-工具清单.md 一致),重排前后必须吻合 */
+/** 期望条目数(与 docs/V1.1/工具清单-V1.1.md 一致),重排前后必须吻合 */
 const EXPECT_COUNT = {
-  image: 64,
+  image: 73,
   video: 42,
-  audio: 30,
-  pdf: 48,
-  data: 13,
-  utility: 74,
-  developer: 71,
-  finance: 15,
-  business: 15,
+  audio: 38,
+  pdf: 54,
+  data: 18,
+  utility: 135,
+  developer: 92,
+  finance: 20,
+  business: 16,
   seo: 13,
-  ai: 13,
+  ai: 15,
 }
 
 /** 各分类希望前置的高频/旗舰工具,按目标顺序书写 */

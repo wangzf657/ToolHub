@@ -64,7 +64,7 @@ router.afterEach((to) => {
   }
   const descs: Record<string, string> = {
     home: site.desc,
-    'all-tools': '370+ 个免费纯本地浏览器工具完整目录：图片、PDF、视频、音频、数据、开发与 AI，文件永不上传。',
+    'all-tools': '520+ 个免费纯本地浏览器工具完整目录：图片、PDF、视频、音频、数据、开发与 AI，文件永不上传。',
     guides: '原创使用指南：图片压缩、PDF 处理、音视频转换等常见任务在浏览器本地完成的最简做法。',
     about: '关于百宝工具箱：为什么所有处理都留在你的浏览器里。',
   }

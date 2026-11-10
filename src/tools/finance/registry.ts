@@ -471,7 +471,7 @@ const tools: ToolDef[] = [
         const total = monthly * (months - 1) + fv + loan * r // 末月还款 = 尾付 + 最后一期利息（近似）
         const totalInterest = total - loan
         const m = (x: number) => money(x)
-        const eq = amortize(loan, Number(v.r) * 100, months, 'axbx')
+        const eq = amortize(loan, Number(v.r), months, 'axbx')
         return [
           { label: '前期月供', value: '¥' + m(monthly), primary: true, hint: '共 ' + (months - 1) + ' 期' },
           { label: '末期尾付', value: '¥' + m(fv + loan * r), hint: '尾付本金 ¥' + m(fv) + ' + 末期利息' },

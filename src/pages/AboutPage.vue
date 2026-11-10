@@ -8,7 +8,7 @@ import Breadcrumbs from '@/components/common/Breadcrumbs.vue'
     <h1>关于百宝工具箱</h1>
     <div class="prose" style="max-width: 760px">
       <p>
-        <strong>百宝工具箱（ToolHub）</strong>是一个纯浏览器端的工具聚合平台：图片处理、PDF、视频、音频、数据分析、开发工具与端侧 AI，370+ 个工具全部运行在你自己的设备上。
+        <strong>百宝工具箱（ToolHub）</strong>是一个纯浏览器端的工具聚合平台：图片处理、PDF、视频、音频、数据分析、开发工具与端侧 AI，520+ 个工具全部运行在你自己的设备上。
       </p>
       <h2>为什么一切都在本地运行</h2>
       <p>

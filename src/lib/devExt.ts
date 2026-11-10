@@ -484,11 +484,15 @@ export const CASE_TARGETS: { value: CaseTarget; label: string; example: string }
   { value: 'constant', label: 'CONSTANT_CASE 常量', example: 'USER_NAME' },
 ]
 
-/** 把任意风格的标识符切分成小写单词 */
+/** 把任意风格的标识符切分成小写单词（数字与前词切开，同 lodash 口径：getHTTPResponseCode2 → get/http/response/code/2） */
 export function wordsOfIdentifier(name: string): string[] {
   const s = name.trim()
   if (!s) return []
-  const parts = s.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2').split(/[\s_\-.$]+/)
+  const parts = s
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+    .replace(/([A-Za-z])(\d)/g, '$1 $2')
+    .split(/[\s_\-.$]+/)
   return parts.filter(Boolean).map((w) => w.toLowerCase())
 }
 

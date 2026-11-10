@@ -9,7 +9,6 @@ const toast = useToast()
 
 const input = ref('# Markdown 转幻灯片\n\n用 `---` 分隔每一页\n\n---\n\n## 第二页 · 要点\n\n- 支持 **加粗**、`代码`\n- 支持表格与图片\n- 方向键翻页\n\n---\n\n## 第三页 · 表格\n\n| 功能 | 支持 |\n| --- | --- |\n| 分页 | ✅ |\n| 主题 | 3 套 |')
 const theme = ref<'dark' | 'light' | 'warm'>('dark')
-const html = ref('')
 
 const THEMES = {
   dark: { bg: '#0f172a', fg: '#e2e8f0', accent: '#818cf8', sub: '#94a3b8' },
@@ -43,7 +42,8 @@ const render = async () => {
   for (const s of slides.value) {
     parts.push(await mdToHtml(s))
   }
-  html.value = parts.join('\n')
+  // 逐页 HTML 直通数组：marked 输出含换行，join('\n') 后按行号取页会错位串页
+  previews.value = parts
 }
 void render()
 
@@ -72,7 +72,7 @@ document.addEventListener('click',()=>show(cur+1));show(0);`
 <html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>幻灯片</title><style>${css}</style></head>
 <body><div class="deck">
-${slides.value.map((s, i) => `<section class="slide${i === 0 ? ' active' : ''}">${html.value.split('\n')[i] ?? ''}</section>`).join('\n')}
+${slides.value.map((s, i) => `<section class="slide${i === 0 ? ' active' : ''}">${previews.value[i] ?? ''}</section>`).join('\n')}
 </div>
 <div class="page" id="pg">1 / ${slides.value.length}</div>
 <div class="hint">← → 方向键 / 空格 / 点击翻页</div>
@@ -99,9 +99,9 @@ ${slides.value.map((s, i) => `<section class="slide${i === 0 ? ' active' : ''}">
       <p class="hint mt-1">导出的是零依赖单文件 HTML：双击打开即可全屏演示，方向键/空格/点击翻页，适合快速分享讲稿。</p>
     </div>
 
-    <div v-if="html" class="mt-2">
+    <div v-if="previews.length" class="mt-2">
       <h4 class="h4">页面预览（逐页）</h4>
-      <div v-for="(s, i) in html.split('\n')" :key="i" class="slide-card" v-html="s"></div>
+      <div v-for="(s, i) in previews" :key="i" class="slide-card" v-html="s"></div>
     </div>
   </div>
 </template>

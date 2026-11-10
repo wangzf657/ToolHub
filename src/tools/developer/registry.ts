@@ -208,7 +208,7 @@ const tools: ToolDef[] = [
   { slug: 'http-status-codes', title: 'HTTP 状态码速查', category: 'developer', desc: '1xx–5xx 全部状态码的可搜索速查表，含中文名与场景说明。', keywords: ['http', '状态码', '404'], component: () => import('./components/HttpStatusCodes.vue') },
   { slug: 'placeholder-image', title: '占位图生成', category: 'developer', desc: '自定义尺寸、背景与文字颜色的占位图，实时预览并下载 PNG。', keywords: ['占位图', 'placeholder', 'mock'], component: () => import('./components/PlaceholderImage.vue') },
   { slug: 'slugify', title: 'Slug 生成器', category: 'developer', desc: '把标题转成 URL 友好的 slug：去重音、转小写、自定义分隔符。', keywords: ['slug', 'url', 'seo'], component: () => import('./components/SlugGenerator.vue') },
-  { slug: 'encoding-converter', title: '文本编码检测与转换', category: 'developer', desc: '自动识别 GBK/GB18030/Big5/UTF-8 等编码并互转，专治 txt/CSV 打开乱码。', keywords: ['编码', 'GBK', '乱码', 'UTF-8', '转码'], component: () => import('./components/EncodingConverter.vue') },
+  { slug: 'encoding-converter', title: '文本编码检测与转换', category: 'developer', desc: '自动识别 GBK/GB18030/Big5/UTF-8 等编码并互转，专治 txt/CSV 打开乱码。', keywords: ['编码', 'GBK', '乱码', 'UTF-8', '转码'], needModel: true, component: () => import('./components/EncodingConverter.vue') },
   { slug: 'code-screenshot', title: '代码截图美化', category: 'developer', desc: '粘贴代码生成 Carbon 风格卡片：主题、窗口条、渐变背景，导出高清 PNG。', keywords: ['代码截图', 'carbon', '代码图片', '分享'], component: () => import('./components/CodeScreenshot.vue') },
   {
     slug: 'json-to-java-entity', title: 'JSON 转 Java 实体类', category: 'developer',
@@ -225,7 +225,7 @@ const tools: ToolDef[] = [
   },
   /* ---- P2 新增：开发者进阶工具 17 件 ---- */
   { slug: 'totp-generator', title: 'TOTP 动态口令', category: 'developer', desc: '粘贴 otpauth:// 链接或输入 Base32 密钥，实时生成 6/8 位两步验证码并自动倒计时换码。', keywords: ['totp', '两步验证', '动态口令', '2fa', 'otp', '验证码'], component: () => import('./components/TotpGenerator.vue'), steps: ['粘贴 otpauth:// 链接或手动填密钥', '自动生成当前口令并倒计时', '一键复制，超时自动换码'] },
-  { slug: 'bcrypt-hash', title: 'Bcrypt 哈希生成验证', category: 'developer', desc: '浏览器本地生成 bcrypt 密码哈希（4–15 轮可调），并支持哈希与明文的匹配校验。', keywords: ['bcrypt', '哈希', '密码', '加密', 'salt'], component: () => import('./components/BcryptTool.vue'), steps: ['输入密码选择轮次生成哈希', '复制 $2a$ 开头的哈希入库', '粘贴哈希验证明文是否匹配'] },
+  { slug: 'bcrypt-hash', title: 'Bcrypt 哈希生成验证', category: 'developer', desc: '浏览器本地生成 bcrypt 密码哈希（4–15 轮可调），并支持哈希与明文的匹配校验。', keywords: ['bcrypt', '哈希', '密码', '加密', 'salt'], component: () => import('./components/BcryptTool.vue'), steps: ['输入密码选择轮次生成哈希', '复制 $2b$ 开头的哈希入库（$2a$ 为旧变体）', '粘贴哈希验证明文是否匹配'] },
   { slug: 'rsa-key-generator', title: 'RSA 密钥对生成', category: 'developer', desc: '浏览器本地生成 2048/4096 位 RSA 密钥对，导出 PEM 公私钥，可下载保存。', keywords: ['rsa', '密钥', 'pem', '公钥', '私钥', 'ssh'], component: () => import('./components/RsaKeyGenerator.vue'), steps: ['选择密钥长度', '点击生成（4096 位需等待）', '复制或下载 PEM 文件'] },
   { slug: 'pgp-encrypt', title: 'PGP 加密解密', category: 'developer', desc: '文本 PGP 加密解密，支持密码与公钥两种模式，可生成 ECC/RSA 密钥对。', keywords: ['pgp', 'gpg', '加密', '解密', 'openpgp', '密钥'], component: () => import('./components/PgpTool.vue'), steps: ['选加密/解密/生成密钥', '首次使用自动加载 OpenPGP 引擎', '复制或下载 .asc 结果'] },
   {
@@ -387,7 +387,7 @@ const tools: ToolDef[] = [
       placeholder: '每行一个域名，如 百度.示例 或 xn--fsq092h…',
     },
   },
-  { slug: 'mac-oui-lookup', title: 'MAC 厂商查询', category: 'developer', desc: '按 OUI 前缀查 MAC 地址厂商，支持批量与 EUI-64 展开，识别随机化地址。', keywords: ['mac', 'oui', '厂商', '网卡', 'eui64', 'ipv6'], component: () => import('./components/MacOuiLookup.vue'), steps: ['输入或批量粘贴 MAC 地址', '首次自动加载厂商库（约 2MB）', '查看厂商与 EUI-64 展开结果'] },
+  { slug: 'mac-oui-lookup', title: 'MAC 厂商查询', category: 'developer', desc: '按 OUI 前缀查 MAC 地址厂商，支持批量与 EUI-64 展开，识别随机化地址。', keywords: ['mac', 'oui', '厂商', '网卡', 'eui64', 'ipv6'], needModel: true, component: () => import('./components/MacOuiLookup.vue'), steps: ['输入或批量粘贴 MAC 地址', '首次自动加载厂商库（约 2MB）', '查看厂商与 EUI-64 展开结果'] },
   { slug: 'file-type-detector', title: '文件真实类型检测', category: 'developer', desc: '按魔数识别文件真实 MIME 与扩展名，与文件名扩展名比对，识破伪装后缀。', keywords: ['文件类型', 'mime', '魔数', 'magic', '伪装'], component: () => import('./components/FileTypeDetector.vue'), steps: ['拖入一个或多个文件', '自动读取文件头魔数比对', '查看真实类型与扩展名是否一致'] },
   { slug: 'snowflake-id-generator', title: '雪花 ID 生成解析', category: 'developer', desc: '批量生成 64 位雪花 ID（可配机器位与 epoch），支持从 ID 反查生成时间。', keywords: ['雪花id', 'snowflake', '分布式', 'id 生成', '时间戳'], component: () => import('./components/SnowflakeTool.vue'), steps: ['配置数据中心/机器 ID 与 epoch', '批量生成并复制', '粘贴 ID 反查生成时间'] },
   {

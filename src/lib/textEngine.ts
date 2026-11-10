@@ -423,12 +423,15 @@ export function numberToChinese(input: number | string, finance = false): string
     let out = ''
     if (q) out += digits[q] + units[3]
     if (b) out += digits[b] + units[2]
+    // 跨位补零（票据规范「中间有零补一个零」）：千位后跳过百位（1050→壹仟零伍拾、1005→壹仟零伍）、
+    // 百位后跳过十位（105→壹佰零伍）
+    if (q && !b && (t || o)) out += digits[0]
+    else if ((q || b) && !t && o) out += digits[0]
     if (t) {
       // 「一十」在组首可省略「一」（非财务体）
       out += (!q && !b && t === 1 && !finance ? '' : digits[t]) + units[1]
     }
     if (o) {
-      out += (q || b) && !t ? digits[0] : ''
       out += digits[o]
     }
     return out

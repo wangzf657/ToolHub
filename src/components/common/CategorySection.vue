@@ -1,11 +1,13 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { ToolDef, CategoryDef } from '@/types'
 import ToolCard from './ToolCard.vue'
 import AppIcon from './AppIcon.vue'
 import { RouterLink } from 'vue-router'
 
 const props = defineProps<{ category: CategoryDef; tools: ToolDef[]; limit?: number }>()
-const shown = props.limit ? props.tools.slice(0, props.limit) : props.tools
+// 必须保持响应式：首页搜索过滤时 tools 整体替换，顶层常量切片会让卡片列表停留在旧数据
+const shown = computed(() => (props.limit ? props.tools.slice(0, props.limit) : props.tools))
 </script>
 
 <template>

@@ -253,11 +253,11 @@ export async function woffToSfnt(bytes: Uint8Array): Promise<Uint8Array> {
   return out
 }
 
-/** 解析 ICO 目录头（ICONDIR + ICONDIRENTRY 数组） */
+/** 解析 ICO 目录头（ICONDIR + ICONDIRENTRY 数组；ICO 规范为小端字节序） */
 export function parseIcoDirectory(bytes: Uint8Array): IcoEntry[] {
   const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
-  if (bytes.length < 6 || dv.getUint16(2) !== 1) throw new Error('不是有效的 ICO 文件（缺少图标目录头）')
-  const count = dv.getUint16(4)
+  if (bytes.length < 6 || dv.getUint16(2, true) !== 1) throw new Error('不是有效的 ICO 文件（缺少图标目录头）')
+  const count = dv.getUint16(4, true)
   const out: IcoEntry[] = []
   for (let i = 0; i < count; i++) {
     const e = 6 + i * 16
@@ -266,9 +266,9 @@ export function parseIcoDirectory(bytes: Uint8Array): IcoEntry[] {
       width: dv.getUint8(e) || 256,
       height: dv.getUint8(e + 1) || 256,
       colorCount: dv.getUint8(e + 2),
-      bitCount: dv.getUint16(e + 6),
-      bytesInRes: dv.getUint32(e + 8),
-      imageOffset: dv.getUint32(e + 12),
+      bitCount: dv.getUint16(e + 6, true),
+      bytesInRes: dv.getUint32(e + 8, true),
+      imageOffset: dv.getUint32(e + 12, true),
     })
   }
   return out

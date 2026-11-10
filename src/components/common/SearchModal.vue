@@ -55,7 +55,7 @@ void toast
           ref="inputEl"
           v-model="query"
           type="text"
-          placeholder="搜索 370+ 工具：压缩、合并、抠图、JSON…"
+          placeholder="搜索 520+ 工具：压缩、合并、抠图、JSON…"
           autofocus
           @keydown="onKey"
         />

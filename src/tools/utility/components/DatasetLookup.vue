@@ -101,7 +101,8 @@ const fmtVal = (v: unknown): string => (Array.isArray(v) ? v.join('\n') : String
         <div v-for="(it, i) in results" :key="i" class="item" :class="{ open: expanded === i }">
           <div class="head" @click="expanded = expanded === i ? -1 : i">
             <b class="primary">{{ it[cfg.primary] }}</b>
-            <span v-for="s in cfg.subs" :key="s.key" class="sub">{{ it[s.key] }}</span>
+            <!-- 空字段兜底显示占位（如 ECDICT 部分缩略语无英美音标），避免渲染成空白 -->
+            <span v-for="s in cfg.subs" :key="s.key" class="sub">{{ it[s.key] || '—' }}</span>
           </div>
           <div v-if="expanded === i" class="detail">
             <p v-for="d in cfg.detailKeys ?? []" :key="d.key"><b>{{ d.label }}：</b><span class="pre">{{ fmtVal(it[d.key]) }}</span></p>

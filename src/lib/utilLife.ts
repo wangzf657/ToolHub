@@ -23,21 +23,22 @@ export interface RetirementResult {
   monthsAway: number
 }
 
-/** 按渐进式延迟规则计算法定退休年月（birth 格式 yyyy-MM） */
+/** 按渐进式延迟规则计算法定退休年月（birth 格式 yyyy-MM，兼容 yyyy-MM-dd） */
 export function retirementFor(birth: string, kind: RetireKind, refDate = new Date()): RetirementResult | null {
-  const m = /^(\d{4})[-/](\d{1,2})$/.exec(birth.trim())
+  const m = /^(\d{4})[-/](\d{1,2})(?:[-/]\d{1,2})?$/.exec(birth.trim())
   if (!m) return null
   const by = Number(m[1]), bm = Number(m[2])
   if (by < 1900 || bm < 1 || bm > 12) return null
   const base = RETIRE_KINDS.find((k) => k.value === kind)!.base
   // 原法定退休年月（绝对月数，自公元 1 年 1 月起）
   const origAbs = (by + base) * 12 + (bm - 1)
-  // 改革起始：2025-01-01，序号 1 对应 2025-01
-  const REFORM = 2025 * 12 // 2024-12
+  // 改革起始：2025-01-01（含当月，人社部对照表：1965-01 出生男职工即延迟 1 个月）
+  const REFORM = 2025 * 12 // 2025-01
   let delay = 0
-  if (origAbs > REFORM) {
-    const n = origAbs - REFORM // 原退休月在 2025-01 起的第 n 个月
-    delay = kind === 'femaleWorker' ? Math.min(60, Math.ceil(n / 2)) : Math.min(36, Math.ceil(n / 4))
+  if (origAbs >= REFORM) {
+    const n = origAbs - REFORM // 原退休月在 2025-01 起的第 n 个月（0 起）
+    // 官方口径：每个步长首月 cohort 即延迟 1 档 → floor(n/步长)+1（1965-01~04 → 1 个月）
+    delay = kind === 'femaleWorker' ? Math.min(60, Math.floor(n / 2) + 1) : Math.min(36, Math.floor(n / 4) + 1)
   }
   const retireAbs = origAbs + delay
   const ry = Math.floor(retireAbs / 12), rm = (retireAbs % 12) + 1
@@ -152,7 +153,8 @@ const apaAuthor = (list: string[]): string => {
   }
   if (list.length === 1) return fmt(list[0]!)
   if (list.length === 2) return `${fmt(list[0]!)} & ${fmt(list[1]!)}`
-  return `${list.slice(0, -1).map(fmt).join(', ')} & ${fmt(list[list.length - 1]!)}`
+  // APA 7 三位及以上：末位作者前用「, &」（牛津逗号）
+  return `${list.slice(0, -1).map(fmt).join(', ')}, & ${fmt(list[list.length - 1]!)}`
 }
 
 /** 生成 GB/T 7714-2015 与 APA 7 两种参考文献格式 */

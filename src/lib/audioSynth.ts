@@ -230,28 +230,39 @@ export function detectPitch(buf: Float32Array, sampleRate: number): PitchResult 
     }
     nsdf[tau] = m > 0 ? (2 * ac) / m : 0
   }
-  // 找第一个过零点之后的最大峰
+  // McLeod MPM 标准口径：先求全局最大峰幅，再取第一个 ≥ 0.9×最大峰的局部极大峰
+  //（首个大峰即基音周期；取全局最大会选中周期整数倍的晚峰 → 纯音频率被整除）
+  let globalMax = 0
+  for (let tau = 7; tau < nsdf.length - 1; tau++) {
+    const v = nsdf[tau]!
+    if (v >= nsdf[tau - 1]! && v > nsdf[tau + 1]! && v > globalMax) globalMax = v
+  }
   let peakIdx = -1
   let peakVal = 0
-  let prev = nsdf[6]!
-  let rising = false
-  for (let tau = 7; tau < nsdf.length; tau++) {
+  const TH = 0.9
+  for (let tau = 7; tau < nsdf.length - 1; tau++) {
     const v = nsdf[tau]!
-    if (v > prev && v > 0.3) rising = true
-    if (rising && v <= prev && prev > peakVal) {
-      peakVal = prev
-      peakIdx = tau - 1
-      rising = false
+    if (v > 0.3 && v >= globalMax * TH && v >= nsdf[tau - 1]! && v > nsdf[tau + 1]!) {
+      peakIdx = tau
+      peakVal = v
+      break
     }
-    prev = v
   }
   if (peakIdx < 0 || peakVal < 0.3) return { freq: 0, clarity: peakVal, rms }
-  // 抛物线插值提精度
-  const y1 = nsdf[peakIdx - 1] ?? 0
-  const y2 = nsdf[peakIdx]!
-  const y3 = nsdf[peakIdx + 1] ?? 0
-  const denom = y1 - 2 * y2 + y3
-  const shift = denom !== 0 ? (0.5 * (y1 - y3)) / denom : 0
+  // 峰邻域最小二乘二次拟合提精度：三点抛物线对噪声敏感，多点拟合把 NSDF 抖动平均掉
+  const w = Math.min(8, Math.max(1, peakIdx - 7))
+  let sx2 = 0, sx4 = 0, sy = 0, sxy = 0, sx2y = 0
+  for (let x = -w; x <= w; x++) {
+    const y = Math.max(0, nsdf[peakIdx + x] ?? 0)
+    sx2 += x * x
+    sx4 += x * x * x * x
+    sy += y
+    sxy += x * y
+    sx2y += x * x * y
+  }
+  const b = sxy / sx2
+  const c = (sx2y - (sx2 * sy) / (2 * w + 1)) / (sx4 - (sx2 * sx2) / (2 * w + 1))
+  const shift = c < 0 ? -b / (2 * c) : 0
   const freq = sampleRate / (peakIdx + shift)
   return { freq, clarity: peakVal, rms }
 }

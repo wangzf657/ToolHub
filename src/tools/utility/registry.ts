@@ -13,6 +13,7 @@ import { extractFromText, EXTRACT_TYPES, cleanText, fullToHalf, halfToFull, type
 import { idCardValid, cnDate, phoneCarrier } from '@/lib/validators'
 import { retirementFor, RETIRE_KINDS, shiftOn, SHIFT_MODELS, bloodInherit, formatCitation } from '@/lib/utilLife'
 import { SIZE_CHARTS, recommendSize } from '@/lib/utilData'
+import { dateAddMonths } from '@/lib/chinaCalendar'
 import { parseAddresses } from '@/lib/textExt'
 
 const fmtN = (n: number): string => {
@@ -1217,7 +1218,8 @@ const tools: ToolDef[] = [
         { key: 'data', label: '数据（逗号/空格/换行分隔）', type: 'text', default: '', placeholder: '如 88, 92, 79, 85, 90' },
       ],
       compute: (v) => {
-        const nums = String(v.data ?? '').split(/[,，\s;、]+/).map(Number).filter((x) => Number.isFinite(x))
+        // 先剔除空 token 再转数字：Number('') === 0 会混入幻影统计
+        const nums = String(v.data ?? '').split(/[,，\s;、]+/).filter((s) => s.trim() !== '').map(Number).filter((x) => Number.isFinite(x))
         if (nums.length < 1) return [{ label: '请输入数据', value: '至少 1 个数字' }]
         const n = nums.length
         const sum = nums.reduce((a, b) => a + b, 0)
@@ -1257,7 +1259,7 @@ const tools: ToolDef[] = [
         { key: 'phones', label: '手机号（可批量，换行或逗号分隔）', type: 'text', default: '', placeholder: '13800138000, 18600000000…' },
       ],
       compute: (v) => {
-        const list = [...new Set(String(v.phones ?? '').split(/[,，\s;、]+/).filter(Boolean))].slice(0, 200)
+        const list = [...new Set(String(v.phones ?? '').split(/[,，\s;；、]+/).filter(Boolean))].slice(0, 200)
         if (!list.length) return [{ label: '请输入手机号', value: '可批量粘贴' }]
         return list.map((p2) => {
           const r = phoneCarrier(p2)
@@ -1408,11 +1410,15 @@ const tools: ToolDef[] = [
         const n = Number(s)
         if (!s || !Number.isFinite(n)) return [{ label: '请输入尺码', value: '—' }]
         const male = v.sex === 'male'
-        const eu = v.sys === 'cn' ? (n - 220) / 6.66 + 33 : v.sys === 'eu' ? n : v.sys === 'us' ? (male ? n + 1.5 : n + 2) : (male ? n + 2 : n + 2.5)
+        // 统一以「欧码 ↔ 脚长」为主轴（脚长 cm×1.5+2 = EU），美/英按性别用市场通行偏移换算
+        const eu = v.sys === 'cn' ? (n / 10) * 1.5 + 2
+          : v.sys === 'eu' ? n
+          : v.sys === 'us' ? n + (male ? 33.5 : 31)
+          : n + (male ? 34.5 : 33)
         if (!Number.isFinite(eu)) return [{ label: '请确认尺码制', value: '—' }]
-        const foot = Math.round(((eu - 33) * 6.66 + 220) / 5) * 5
-        const us = male ? eu - 1.5 : eu - 2
-        const uk = male ? eu - 2 : eu - 2.5
+        const foot = Math.round(((eu - 2) / 1.5) * 10 / 5) * 5
+        const us = male ? eu - 33.5 : eu - 31
+        const uk = male ? eu - 34.5 : eu - 33
         const jp = foot / 10
         const f1 = (x: number) => x.toFixed(1)
         return [
@@ -1424,7 +1430,7 @@ const tools: ToolDef[] = [
           { label: '日码 JP（cm）', value: f1(jp) },
         ]
       },
-      note: '口径：基于常见品牌尺码表的近似线性换算，各品牌存在 ±半码差异；下单前以该品牌官方尺码表为准。',
+      note: '口径：EU = 脚长(cm)×1.5 + 2 的近似线性模型，美码按市场通行表偏移（男 US≈EU−33.5、女 US≈EU−31）；各品牌存在 ±半码差异，下单前以该品牌官方尺码表为准。',
     },
   },
   {
@@ -1467,10 +1473,20 @@ const tools: ToolDef[] = [
         const g = gcd(rn, rd)
         rn /= g
         rd /= g
-        const whole = rn / rd
-        const rem = rn % rd
         const dec = Number(rn) / Number(rd)
-        const mixed = rd === 1n || rem === 0n ? (rd === 1n ? rn.toString() : '—') : (whole < 0n ? -whole : whole) + ' 又 ' + (rem < 0n ? -rem : rem) + '/' + rd
+        // 带分数按绝对值拆整数部分，符号统一前置（−1/2 不再丢符号、−7/6 → -1 又 1/6）
+        const negOut = rn < 0n
+        const arn = negOut ? -rn : rn
+        const whole = arn / rd
+        const rem = arn % rd
+        const sign = negOut ? '-' : ''
+        const mixed = rd === 1n
+          ? rn.toString()
+          : rem === 0n
+            ? '—'
+            : whole === 0n
+              ? sign + arn + '/' + rd + '（真分数，无整数部分）'
+              : sign + whole + ' 又 ' + rem + '/' + rd
         return [
           { label: '最简分数', value: rd === 1n ? rn.toString() : rn + '/' + rd, primary: true },
           { label: '带分数', value: mixed },
@@ -1585,6 +1601,7 @@ const tools: ToolDef[] = [
     slug: 'poem-search', title: '古诗词检索', category: 'utility',
     desc: '唐诗三百首 + 宋词三百首精选语料，按题目、作者、名句即时检索。',
     keywords: ['古诗词', '唐诗', '宋词', '诗句'],
+    needModel: true,
     component: () => import('./components/PoemSearch.vue'),
   },
   {
@@ -1757,12 +1774,17 @@ const tools: ToolDef[] = [
         { key: 'url', label: '网址（网页类）', type: 'text', default: '' },
       ],
       compute: (v) => {
+        // 「期刊名/出版社/学校/会议名」为同一输入框，按文献类型映射到引擎对应字段
+        const source = String(v.journal ?? '')
         const f = {
           type: String(v.type),
           authors: String(v.authors ?? ''),
           title: String(v.title ?? ''),
           year: String(v.year ?? ''),
-          journal: String(v.journal ?? ''),
+          journal: source,
+          publisher: source,
+          university: source,
+          conference: source,
           volume: String(v.volume ?? ''),
           pages: String(v.pages ?? ''),
           url: String(v.url ?? ''),
@@ -1821,7 +1843,9 @@ const tools: ToolDef[] = [
         const h = Number(v.h), w = Number(v.w)
         if (!(h > 0 && w > 0)) return [{ label: '请填写身高与体重', value: '—' }]
         const rec = recommendSize(h, w, female)
-        const chart = SIZE_CHARTS.find((c) => c.female === female && c.cat === kind)
+        // SIZE_CHARTS 的 cat 是「上衣（男）」等中文键，kind 需按性别映射过去
+        const cat = kind === 'pants' ? (female ? '裤装（女）' : '裤装（男）') : female ? '上衣（女）' : '上衣（男）'
+        const chart = SIZE_CHARTS.find((c) => (c.female ?? false) === female && c.cat === cat)
         if (!chart) return [{ label: '暂无该品类对照', value: '—' }]
         const rows: CalcResultRow[] = chart.rows.map((r) => ({
           label: r.intl,
@@ -1889,10 +1913,13 @@ const tools: ToolDef[] = [
         const n = Number(v.n)
         if (!prod || !(n > 0)) return [{ label: '请填写生产日期与保质期', value: '—' }]
         const [y, m, d] = prod.split('-').map(Number)
-        const exp = new Date(y!, m! - 1, d!)
-        if (v.unit === 'month') exp.setMonth(exp.getMonth() + Math.round(n))
-        else if (v.unit === 'year') exp.setFullYear(exp.getFullYear() + Math.round(n))
-        else exp.setDate(exp.getDate() + Math.round(n))
+        let exp: Date
+        if (v.unit === 'month' || v.unit === 'year') {
+          // 整月/整年顺延带月末钳制：1-31 + 1 月 → 2-28/29（直接 setMonth 会溢出到下月）
+          exp = new Date(dateAddMonths(prod, v.unit === 'month' ? Math.round(n) : Math.round(n) * 12) + 'T00:00:00')
+        } else {
+          exp = new Date(y!, m! - 1, d! + Math.round(n))
+        }
         const days = Math.ceil((exp.getTime() - Date.now()) / 86400000)
         const state = days < 0 ? `已过期 ${-days} 天` : days <= 7 ? `⚠ 临期，仅剩 ${days} 天` : `剩余 ${days} 天`
         return [
@@ -1922,7 +1949,7 @@ const tools: ToolDef[] = [
         const r = shiftOn(model, anchor, Math.max(0, Math.round(Number(v.anchorIdx) || 0)), query)
         return [
           { label: `${query} 的班次`, value: r.name, primary: true },
-          { label: '周期位置', value: `第 ${r.cyclePos + 1} 天 / 共 ${model.cycle} 天` },
+          { label: '周期位置', value: `第 ${r.cyclePos + 1} 天 / 共 ${model.cycle.reduce((s, c) => s + c.days, 0)} 天` },
           { label: '班制说明', value: model.desc },
         ]
       },

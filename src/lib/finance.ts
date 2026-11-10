@@ -302,19 +302,20 @@ export function amortize(
   }
   let totalInterest = 0
   let total = 0
-  let remaining = months
   for (let m = 1; m <= months && balance > 0.005; m++) {
     const interest = balance * r
     let principalPart = mode === 'axbx' ? monthly - interest : monthlyPrincipal
     if (principalPart > balance) principalPart = balance
-    let pay = principalPart + interest
-    let extra = 0
-    if (prepay && prepay.month === m && prepay.amount > 0) {
-      extra = Math.min(prepay.amount, balance - principalPart)
+    const pay = principalPart + interest
+    balance -= principalPart
+    totalInterest += interest
+    total += pay
+    // 提前还款按「扣除当期本金后的真实余额」重算，剩余期数不变（期限不变、月供减少）
+    if (prepay && prepay.month === m && prepay.amount > 0 && balance > 0.005) {
+      const extra = Math.min(prepay.amount, balance)
       balance -= extra
-      remaining = m // 剩余期数从下月起重算
       const rest = months - m
-      if (balance > 0 && rest > 0) {
+      if (balance > 0.005 && rest > 0) {
         if (mode === 'axbx') {
           monthly =
             r === 0
@@ -325,9 +326,6 @@ export function amortize(
         }
       }
     }
-    balance -= principalPart
-    totalInterest += interest
-    total += pay
     rows.push({ month: m, payment: pay, interest, principal: principalPart, balance: Math.max(0, balance) })
   }
   return {

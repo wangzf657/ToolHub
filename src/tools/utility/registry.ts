@@ -9,6 +9,11 @@ import { loanPayment, compoundInterest } from '@/lib/finance'
 import { calcAge, convertTimezone, dateDiff, COMMON_TIMEZONES } from '@/lib/dateEngine'
 import { annualIncomeTax, annualBonusTax, computeInsurance, CITY_INSURANCE } from '@/lib/chinaPayroll'
 import { pinyinOf, variantConvert, type VariantMode } from '@/lib/chineseText'
+import { extractFromText, EXTRACT_TYPES, cleanText, fullToHalf, halfToFull, type ExtractType } from '@/lib/textExt'
+import { idCardValid, cnDate, phoneCarrier } from '@/lib/validators'
+import { retirementFor, RETIRE_KINDS, shiftOn, SHIFT_MODELS, bloodInherit, formatCitation } from '@/lib/utilLife'
+import { SIZE_CHARTS, recommendSize } from '@/lib/utilData'
+import { parseAddresses } from '@/lib/textExt'
 
 const fmtN = (n: number): string => {
   if (!Number.isFinite(n)) return '—'
@@ -27,7 +32,7 @@ const fmtDuration = (mins: number): string => {
 }
 const TZ_CHOICES = COMMON_TIMEZONES.map((t) => ({ value: t.value, label: t.label }))
 
-/** 实用工具注册表（74 项）—— 文本/编码类走内联 textDef，其余为自定义组件 */
+/** 实用工具注册表（135 项）—— 文本/编码类走内联 textDef，其余为自定义组件 */
 const tools: ToolDef[] = [
   { slug: 'qr-code-generator', title: '二维码生成器', category: 'utility', desc: '为链接、文本、电话生成高清二维码，可选中心 Logo，支持 PNG 与 SVG 下载。', keywords: ['qr', '二维码', 'qrcode'], component: () => import('./components/QrGenerator.vue'), steps: ['输入链接或文本内容', '调整尺寸与纠错级别', '下载 PNG 或 SVG'] },
   { slug: 'unit-converter', title: '单位换算', category: 'utility', desc: '长度、重量、温度、面积、体积、速度、数据容量等常用单位即时互转。', keywords: ['单位', '换算', 'converter'], component: () => import('./components/UnitConverter.vue') },
@@ -1041,6 +1046,888 @@ const tools: ToolDef[] = [
     desc: '多段上下班时间累计工时，自动扣除午休，适合工时表与考勤。',
     keywords: ['工时', '考勤', '工时表'],
     component: () => import('./components/HoursCalculator.vue'),
+  },
+  {
+    slug: 'rmb-uppercase', title: '人民币大写转换', category: 'utility',
+    desc: '阿拉伯金额转中文大写（壹仟贰佰…元整），附合同日期大写，报销单据一步到位。',
+    keywords: ['大写', '人民币', '财务', '金额大写', '壹仟'],
+    calcDef: {
+      fields: [
+        { key: 'amount', label: '金额', type: 'text', default: '', placeholder: '如 1234.56 或 -12' },
+        { key: 'date', label: '日期大写（可选）', type: 'date', default: '', hint: '合同落款用，如 贰零贰陆年壹拾壹月零伍日' },
+      ],
+      compute: (v) => {
+        const raw = String(v.amount ?? '').trim()
+        const rows: CalcResultRow[] = []
+        if (raw) {
+          const s = raw.replace(/[¥￥,]/g, '')
+          const n = Number(s)
+          if (!Number.isFinite(n)) rows.push({ label: '大写金额', value: '请输入有效金额' })
+          else {
+            rows.push({ label: '大写金额', value: numberToChinese(s, true), primary: true })
+            rows.push({ label: '规范化金额', value: `¥${moneyCn(n)}` })
+          }
+        }
+        const d = String(v.date ?? '')
+        if (d) {
+          const [y, m, day] = d.split('-').map(Number)
+          if (y && m && day) rows.push({ label: '日期大写', value: cnDate(y!, m!, day!) })
+        }
+        if (!rows.length) rows.push({ label: '大写金额', value: '请输入金额' })
+        return rows
+      },
+      note: '口径：按人民币票据规范（元/角/分、「整」与中间补零），四位分节读法；重要票据请再人工复核。',
+    },
+  },
+  {
+    slug: 'sleep-cycle-calculator', title: '睡眠周期计算器', category: 'utility',
+    desc: '按 90 分钟睡眠周期推算最佳就寝或起床时刻，含 15 分钟入睡缓冲。',
+    keywords: ['睡眠', '起床', '就寝', 'sleep'],
+    calcDef: {
+      fields: [
+        { key: 'mode', label: '计算方式', type: 'select', default: 'byWake', choices: [
+          { value: 'byWake', label: '已知起床时间，推算就寝' },
+          { value: 'byNow', label: '现在就睡，推算起床' },
+        ] },
+        { key: 'wake', label: '起床时间', type: 'text', default: '', placeholder: 'HH:mm，如 07:30', hint: '选「现在就睡」时无需填写' },
+      ],
+      compute: (v) => {
+        const rows: CalcResultRow[] = []
+        const hm = (mins: number) => {
+          const m = ((mins % 1440) + 1440) % 1440
+          return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
+        }
+        const parse = (t: string): number | null => {
+          const m = /^(\d{1,2}):(\d{2})$/.exec(t.trim())
+          if (!m) return null
+          const hh = Number(m[1]), mm = Number(m[2])
+          if (hh > 23 || mm > 59) return null
+          return hh * 60 + mm
+        }
+        if (v.mode === 'byWake') {
+          const w = parse(String(v.wake ?? ''))
+          if (w === null) return [{ label: '请输入起床时间', value: '格式 HH:mm，如 07:30' }]
+          for (const c of [6, 5, 4]) {
+            const bed = w - (c * 90 + 15)
+            rows.push({ label: `${c} 个周期（约 ${(c * 1.5).toFixed(1)} 小时）`, value: `就寝 ${hm(bed)}`, primary: c === 5 })
+          }
+        } else {
+          const bed = new Date().getHours() * 60 + new Date().getMinutes()
+          for (const c of [3, 4, 5, 6]) {
+            const up = bed + 15 + c * 90
+            rows.push({ label: `${c} 个周期（约 ${(c * 1.5).toFixed(1)} 小时）`, value: `起床 ${hm(up)}`, primary: c === 5 })
+          }
+          rows.push({ label: '当前入睡时刻', value: hm(bed) })
+        }
+        return rows
+      },
+      note: '口径：单周期按 90 分钟、入睡缓冲 15 分钟估算（个体差异约 ±30 分钟）；5 个周期（7.5 小时）适合多数成年人。',
+    },
+  },
+  {
+    slug: 'text-extractor', title: '文本提取器', category: 'utility',
+    desc: '从大段文本中批量提取邮箱、手机号、URL、IP、身份证号等并去重导出。',
+    keywords: ['提取', '手机号', '邮箱', '正则提取', '批量'],
+    textDef: {
+      options: [
+        { key: 'type', label: '提取类型', type: 'select', default: 'all', choices: [
+          { value: 'all', label: '全部类型' },
+          { value: 'email', label: '仅邮箱' },
+          { value: 'phone', label: '仅手机号' },
+          { value: 'url', label: '仅网址 URL' },
+          { value: 'ip', label: '仅 IP 地址' },
+          { value: 'idcard', label: '仅身份证号' },
+          { value: 'date', label: '仅日期' },
+          { value: 'money', label: '仅金额' },
+        ] },
+        { key: 'dedupe', label: '去重', type: 'toggle', default: true },
+        { key: 'sort', label: '按内容排序', type: 'toggle', default: false },
+        { key: 'validId', label: '身份证过校验位', type: 'toggle', default: true },
+      ],
+      placeholder: '粘贴含邮箱、手机号、链接等内容的大段文本，自动批量提取…',
+      transform: (t, o) => {
+        const type = String(o.type)
+        const keys: ExtractType[] = type === 'all' ? (Object.keys(EXTRACT_TYPES) as ExtractType[]) : [type as ExtractType]
+        const groups = extractFromText(t, keys, o.dedupe !== false, o.sort === true)
+        const lines: string[] = []
+        let total = 0
+        for (const g of groups) {
+          let items = g.items
+          if ((type === 'idcard' || (type === 'all' && g.label === '身份证号')) && o.validId !== false) {
+            items = items.filter((x) => idCardValid(x))
+          }
+          if (!items.length) continue
+          total += items.length
+          lines.push(`【${g.label}】共 ${items.length} 条`)
+          lines.push(...items)
+          lines.push('')
+        }
+        return total ? lines.join('\n').trimEnd() : '（未提取到目标内容）'
+      },
+    },
+  },
+  {
+    slug: 'business-day-calculator', title: '工作日计算器', category: 'utility',
+    desc: '区间工作日天数、日期加减 N 个工作日，含法定节假日与调休补班。',
+    keywords: ['工作日', '调休', '节假日', '上班天数'],
+    component: () => import('./components/BusinessDayCalculator.vue'),
+  },
+  {
+    slug: 'kinship-calculator', title: '亲戚关系计算器', category: 'utility',
+    desc: '「爸爸的哥哥叫什么」一键推出称谓，也可反向查关系链，走亲访友不再叫错。',
+    keywords: ['亲戚', '称谓', '亲属', '过年'],
+    component: () => import('./components/KinshipCalculator.vue'),
+  },
+  {
+    slug: 'period-calculator', title: '经期/安全期计算器', category: 'utility',
+    desc: '按末次月经与周期推算经期、排卵日与安全期日历，数据仅存本机不上传。',
+    keywords: ['经期', '安全期', '排卵', '生理期'],
+    component: () => import('./components/PeriodCalculator.vue'),
+  },
+  {
+    slug: 'amortization-calculator', title: '房贷还款计划表', category: 'utility',
+    desc: '等额本息/等额本金逐月明细，支持提前还款重算，可导出 Excel。',
+    keywords: ['还款计划', '等额本金', '逐月', '提前还款'],
+    component: () => import('./components/AmortizationCalculator.vue'),
+  },
+  {
+    slug: 'lucky-wheel', title: '幸运大转盘', category: 'utility',
+    desc: '名单生成抽奖转盘，缓动旋转动画与音效，课堂点名、年会抽奖、今天吃什么。',
+    keywords: ['转盘', '抽奖', '随机点名', '大转盘'],
+    component: () => import('./components/LuckyWheel.vue'),
+  },
+  {
+    slug: 'random-group-splitter', title: '随机分组器', category: 'utility',
+    desc: '名单随机分组成团队，支持排除与锁定成员，教师分组、团建破冰。',
+    keywords: ['分组', '随机', '点名', '团队'],
+    component: () => import('./components/RandomGroupSplitter.vue'),
+  },
+  {
+    slug: 'banned-words-checker', title: '文案违禁词检测', category: 'utility',
+    desc: '检测文案中的广告法极限词、医疗宣称与平台风险词，高亮并给替换建议。',
+    keywords: ['违禁词', '极限词', '广告法', '文案检测'],
+    component: () => import('./components/BannedWordsChecker.vue'),
+  },
+  {
+    slug: 'statistics-calculator', title: '统计计算器', category: 'utility',
+    desc: '一组数算均值/中位数/众数/方差/标准差/分位数，质检与运营数据一步到位。',
+    keywords: ['标准差', '中位数', '方差', '统计'],
+    calcDef: {
+      fields: [
+        { key: 'data', label: '数据（逗号/空格/换行分隔）', type: 'text', default: '', placeholder: '如 88, 92, 79, 85, 90' },
+      ],
+      compute: (v) => {
+        const nums = String(v.data ?? '').split(/[,，\s;、]+/).map(Number).filter((x) => Number.isFinite(x))
+        if (nums.length < 1) return [{ label: '请输入数据', value: '至少 1 个数字' }]
+        const n = nums.length
+        const sum = nums.reduce((a, b) => a + b, 0)
+        const mean = sum / n
+        const sorted = [...nums].sort((a, b) => a - b)
+        const median = n % 2 ? sorted[(n - 1) / 2]! : (sorted[n / 2 - 1]! + sorted[n / 2]!) / 2
+        const variance = nums.reduce((a, b) => a + (b - mean) ** 2, 0) / Math.max(1, n - 1)
+        const std = Math.sqrt(variance)
+        const freq = new Map<number, number>()
+        nums.forEach((x) => freq.set(x, (freq.get(x) ?? 0) + 1))
+        const maxFreq = Math.max(...freq.values())
+        const modes = maxFreq > 1 ? [...freq.entries()].filter(([, c]) => c === maxFreq).map(([x]) => x) : []
+        const q1 = sorted[Math.floor((n - 1) * 0.25)]!
+        const q3 = sorted[Math.floor((n - 1) * 0.75)]!
+        const fmt = (x: number) => (Number.isInteger(x) ? fmtN(x) : x.toFixed(4).replace(/0+$/, '').replace(/\.$/, ''))
+        const rows: CalcResultRow[] = [
+          { label: '样本量 / 总和', value: n + ' 个 / ' + fmt(sum) },
+          { label: '均值', value: fmt(mean), primary: true },
+          { label: '中位数', value: fmt(median) },
+          { label: '众数', value: modes.length ? modes.map(fmt).join('、') : '无（无重复值）' },
+          { label: '样本方差 / 标准差', value: fmt(variance) + ' / ' + fmt(std) },
+          { label: '极差（最大-最小）', value: fmt(sorted[n - 1]!) + ' − ' + fmt(sorted[0]!) + ' = ' + fmt(sorted[n - 1]! - sorted[0]!) },
+          { label: 'Q1 / Q3（IQR）', value: fmt(q1) + ' / ' + fmt(q3) + '（' + fmt(q3 - q1) + '）' },
+        ]
+        if (n >= 2 && mean !== 0) rows.push({ label: '变异系数 CV', value: fmt((std / Math.abs(mean)) * 100) + '%' })
+        return rows
+      },
+      note: '口径：方差与标准差取样本口径（除以 n−1）；分位数用序号取整插值，仅供快速参考。',
+    },
+  },
+  {
+    slug: 'phone-carrier-lookup', title: '手机号运营商查询', category: 'utility',
+    desc: '判断手机号属于移动/联通/电信/广电或虚拟运营商，支持批量粘贴。',
+    keywords: ['运营商', '号段', '手机号', '移动联通电信'],
+    calcDef: {
+      fields: [
+        { key: 'phones', label: '手机号（可批量，换行或逗号分隔）', type: 'text', default: '', placeholder: '13800138000, 18600000000…' },
+      ],
+      compute: (v) => {
+        const list = [...new Set(String(v.phones ?? '').split(/[,，\s;、]+/).filter(Boolean))].slice(0, 200)
+        if (!list.length) return [{ label: '请输入手机号', value: '可批量粘贴' }]
+        return list.map((p2) => {
+          const r = phoneCarrier(p2)
+          return { label: p2, value: r.valid ? String(r.carrier) : '无效（' + r.reason + '）', primary: list.length === 1 }
+        })
+      },
+      note: '口径：内置公开号段前缀表（仅判断运营商与虚商，不提供归属地，不联网查询）；新号段可能未收录。',
+    },
+  },
+  {
+    slug: 'pace-calculator', title: '跑步配速计算器', category: 'utility',
+    desc: '距离/完赛时间/配速三求一，附 5K 到全马折算表，马拉松备赛常用。',
+    keywords: ['配速', '马拉松', '跑步', 'pace'],
+    calcDef: {
+      fields: [
+        { key: 'mode', label: '已知条件', type: 'select', default: 'pace', choices: [
+          { value: 'pace', label: '由配速求时间' },
+          { value: 'time', label: '由时间求配速' },
+        ] },
+        { key: 'dist', label: '距离', type: 'select', default: '42.195', choices: [
+          { value: '5', label: '5 公里' }, { value: '10', label: '10 公里' }, { value: '21.0975', label: '半马 21.0975 公里' },
+          { value: '42.195', label: '全马 42.195 公里' }, { value: 'custom', label: '自定义' },
+        ] },
+        { key: 'distC', label: '自定义距离（公里）', type: 'number', default: '' },
+        { key: 'pace', label: '配速（分:秒/公里）', type: 'text', default: '', placeholder: '5:30 表示 5 分 30 秒' },
+        { key: 'time', label: '完赛时间（时:分:秒）', type: 'text', default: '', placeholder: '3:59:59' },
+      ],
+      compute: (v) => {
+        const dist = v.dist === 'custom' ? Number(v.distC) : Number(v.dist)
+        if (!(dist > 0)) return [{ label: '请填写距离', value: '—' }]
+        const parseHMS = (t: string): number | null => {
+          const m = /^(\d+):(\d{1,2}):(\d{1,2})$|^(\d{1,2}):(\d{1,2})$/.exec(t.trim())
+          if (!m) return null
+          if (m[4] !== undefined) return Number(m[4]) * 60 + Number(m[5])
+          return Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3])
+        }
+        const parseMS = (t: string): number | null => {
+          const m = /^(\d{1,2}):(\d{1,2})$/.exec(t.trim())
+          if (!m) return null
+          return Number(m[1]) * 60 + Number(m[2])
+        }
+        const hms = (s: number) => {
+          const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = Math.round(s % 60)
+          return h ? h + ':' + String(m).padStart(2, '0') + ':' + String(sec).padStart(2, '0') : m + ':' + String(sec).padStart(2, '0')
+        }
+        if (v.mode === 'pace') {
+          const p2 = parseMS(String(v.pace ?? ''))
+          if (p2 === null || p2 <= 0) return [{ label: '请填写配速', value: '格式 分:秒，如 5:30' }]
+          const rows: CalcResultRow[] = [
+            { label: dist + ' 公里完赛时间', value: hms(p2 * dist), primary: true },
+            { label: '每 5 公里用时', value: hms(p2 * 5) },
+          ]
+          for (const d of [5, 10, 21.0975, 42.195]) {
+            rows.push({ label: d === 21.0975 ? '半马' : d === 42.195 ? '全马' : d + 'K', value: hms(p2 * d) })
+          }
+          return rows
+        }
+        const t = parseHMS(String(v.time ?? ''))
+        if (t === null || t <= 0) return [{ label: '请填写完赛时间', value: '格式 时:分:秒，如 3:59:59' }]
+        const pace = t / dist
+        const pm = Math.floor(pace / 60), ps = Math.round(pace % 60)
+        return [
+          { label: '平均配速', value: pm + ':' + String(ps).padStart(2, '0') + ' /公里', primary: true },
+          { label: '折算 5K', value: hms(pace * 5) },
+          { label: '折算半马', value: hms(pace * 21.0975) },
+          { label: '折算全马', value: hms(pace * 42.195) },
+        ]
+      },
+      note: '口径：配速 = 时间 ÷ 距离，匀速假设，未考虑爬升/补给与赛道拥挤；折算表按匀速估算。',
+    },
+  },
+  {
+    slug: 'one-rep-max-calculator', title: '健身极限重量 1RM', category: 'utility',
+    desc: '按 Epley/Brzycki 公式推算单次极限重量，附百分比训练负荷表。',
+    keywords: ['1RM', '极限重量', '深蹲', '卧推'],
+    calcDef: {
+      fields: [
+        { key: 'w', label: '训练重量', type: 'number', default: '', suffix: 'kg' },
+        { key: 'r', label: '完成次数', type: 'number', default: 5, suffix: '次' },
+      ],
+      compute: (v) => {
+        const w = Number(v.w), r = Math.floor(Number(v.r))
+        if (!(w > 0) || !(r > 0)) return [{ label: '请填写重量与次数', value: '—' }]
+        if (r > 12) return [{ label: '次数过多', value: '1RM 估算建议使用 ≤12 次力竭组，误差更小' }]
+        const epley = w * (1 + r / 30)
+        const brzycki = w * (36 / (37 - Math.min(r, 36)))
+        const oneRm = (epley + brzycki) / 2
+        const fmt = (x: number) => (Math.round(x * 2) / 2).toFixed(1)
+        const loads = [95, 90, 85, 80, 75, 70, 65, 60].map((p2) => p2 + '% → ' + fmt((oneRm * p2) / 100) + 'kg × ' + (p2 >= 85 ? 2 : p2 >= 75 ? 5 : 8) + ' 次')
+        return [
+          { label: '估算 1RM', value: fmt(oneRm) + ' kg', primary: true, hint: 'Epley ' + fmt(epley) + ' / Brzycki ' + fmt(brzycki) },
+          { label: '3RM / 5RM / 10RM', value: fmt((oneRm * 93) / 100) + ' / ' + fmt((oneRm * 87) / 100) + ' / ' + fmt((oneRm * 75) / 100) + ' kg' },
+          { label: '力量/爆发负荷', value: loads.slice(0, 4).join(' ｜ ') },
+          { label: '肌肥大负荷', value: loads.slice(4).join(' ｜ ') },
+        ]
+      },
+      note: '口径：取 Epley 与 Brzycki 两公式均值，适合 12 次以内力竭组；新手建议保守取下限，大重量训练请有人保护。',
+    },
+  },
+  {
+    slug: 'tdee-calculator', title: '基础代谢 TDEE 计算器', category: 'utility',
+    desc: 'Mifflin-St Jeor 公式算 BMR，按活动系数推每日总消耗与三大营养素分配。',
+    keywords: ['基础代谢', 'BMR', 'TDEE', '减脂'],
+    calcDef: {
+      fields: [
+        { key: 'sex', label: '性别', type: 'select', default: 'male', choices: [{ value: 'male', label: '男' }, { value: 'female', label: '女' }] },
+        { key: 'age', label: '年龄', type: 'number', default: 30, suffix: '岁' },
+        { key: 'h', label: '身高', type: 'number', default: '', suffix: 'cm' },
+        { key: 'w', label: '体重', type: 'number', default: '', suffix: 'kg' },
+        { key: 'act', label: '活动水平', type: 'select', default: '1.375', choices: [
+          { value: '1.2', label: '久坐（几乎不运动）' }, { value: '1.375', label: '轻度（每周 1-3 次）' },
+          { value: '1.55', label: '中度（每周 3-5 次）' }, { value: '1.725', label: '高度（每周 6-7 次）' },
+          { value: '1.9', label: '极高（体力劳动/双训）' },
+        ] },
+      ],
+      compute: (v) => {
+        const age = Number(v.age), h = Number(v.h), w = Number(v.w), act = Number(v.act)
+        if (!(age > 0 && h > 0 && w > 0)) return [{ label: '请填写完整的身高体重年龄', value: '—' }]
+        const bmr = 10 * w + 6.25 * h - 5 * age + (v.sex === 'male' ? 5 : -161)
+        const tdee = bmr * act
+        const fmt = (x: number) => Math.round(x).toLocaleString('zh-CN')
+        return [
+          { label: '基础代谢 BMR', value: fmt(bmr) + ' 千卡', primary: true },
+          { label: '每日总消耗 TDEE', value: fmt(tdee) + ' 千卡', hint: 'BMR × 活动系数' },
+          { label: '温和减脂（−300 千卡）', value: '约 ' + fmt(tdee - 300) + ' 千卡/天' },
+          { label: '均衡维持', value: '约 ' + fmt(tdee) + ' 千卡/天' },
+          { label: '增肌盈余（+300 千卡）', value: '约 ' + fmt(tdee + 300) + ' 千卡/天' },
+          { label: '宏量分配建议（维持）', value: '蛋白 ' + fmt((tdee * 0.3) / 4) + 'g ｜ 脂肪 ' + fmt((tdee * 0.25) / 9) + 'g ｜ 碳水 ' + fmt((tdee * 0.45) / 4) + 'g' },
+        ]
+      },
+      note: '口径：Mifflin-St Jeor 公式（1990），公认较准的估算式；个体差异可达 ±10%，以体成分变化为准。',
+    },
+  },
+  {
+    slug: 'shoe-size-converter', title: '鞋码尺码换算', category: 'utility',
+    desc: '中/欧/美/英/日男女鞋码互转与脚长毫米反查，海淘下单必备。',
+    keywords: ['鞋码', '尺码', '海淘', '换算'],
+    calcDef: {
+      fields: [
+        { key: 'sex', label: '适用', type: 'select', default: 'male', choices: [{ value: 'male', label: '男鞋' }, { value: 'female', label: '女鞋' }] },
+        { key: 'sys', label: '已知尺码制', type: 'select', default: 'eu', choices: [
+          { value: 'cn', label: '中国码（脚长 mm）' }, { value: 'eu', label: '欧码 EU' }, { value: 'us', label: '美码 US' }, { value: 'uk', label: '英码 UK' },
+        ] },
+        { key: 'size', label: '尺码数值', type: 'text', default: '', placeholder: '如 42 或 260' },
+      ],
+      compute: (v) => {
+        const s = String(v.size ?? '').trim()
+        const n = Number(s)
+        if (!s || !Number.isFinite(n)) return [{ label: '请输入尺码', value: '—' }]
+        const male = v.sex === 'male'
+        const eu = v.sys === 'cn' ? (n - 220) / 6.66 + 33 : v.sys === 'eu' ? n : v.sys === 'us' ? (male ? n + 1.5 : n + 2) : (male ? n + 2 : n + 2.5)
+        if (!Number.isFinite(eu)) return [{ label: '请确认尺码制', value: '—' }]
+        const foot = Math.round(((eu - 33) * 6.66 + 220) / 5) * 5
+        const us = male ? eu - 1.5 : eu - 2
+        const uk = male ? eu - 2 : eu - 2.5
+        const jp = foot / 10
+        const f1 = (x: number) => x.toFixed(1)
+        return [
+          { label: '脚长参考', value: '约 ' + foot + ' mm', primary: true },
+          { label: '中国码（脚长制）', value: foot + ' mm' },
+          { label: '欧码 EU', value: f1(eu) },
+          { label: '美码 US', value: f1(us) },
+          { label: '英码 UK', value: f1(uk) },
+          { label: '日码 JP（cm）', value: f1(jp) },
+        ]
+      },
+      note: '口径：基于常见品牌尺码表的近似线性换算，各品牌存在 ±半码差异；下单前以该品牌官方尺码表为准。',
+    },
+  },
+  {
+    slug: 'fraction-calculator', title: '分数计算器', category: 'utility',
+    desc: '分数四则运算、约分与带分数互转，BigInt 精确计算不丢精度。',
+    keywords: ['分数', '约分', '通分', 'fraction'],
+    calcDef: {
+      fields: [
+        { key: 'a', label: '分数 A', type: 'text', default: '', placeholder: '如 1/2、3 或带分数 1 1/2' },
+        { key: 'op', label: '运算', type: 'select', default: '+', choices: [
+          { value: '+', label: '加（+）' }, { value: '-', label: '减（−）' }, { value: '*', label: '乘（×）' }, { value: '/', label: '除（÷）' },
+        ] },
+        { key: 'b', label: '分数 B', type: 'text', default: '', placeholder: '如 3/4' },
+      ],
+      compute: (v) => {
+        const parse = (t: string): [bigint, bigint] | null => {
+          const s = t.trim().replace(/＋/g, '+')
+          let m = /^(\d+)\s+(\d+)\/(\d+)$/.exec(s)
+          if (m) return [BigInt(m[1]) * BigInt(m[3]) + BigInt(m[2]), BigInt(m[3])]
+          m = /^(-?\d+)\/(\d+)$/.exec(s)
+          if (m) return [BigInt(m[1]), BigInt(m[2])]
+          if (/^-?\d+$/.test(s)) return [BigInt(s), 1n]
+          return null
+        }
+        const gcd = (x: bigint, y: bigint): bigint => (y === 0n ? (x < 0n ? -x : x) : gcd(y, x % y))
+        const A = parse(String(v.a ?? '')), B = parse(String(v.b ?? ''))
+        if (!A || !B) return [{ label: '请按格式输入分数', value: '支持 3/4、5、带分数 1 1/2' }]
+        const an = A[0], ad = A[1], bn = B[0], bd = B[1]
+        let rn: bigint, rd: bigint
+        const op = String(v.op)
+        if (op === '+') { rn = an * bd + bn * ad; rd = ad * bd }
+        else if (op === '-') { rn = an * bd - bn * ad; rd = ad * bd }
+        else if (op === '*') { rn = an * bn; rd = ad * bd }
+        else {
+          if (bn === 0n) return [{ label: '除数不能为零', value: '—' }]
+          rn = an * bd; rd = ad * bn
+        }
+        if (rd === 0n) return [{ label: '分母不能为零', value: '—' }]
+        if (rd < 0n) { rn = -rn; rd = -rd }
+        const g = gcd(rn, rd)
+        rn /= g
+        rd /= g
+        const whole = rn / rd
+        const rem = rn % rd
+        const dec = Number(rn) / Number(rd)
+        const mixed = rd === 1n || rem === 0n ? (rd === 1n ? rn.toString() : '—') : (whole < 0n ? -whole : whole) + ' 又 ' + (rem < 0n ? -rem : rem) + '/' + rd
+        return [
+          { label: '最简分数', value: rd === 1n ? rn.toString() : rn + '/' + rd, primary: true },
+          { label: '带分数', value: mixed },
+          { label: '小数', value: Number.isFinite(dec) ? dec.toString().slice(0, 16) : '—' },
+          { label: '过程', value: '(' + an + '/' + ad + ') ' + (op === '*' ? '×' : op === '/' ? '÷' : op) + ' (' + bn + '/' + bd + ')' },
+        ]
+      },
+      note: '口径：BigInt 整数分数运算，结果自动约分；循环小数显示前 16 位。',
+    },
+  },
+  {
+    slug: 'text-cleaner', title: '文本清洗器', category: 'utility',
+    desc: '一键去空格/空行/标点/Emoji/HTML 标签，中英文数字按需清除。',
+    keywords: ['文本清洗', '去空格', '去标点', '格式化'],
+    textDef: {
+      options: [
+        { key: 'spaces', label: '压缩多余空格', type: 'toggle', default: true },
+        { key: 'emptyLines', label: '去除空行', type: 'toggle', default: false },
+        { key: 'punctuation', label: '去除标点', type: 'toggle', default: false },
+        { key: 'emoji', label: '去除 Emoji', type: 'toggle', default: false },
+        { key: 'htmlTags', label: '去除 HTML 标签', type: 'toggle', default: false },
+        { key: 'digits', label: '去除数字', type: 'toggle', default: false },
+        { key: 'chinese', label: '去除中文', type: 'toggle', default: false },
+        { key: 'english', label: '去除英文', type: 'toggle', default: false },
+        { key: 'toHalf', label: '全角转半角', type: 'toggle', default: false },
+      ],
+      placeholder: '粘贴要清洗的文本…',
+      transform: (t, o) => cleanText(t, o as never),
+    },
+  },
+  {
+    slug: 'fullwidth-converter', title: '全角半角转换', category: 'utility',
+    desc: '全角↔半角互转（数字/字母/标点/空格），处理财务与系统录入格式。',
+    keywords: ['全角', '半角', '转换', '全半角'],
+    textDef: {
+      options: [
+        { key: 'dir', label: '方向', type: 'select', default: 'toHalf', choices: [
+          { value: 'toHalf', label: '全角 → 半角' }, { value: 'toFull', label: '半角 → 全角' },
+        ] },
+      ],
+      placeholder: '粘贴含全角或半角字符的文本…',
+      transform: (t, o) => (o.dir === 'toFull' ? halfToFull(t) : fullToHalf(t)),
+    },
+  },
+  {
+    slug: 'typing-test', title: '打字速度测试', category: 'utility',
+    desc: '30/60 秒限时测速，中文按字计速、英文按 WPM，实时正确率与速度曲线。',
+    keywords: ['打字', '测速', 'wpm', '键盘'],
+    component: () => import('./components/TypingTest.vue'),
+    steps: ['选择中文或英文模式', '点开始跟随文字输入', '结束时看成绩曲线'],
+  },
+  {
+    slug: 'text-set-operations', title: '文本集合运算', category: 'utility',
+    desc: '两列文本求交集/并集/差集，支持忽略大小写与去空白，名单比对利器。',
+    keywords: ['交集', '并集', '差集', '名单比对'],
+    component: () => import('./components/TextSetOps.vue'),
+  },
+  {
+    slug: 'vcard-generator', title: '电子名片 vCard', category: 'utility',
+    desc: '生成标准 vCard 名片，扫码存通讯录或下载 .vcf，微信邮箱通用。',
+    keywords: ['名片', 'vcard', '联系人', '二维码名片'],
+    component: () => import('./components/VCardGenerator.vue'),
+  },
+  {
+    slug: 'archive-extractor', title: '在线解压', category: 'utility',
+    desc: '本地解压 zip/7z/rar/tar.gz，支持密码加密包，文件列表预览后按需下载。',
+    keywords: ['解压', '压缩包', 'rar', '7z'],
+    needModel: true,
+    component: () => import('./components/ArchiveExtractor.vue'),
+  },
+  {
+    slug: 'special-symbols', title: '特殊符号大全', category: 'utility',
+    desc: '箭头/数学/序号/花边等符号库，点击复制，常用符号最近使用置顶。',
+    keywords: ['特殊符号', '箭头', '序号', '复制'],
+    component: () => import('./components/SpecialSymbols.vue'),
+  },
+  {
+    slug: 'screen-dead-pixel-test', title: '屏幕坏点测试', category: 'utility',
+    desc: '全屏纯色循环检测坏点亮点，含闪烁修复模式，新机验机二手验屏。',
+    keywords: ['坏点', '屏幕检测', '验机'],
+    component: () => import('./components/ScreenDeadPixelTest.vue'),
+  },
+  {
+    slug: 'keyboard-test', title: '键盘按键测试', category: 'utility',
+    desc: '可视化 87 键布局，按下高亮计数，检测卡键与连击 CPM，机械键盘验轴。',
+    keywords: ['键盘测试', '卡键', '连击', '键盘检测'],
+    component: () => import('./components/KeyboardTest.vue'),
+  },
+  {
+    slug: 'idiom-dictionary', title: '成语词典', category: 'utility',
+    desc: '三万条成语随查随用：拼音、释义、出处、例句，支持成语接龙与随机抽读。',
+    keywords: ['成语', '词典', '接龙', '释义'],
+    needModel: true,
+    component: () => import('./components/IdiomDictionary.vue'),
+  },
+  {
+    slug: 'xiehouyu-lookup', title: '歇后语查询', category: 'utility',
+    desc: '一万四千条歇后语检索与随机抽签，写作聊天趣味加分。',
+    keywords: ['歇后语', '俗语', '谜语'],
+    needModel: true,
+    component: () => import('./components/XiehouyuLookup.vue'),
+  },
+  {
+    slug: 'hanzi-stroke-order', title: '汉字笔顺演示', category: 'utility',
+    desc: '逐字播放标准笔顺动画，支持描红练习，家长辅导语文神器。',
+    keywords: ['笔顺', '汉字', '描红', '笔画'],
+    needModel: true,
+    component: () => import('./components/HanziStrokeOrder.vue'),
+    steps: ['输入一个汉字', '点播放看笔顺动画', '切描红模式用鼠标描写'],
+  },
+  {
+    slug: 'poem-search', title: '古诗词检索', category: 'utility',
+    desc: '唐诗三百首 + 宋词三百首精选语料，按题目、作者、名句即时检索。',
+    keywords: ['古诗词', '唐诗', '宋词', '诗句'],
+    component: () => import('./components/PoemSearch.vue'),
+  },
+  {
+    slug: 'phonetic-lookup', title: '英语音标查询', category: 'utility',
+    desc: '两万高频词英美音标与中文释义速查，背单词发音参考。',
+    keywords: ['音标', '发音', '词典', '英语'],
+    needModel: true,
+    component: () => import('./components/PhoneticLookup.vue'),
+  },
+  {
+    slug: 'periodic-table', title: '元素周期表', category: 'utility',
+    desc: '交互式 118 元素周期表：类别着色、性质速查、按符号或中文名搜索。',
+    keywords: ['元素周期表', '化学', '元素'],
+    needModel: true,
+    component: () => import('./components/PeriodicTable.vue'),
+  },
+  {
+    slug: 'dynasty-timeline', title: '历史朝代表', category: 'utility',
+    desc: '从夏商周到明清的朝代时间轴与速查表，含都城与建立者。',
+    keywords: ['朝代', '历史', '时间轴'],
+    component: () => import('./components/DynastyTimeline.vue'),
+  },
+  {
+    slug: 'university-lookup', title: '全国高校查询', category: 'utility',
+    desc: '公办本科名单按省份、类别与 985/211/双一流标签筛选。',
+    keywords: ['高校', '大学', '985', '高考'],
+    needModel: true,
+    component: () => import('./components/UniversityLookup.vue'),
+  },
+  {
+    slug: 'latex-editor', title: 'LaTeX 公式编辑器', category: 'utility',
+    desc: 'KaTeX 实时渲染数学公式，常用模板一键插入，导出高清 PNG。',
+    keywords: ['latex', '公式', '数学', 'katex'],
+    component: () => import('./components/LatexEditor.vue'),
+  },
+  {
+    slug: 'sudoku-solver', title: '数独生成与求解', category: 'utility',
+    desc: '三档难度出题（唯一解）、冲突标红、逐格提示，也可手输题目求解。',
+    keywords: ['数独', 'sudoku', '解谜'],
+    component: () => import('./components/SudokuSolver.vue'),
+  },
+  {
+    slug: 'whiteboard', title: '在线白板', category: 'utility',
+    desc: '画笔/直线/矩形/椭圆/文字随手涂画，撤销重做，导出 PNG。',
+    keywords: ['白板', '涂鸦', '画板', '草图'],
+    component: () => import('./components/Whiteboard.vue'),
+  },
+  {
+    slug: 'er-diagram-editor', title: '数据库 ER 图设计器', category: 'utility',
+    desc: '拖拽建表、连线标外键，导出 MySQL 建表 SQL 与设计图 PNG。',
+    keywords: ['er图', '数据库', '建表', 'sql'],
+    component: () => import('./components/ErDiagramEditor.vue'),
+  },
+  {
+    slug: 'kids-coloring', title: '儿童涂色画板', category: 'utility',
+    desc: '六款原创线稿点选填色，可打印成涂色卡，亲子手工首选。',
+    keywords: ['涂色', '儿童', '画画', '亲子'],
+    component: () => import('./components/KidsColoring.vue'),
+  },
+  {
+    slug: 'garbage-classifier', title: '垃圾分类查询', category: 'utility',
+    desc: '四千条常见物品干湿/可回收/有害分类速查（上海四分类口径）。',
+    keywords: ['垃圾分类', '干垃圾', '湿垃圾'],
+    needModel: true,
+    component: () => import('./components/GarbageClassifier.vue'),
+  },
+  {
+    slug: 'food-calorie-lookup', title: '食物热量速查', category: 'utility',
+    desc: '常见食物热量与三大营养素查询，可逐项加入「一餐」累计。',
+    keywords: ['食物热量', '卡路里', '营养'],
+    needModel: true,
+    component: () => import('./components/FoodCalorieLookup.vue'),
+  },
+  {
+    slug: 'invoice-assistant', title: '发票抬头助手', category: 'utility',
+    desc: '抬头信息生成二维码与文本，前台扫码开票，多抬头本机保存。',
+    keywords: ['发票', '抬头', '开票', '税号'],
+    component: () => import('./components/InvoiceAssistant.vue'),
+  },
+  {
+    slug: 'mbti-personality-test', title: 'MBTI 人格测试', category: 'utility',
+    desc: '28 题快速版 MBTI 自测，四维度百分比与类型解读，娱乐向。',
+    keywords: ['mbti', '人格', '性格测试'],
+    component: () => import('./components/MbtiTest.vue'),
+    steps: ['凭直觉答完 28 题', '查看四维度倾向', '复制结果分享'],
+  },
+  {
+    slug: 'digital-muyu', title: '电子木鱼', category: 'utility',
+    desc: '敲木鱼积功德，敲击音效与连击动效，解压摸鱼神器（可挂机）。',
+    keywords: ['木鱼', '功德', '解压'],
+    component: () => import('./components/DigitalMuyu.vue'),
+  },
+  {
+    slug: 'handheld-marquee', title: '手持弹幕 LED', category: 'utility',
+    desc: '全屏滚动大字：接机、演唱会应援、直播间标语，支持镜像翻转。',
+    keywords: ['弹幕', 'led', '接机', '应援'],
+    component: () => import('./components/HandheldMarquee.vue'),
+  },
+  {
+    slug: 'teleprompter', title: '提词器', category: 'utility',
+    desc: '口播录制全屏匀速滚动台词，可调速、镜像与焦点线，滚完自停。',
+    keywords: ['提词器', '口播', '台词', '直播'],
+    component: () => import('./components/Teleprompter.vue'),
+  },
+  {
+    slug: 'online-piano', title: '虚拟钢琴', category: 'utility',
+    desc: '一个半八度虚拟键盘，鼠标点击或键盘映射弹奏，音色本地合成。',
+    keywords: ['钢琴', '键盘', '乐器', '弹奏'],
+    component: () => import('./components/OnlinePiano.vue'),
+  },
+  {
+    slug: 'qr-code-repair', title: '二维码修复', category: 'utility',
+    desc: '识别模糊、带 Logo 的旧二维码，重新生成高纠错的干净新码。',
+    keywords: ['二维码修复', '模糊', '去logo'],
+    component: () => import('./components/QrCodeRepair.vue'),
+  },
+  {
+    slug: 'seal-generator', title: '印章示意图生成', category: 'utility',
+    desc: '圆形/椭圆章风格示意图（弧形文字+五角星），文档示意与 PPT 配图。',
+    keywords: ['印章', '示意图', '图章'],
+    component: () => import('./components/SealGenerator.vue'),
+  },
+  {
+    slug: 'name-generator', title: '随机起名器', category: 'utility',
+    desc: '按风格与性别偏好批量生成中文名（附拼音），起名灵感参考。',
+    keywords: ['起名', '取名', '名字生成'],
+    component: () => import('./components/NameGenerator.vue'),
+  },
+  {
+    slug: 'avatar-generator', title: '随机头像生成器', category: 'utility',
+    desc: '八种 DiceBear 风格按 seed 生成稳定头像，批量导出 PNG。',
+    keywords: ['头像', '生成器', 'dicebear', '卡通'],
+    component: () => import('./components/AvatarGenerator.vue'),
+  },
+  {
+    slug: 'text-to-handwriting', title: '手写体文字图', category: 'utility',
+    desc: '文字渲染成楷体「手写作业」图（横线/方格纸+抖动），导出 PNG/PDF。',
+    keywords: ['手写体', '作业', '楷体', '生成'],
+    component: () => import('./components/TextToHandwriting.vue'),
+  },
+  {
+    slug: 'text-behind-image', title: '文字藏于主体后', category: 'utility',
+    desc: '海报级效果：大字被人像/主体遮挡，色键抠图本地完成无需模型。',
+    keywords: ['文字遮挡', '海报', '抠图'],
+    component: () => import('./components/TextBehindImage.vue'),
+  },
+  {
+    slug: 'calendar-printer', title: '可打印日历', category: 'utility',
+    desc: '带农历与法定节假日的月历/年历，打印或导出 PNG，可做桌面日历。',
+    keywords: ['日历', '打印', '年历', '农历'],
+    component: () => import('./components/CalendarPrinter.vue'),
+  },
+  {
+    slug: 'citation-generator', title: '参考文献引用生成', category: 'utility',
+    desc: '按 GB/T 7714-2015 与 APA 7 生成图书/期刊/网页等文献引用。',
+    keywords: ['参考文献', '引用', 'gb7714', 'apa', '论文'],
+    calcDef: {
+      fields: [
+        { key: 'type', label: '文献类型', type: 'select', default: 'journal', choices: [
+          { value: 'book', label: '图书 [M]' }, { value: 'journal', label: '期刊论文 [J]' },
+          { value: 'thesis', label: '学位论文 [D]' }, { value: 'web', label: '网页/电子资源 [EB/OL]' },
+          { value: 'conference', label: '会议论文 [C]' },
+        ] },
+        { key: 'authors', label: '作者（多人用逗号分隔）', type: 'text', default: '' },
+        { key: 'title', label: '题名', type: 'text', default: '' },
+        { key: 'year', label: '年份', type: 'text', default: '' },
+        { key: 'journal', label: '期刊名 / 会议名 / 学校', type: 'text', default: '', hint: '按类型填写对应项' },
+        { key: 'volume', label: '卷期（如 45(3)）', type: 'text', default: '' },
+        { key: 'pages', label: '页码（如 12-18）', type: 'text', default: '' },
+        { key: 'url', label: '网址（网页类）', type: 'text', default: '' },
+      ],
+      compute: (v) => {
+        const f = {
+          type: String(v.type),
+          authors: String(v.authors ?? ''),
+          title: String(v.title ?? ''),
+          year: String(v.year ?? ''),
+          journal: String(v.journal ?? ''),
+          volume: String(v.volume ?? ''),
+          pages: String(v.pages ?? ''),
+          url: String(v.url ?? ''),
+        }
+        if (!f.title) return [{ label: '请填写题名', value: '—' }]
+        const r = formatCitation(f)
+        return [
+          { label: 'GB/T 7714-2015', value: r.gb, primary: true },
+          { label: 'APA 7', value: r.apa },
+        ]
+      },
+      note: '口径：GB/T 7714-2015 顺序编码制与 APA 第 7 版常用格式；投稿前请以目标期刊/学校的格式要求逐项核对。',
+    },
+  },
+  {
+    slug: 'blood-type-inheritance', title: '血型遗传计算', category: 'utility',
+    desc: '父母 ABO 血型推出子女可能血型，附 Rh 血型说明。',
+    keywords: ['血型', '遗传', 'abo'],
+    calcDef: {
+      fields: [
+        { key: 'fa', label: '父亲血型', type: 'select', default: 'A', choices: [
+          { value: 'A', label: 'A 型' }, { value: 'B', label: 'B 型' }, { value: 'AB', label: 'AB 型' }, { value: 'O', label: 'O 型' },
+        ] },
+        { key: 'mo', label: '母亲血型', type: 'select', default: 'B', choices: [
+          { value: 'A', label: 'A 型' }, { value: 'B', label: 'B 型' }, { value: 'AB', label: 'AB 型' }, { value: 'O', label: 'O 型' },
+        ] },
+      ],
+      compute: (v) => {
+        const r = bloodInherit(v.fa as never, v.mo as never)
+        const fmt = (arr: string[]) => arr.map((x) => x + ' 型').join('、')
+        return [
+          { label: '子女可能血型', value: fmt(r.possible), primary: true },
+          { label: '子女不可能血型', value: r.impossible.length ? fmt(r.impossible) : '四种都有可能' },
+          { label: 'Rh 血型说明', value: 'Rh+ 为显性遗传，父母均 Rh− 时子女必为 Rh−；其余组合以血检为准' },
+        ]
+      },
+      note: '口径：ABO 血型按 AB 显性遗传规则推导可能集；极罕见孟买血型等例外未计入，实际以实验室血型鉴定为准。',
+    },
+  },
+  {
+    slug: 'clothing-size-chart', title: '服装尺码对照', category: 'utility',
+    desc: '男女上衣/裤装尺码对照（国际/中国/身高体重推荐），海淘购物参考。',
+    keywords: ['尺码', '服装', '衣服尺码', '海淘'],
+    calcDef: {
+      fields: [
+        { key: 'sex', label: '性别', type: 'select', default: 'male', choices: [{ value: 'male', label: '男装' }, { value: 'female', label: '女装' }] },
+        { key: 'kind', label: '品类', type: 'select', default: 'top', choices: [
+          { value: 'top', label: '上装（T恤/衬衫/外套）' }, { value: 'pants', label: '裤装' },
+        ] },
+        { key: 'h', label: '身高', type: 'number', default: '', suffix: 'cm' },
+        { key: 'w', label: '体重', type: 'number', default: '', suffix: 'kg' },
+      ],
+      compute: (v) => {
+        const female = v.sex === 'female'
+        const kind = v.kind === 'pants' ? 'pants' : 'top'
+        const h = Number(v.h), w = Number(v.w)
+        if (!(h > 0 && w > 0)) return [{ label: '请填写身高与体重', value: '—' }]
+        const rec = recommendSize(h, w, female)
+        const chart = SIZE_CHARTS.find((c) => c.female === female && c.cat === kind)
+        if (!chart) return [{ label: '暂无该品类对照', value: '—' }]
+        const rows: CalcResultRow[] = chart.rows.map((r) => ({
+          label: r.intl,
+          value: `身高 ${r.cn} · 欧码 ${r.eu} · 胸围 ${r.chest} · 腰围 ${r.waist}`,
+        }))
+        rows.unshift({ label: '按身高体重推荐', value: rec, primary: true, hint: '宽松/修身偏好请上下调一档' })
+        return rows
+      },
+      note: '口径：常见休闲服装版型对照表，不同品牌剪裁差异大（修身/宽松），以具体商品尺码表为准。',
+    },
+  },
+  {
+    slug: 'address-parser', title: '收货地址解析', category: 'utility',
+    desc: '乱序地址智能拆出省/市/区/详细地址，支持批量，电商打单利器。',
+    keywords: ['地址解析', '地址库', '省市区', '打单'],
+    textDef: {
+      options: [
+        { key: 'fmt', label: '输出格式', type: 'select', default: 'lines', choices: [
+          { value: 'lines', label: '分行（省/市/区/详址）' }, { value: 'csv', label: 'CSV（一行一条）' },
+        ] },
+      ],
+      placeholder: '每行一条地址，支持乱序，如：上海市浦东新区张江高科技园区博云路2号 13800000000 王小明',
+      transform: async (t, o) => parseAddresses(t, o.fmt === 'csv'),
+    },
+  },
+  {
+    slug: 'retirement-calculator', title: '退休年龄计算', category: 'utility',
+    desc: '按渐进式延迟退休新政推算法定退休年月与距今年数。',
+    keywords: ['退休', '延迟退休', '退休年龄'],
+    calcDef: {
+      fields: [
+        { key: 'kind', label: '人员类别', type: 'select', default: 'male', choices: RETIRE_KINDS.map((k) => ({ value: k.value, label: k.label })) },
+        { key: 'birth', label: '出生年月', type: 'date', default: '' },
+      ],
+      compute: (v) => {
+        const birth = String(v.birth ?? '')
+        if (!birth) return [{ label: '请选择出生年月', value: '—' }]
+        const r = retirementFor(birth, v.kind as never)
+        if (!r) return [{ label: '日期无效', value: '请检查出生年月' }]
+        const awayYears = Math.floor(r.monthsAway / 12)
+        const awayMonths = r.monthsAway % 12
+        return [
+          { label: '法定退休时间', value: r.retireYm, primary: true },
+          { label: '退休年龄', value: r.ageText + `（较原规定延迟 ${r.delayMonths} 个月）` },
+          { label: '距离退休', value: r.monthsAway <= 0 ? '已到退休年龄' : `还有 ${awayYears} 年 ${awayMonths} 个月` },
+        ]
+      },
+      note: '口径：2024 年全国人大常委会「渐进式延迟法定退休年龄」决定（自 2025-01-01 起按每 4 个月延迟 1 个月）；实际以社保经办机构核定为准。',
+    },
+  },
+  {
+    slug: 'shelf-life-calculator', title: '保质期计算器', category: 'utility',
+    desc: '生产日期 + 保质期算到期日与剩余天数，食品药妆临期提醒。',
+    keywords: ['保质期', '到期日', '临期'],
+    calcDef: {
+      fields: [
+        { key: 'prod', label: '生产日期', type: 'date', default: '' },
+        { key: 'n', label: '保质期数值', type: 'number', default: 12 },
+        { key: 'unit', label: '单位', type: 'select', default: 'month', choices: [
+          { value: 'day', label: '天' }, { value: 'month', label: '月' }, { value: 'year', label: '年' },
+        ] },
+      ],
+      compute: (v) => {
+        const prod = String(v.prod ?? '')
+        const n = Number(v.n)
+        if (!prod || !(n > 0)) return [{ label: '请填写生产日期与保质期', value: '—' }]
+        const [y, m, d] = prod.split('-').map(Number)
+        const exp = new Date(y!, m! - 1, d!)
+        if (v.unit === 'month') exp.setMonth(exp.getMonth() + Math.round(n))
+        else if (v.unit === 'year') exp.setFullYear(exp.getFullYear() + Math.round(n))
+        else exp.setDate(exp.getDate() + Math.round(n))
+        const days = Math.ceil((exp.getTime() - Date.now()) / 86400000)
+        const state = days < 0 ? `已过期 ${-days} 天` : days <= 7 ? `⚠ 临期，仅剩 ${days} 天` : `剩余 ${days} 天`
+        return [
+          { label: '到期日期', value: `${exp.getFullYear()}-${String(exp.getMonth() + 1).padStart(2, '0')}-${String(exp.getDate()).padStart(2, '0')}`, primary: true },
+          { label: '状态', value: state, primary: days < 0 },
+        ]
+      },
+      note: '口径：按整月/整年顺延（如 1-31 + 1 月 → 2-28/29 回退）；开封后保质期与标注不同，请以包装说明为准。',
+    },
+  },
+  {
+    slug: 'shift-schedule-calculator', title: '倒班排班计算', category: 'utility',
+    desc: '两班倒/三班倒/四班三运转：锚定班次查任意日期，快速排班参考。',
+    keywords: ['倒班', '排班', '三班倒', '班次'],
+    calcDef: {
+      fields: [
+        { key: 'model', label: '班制', type: 'select', default: 'two', choices: SHIFT_MODELS.map((m) => ({ value: m.id, label: m.label })) },
+        { key: 'anchor', label: '锚点日期（该天上的班次）', type: 'date', default: '' },
+        { key: 'anchorIdx', label: '锚点当天是第几班（从 0 开始）', type: 'number', default: 0 },
+        { key: 'query', label: '查询日期', type: 'date', default: '' },
+      ],
+      compute: (v) => {
+        const model = SHIFT_MODELS.find((m) => m.id === v.model)
+        const anchor = String(v.anchor ?? '')
+        const query = String(v.query ?? '')
+        if (!model || !anchor || !query) return [{ label: '请选择班制并填写两个日期', value: '锚点=你知道班次的某一天' }]
+        const r = shiftOn(model, anchor, Math.max(0, Math.round(Number(v.anchorIdx) || 0)), query)
+        return [
+          { label: `${query} 的班次`, value: r.name, primary: true },
+          { label: '周期位置', value: `第 ${r.cyclePos + 1} 天 / 共 ${model.cycle} 天` },
+          { label: '班制说明', value: model.desc },
+        ]
+      },
+      note: '口径：以「周期天数 + 锚点」线性推算；节假日是否上班与调休由单位排班表决定，本工具只按固定周期推算。',
+    },
   },
 ]
 

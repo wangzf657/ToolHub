@@ -52,6 +52,10 @@ export const popularSlugs = [
   'income-tax-calculator',
   'word-counter',
   'merge-images-long',
+  'rmb-uppercase',
+  'amortization-calculator',
+  'lucky-wheel',
+  'typing-test',
 ]
 export const popularTools = popularSlugs
   .map((s) => toolMap.get(s))

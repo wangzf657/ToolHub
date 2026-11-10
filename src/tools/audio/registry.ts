@@ -1,6 +1,6 @@
 import type { ToolDef } from '@/types'
 
-/** 音频工具注册表（30 项）—— WebAudio 快路径 + ffmpeg 兜底 */
+/** 音频工具注册表（38 项）—— WebAudio 快路径 + ffmpeg 兜底 */
 const tools: ToolDef[] = [
   { slug: 'text-to-speech', title: '文字转语音', category: 'audio', desc: '调用系统内置语音朗读文本，可调语速音调，选中文本试听。', keywords: ['tts', '朗读', '配音'], component: () => import('./components/TextToSpeech.vue') },
   { slug: 'audio-transcribe', title: '音频转文字', category: 'audio', desc: '端侧语音识别模型把录音转成文字（首次需下载模型，之后离线）。', keywords: ['转写', '字幕', 'transcribe'], needModel: true, component: () => import('./components/AudioTranscribe.vue') },
@@ -32,6 +32,14 @@ const tools: ToolDef[] = [
   { slug: 'remove-silence-from-audio', title: '音频去静音', category: 'audio', desc: '裁掉首尾静音或全篇长停顿，录音立刻紧凑。', keywords: ['静音', '停顿', '去空白'], component: () => import('./components/RemoveSilenceAudio.vue') },
   { slug: 'reverse-audio', title: '音频倒放', category: 'audio', desc: '倒放录音并下载——反向镲片、音效设计与好奇心的朋友。', keywords: ['倒放', 'reverse'], component: () => import('./components/ReverseAudio.vue') },
   { slug: 'audio-waveform-generator', title: '音频波形图生成', category: 'audio', desc: '把音频渲染成自定义颜色的波形 PNG，做封面与缩略图。', keywords: ['波形', 'waveform', '封面'], component: () => import('./components/WaveformGenerator.vue') },
+  { slug: 'white-noise-generator', title: '白噪音/环境音', category: 'audio', desc: '白/粉/棕噪音与雨声、海浪、风扇声实时合成，助眠专注，无需任何音频文件。', keywords: ['白噪音', '助眠', '环境音', '雨声'], component: () => import('./components/WhiteNoise.vue'), steps: ['选择一种环境音', '调节音量', '可设定时停止'] },
+  { slug: 'metronome', title: '节拍器', category: 'audio', desc: 'Web Audio 精确调度，BPM 可调、拍型重音与细分拍，乐器陪练。', keywords: ['节拍器', 'bpm', '练习'], component: () => import('./components/Metronome.vue') },
+  { slug: 'tone-generator', title: '频率信号发生器', category: 'audio', desc: '20Hz–20kHz 正弦/方波/三角/锯齿与扫频，测耳机频响、验机、听力自测。', keywords: ['频率', '信号发生器', '测试音'], component: () => import('./components/ToneGenerator.vue') },
+  { slug: 'instrument-tuner', title: '乐器调音器', category: 'audio', desc: '麦克风实时测音高与音分偏差，吉他/尤克里里/贝斯标准调弦。', keywords: ['调音', '吉他', '音准'], component: () => import('./components/InstrumentTuner.vue'), steps: ['授权麦克风', '拨一根弦', '按指针调到绿色'] },
+  { slug: 'mp3-tag-editor', title: 'MP3 标签编辑器', category: 'audio', desc: '读取并修改 MP3 的标题/艺术家/专辑/封面标签，写回新文件副本。', keywords: ['标签', 'id3', '封面', 'mp3'], component: () => import('./components/Mp3TagEditor.vue') },
+  { slug: 'audio-equalizer', title: '音频均衡器 EQ', category: 'audio', desc: '10 段均衡实时试听（低音/人声/高音预设），同链离线渲染导出 MP3/WAV。', keywords: ['均衡器', 'eq', '调音', '低音'], component: () => import('./components/AudioEqualizer.vue') },
+  { slug: 'audio-visualizer', title: '音频可视化播放器', category: 'audio', desc: '频谱柱状/波形/圆环粒子三主题实时可视化，可截图导出封面图。', keywords: ['可视化', '频谱', '波形', '播放器'], component: () => import('./components/AudioVisualizer.vue') },
+  { slug: 'decibel-meter', title: '在线分贝仪', category: 'audio', desc: '麦克风实时估算环境噪音声级，曲线与峰值记录，验房/午休测噪。', keywords: ['分贝', '噪音', '声级', '测噪'], component: () => import('./components/DecibelMeter.vue') },
 ]
 
 export default tools

@@ -1,5 +1,5 @@
 import type { ToolDef, CalcFieldDef, CalcResultRow } from '@/types'
-import { blackScholes, kelly, cagr, bondYtm, formatMoney } from '@/lib/finance'
+import { blackScholes, kelly, cagr, bondYtm, formatMoney, installmentIrr, amortize } from '@/lib/finance'
 
 const F = (k: string, label: string, extra: Partial<CalcFieldDef> = {}): CalcFieldDef => ({
   key: k, label, type: 'number', default: '', ...extra,
@@ -7,7 +7,7 @@ const F = (k: string, label: string, extra: Partial<CalcFieldDef> = {}): CalcFie
 
 const money = (n: number) => formatMoney(n)
 
-/** 金融交易工具注册表（15 项，全部内联 calcDef） */
+/** 金融交易工具注册表（20 项） */
 const tools: ToolDef[] = [
   {
     slug: 'stock-average-calculator', title: '摊薄成本计算器', category: 'finance',
@@ -334,6 +334,154 @@ const tools: ToolDef[] = [
     desc: '输入各持仓现值与目标配比，得到每类资产应买入或卖出的精确金额。',
     keywords: ['再平衡', '资产配置', '组合'],
     component: () => import('./components/PortfolioRebalance.vue'),
+  },
+  {
+    slug: 'installment-rate-calculator', title: '信用卡分期年化计算器', category: 'finance',
+    desc: '按期手续费率换算真实年化利率（IRR），看清 0.6%×12 期 ≈ 13% 的真相。',
+    keywords: ['分期', '信用卡', '年化', '手续费', 'IRR'],
+    calcDef: {
+      fields: [
+        { key: 'principal', label: '分期本金', type: 'number', default: 10000, suffix: '元' },
+        { key: 'months', label: '期数', type: 'select', default: '12', choices: [
+          { value: '3', label: '3 期' }, { value: '6', label: '6 期' }, { value: '12', label: '12 期' },
+          { value: '18', label: '18 期' }, { value: '24', label: '24 期' }, { value: '36', label: '36 期' },
+        ] },
+        { key: 'feeRate', label: '每期手续费率', type: 'number', default: 0.6, suffix: '%', step: 0.01 },
+      ],
+      compute: (v) => {
+        const principal = Number(v.principal), months = Number(v.months), feeRate = Number(v.feeRate)
+        if (!(principal > 0) || !(months > 0) || !(feeRate >= 0)) return [{ label: '请填写分期本金与费率', value: '—' }]
+        const r = installmentIrr(principal, months, feeRate)
+        const m = (x: number) => money(x)
+        return [
+          { label: '每期还款额', value: `¥${m(r.monthlyPayment)}`, hint: `每期手续费 ¥${m((principal * feeRate) / 100)}（不随本金递减）` },
+          { label: '手续费总额', value: `¥${m(r.totalFee)}` },
+          { label: '名义年化费率', value: `${money(r.nominalRate)}%`, hint: '每期费率 × 12' },
+          { label: '真实年化利率（IRR）', value: r.realIrr === null ? '—' : `${money(r.realIrr)}%`, primary: true, hint: '按资金实际占用折算，通常显著高于名义费率' },
+        ]
+      },
+      note: '口径：手续费按全额计收、本金按月等额摊还，用 IRR（牛顿迭代+二分）求内部收益率并年化；各银行规则略有差异，以账单为准。',
+    },
+  },
+  {
+    slug: 'irr-npv-calculator', title: 'IRR / 净现值计算器', category: 'finance',
+    desc: '不规则现金流求内部收益率 IRR、MIRR 与净现值 NPV，保险年金、项目投资评估。',
+    keywords: ['IRR', 'NPV', '内部收益率', '现金流', '净现值'],
+    component: () => import('./components/IrrNpvCalculator.vue'),
+  },
+  {
+    slug: 'auto-loan-calculator', title: '车贷计算器', category: 'finance',
+    desc: '车辆消费贷等额本息/等额本金月供对比，利息总额与提前还款参考。',
+    keywords: ['车贷', '汽车贷款', '月供', '购车'],
+    calcDef: {
+      fields: [
+        { key: 'loan', label: '贷款金额', type: 'number', default: '', suffix: '元' },
+        { key: 'r', label: '年利率', type: 'number', default: 4.5, suffix: '%', step: 0.01 },
+        { key: 'months', label: '期限', type: 'select', default: '36', choices: [
+          { value: '12', label: '1 年（12 期）' }, { value: '24', label: '2 年（24 期）' }, { value: '36', label: '3 年（36 期）' },
+          { value: '48', label: '4 年（48 期）' }, { value: '60', label: '5 年（60 期）' },
+        ] },
+        { key: 'mode', label: '还款方式', type: 'select', default: 'axbx', choices: [
+          { value: 'axbx', label: '等额本息（月供固定）' }, { value: 'axbj', label: '等额本金（月供递减）' },
+        ] },
+      ],
+      compute: (v) => {
+        const loan = Number(v.loan), r = Number(v.r), months = Math.round(Number(v.months))
+        if (!(loan > 0) || !(r >= 0) || !(months > 0)) return [{ label: '请填写贷款金额', value: '—' }]
+        const res = amortize(loan, r, months, v.mode === 'axbj' ? 'axbj' : 'axbx')
+        const m = (x: number) => money(x)
+        const first = res.rows[0]?.payment ?? 0
+        const last = res.rows[res.rows.length - 1]?.payment ?? 0
+        const rows: CalcResultRow[] = v.mode === 'axbj'
+          ? [
+              { label: '首月月供', value: '¥' + m(first), primary: true, hint: '末月递减至 ¥' + m(last) },
+              { label: '每月递减', value: '¥' + m(first && last ? (first - last) / Math.max(1, months - 1) : 0) },
+              { label: '利息总额', value: '¥' + m(res.totalInterest) },
+              { label: '本息合计', value: '¥' + m(res.total) },
+            ]
+          : [
+              { label: '每月月供', value: '¥' + m(res.monthly), primary: true },
+              { label: '利息总额', value: '¥' + m(res.totalInterest) },
+              { label: '本息合计', value: '¥' + m(res.total) },
+            ]
+        rows.push({ label: '车价参考（含三成首付）', value: '¥' + m(loan / 0.7), hint: '贷款 70% 时对应的全款车价' })
+        return rows
+      },
+      note: '口径：等额本息月供固定、等额本金每月本金相同；未计入 GPS 费/金融服务费/上牌抵押费等购车杂费；利率以合同为准。',
+    },
+  },
+  {
+    slug: 'renovation-loan-calculator', title: '装修贷计算器', category: 'finance',
+    desc: '普通利率贷款与「按期手续费」装修贷双模式，看清真实年化利率。',
+    keywords: ['装修贷', '家装贷款', '分期', '手续费'],
+    calcDef: {
+      fields: [
+        { key: 'mode', label: '计息模式', type: 'select', default: 'rate', choices: [
+          { value: 'rate', label: '普通利率贷款' }, { value: 'fee', label: '按期手续费（免息话术）' },
+        ] },
+        { key: 'loan', label: '贷款金额', type: 'number', default: '', suffix: '元' },
+        { key: 'r', label: '年利率（普通模式）', type: 'number', default: 3.6, suffix: '%', step: 0.01 },
+        { key: 'feeRate', label: '每期手续费率（手续费模式）', type: 'number', default: 0.33, suffix: '%', step: 0.01 },
+        { key: 'months', label: '期限', type: 'select', default: '36', choices: [
+          { value: '12', label: '1 年' }, { value: '24', label: '2 年' }, { value: '36', label: '3 年' }, { value: '60', label: '5 年' },
+        ] },
+      ],
+      compute: (v) => {
+        const loan = Number(v.loan), months = Math.round(Number(v.months))
+        if (!(loan > 0) || !(months > 0)) return [{ label: '请填写贷款金额', value: '—' }]
+        const m = (x: number) => money(x)
+        if (v.mode === 'fee') {
+          const r = installmentIrr(loan, months, Number(v.feeRate))
+          return [
+            { label: '每期还款额', value: '¥' + m(r.monthlyPayment), primary: true, hint: '本金均摊 + 全额计费的手续费' },
+            { label: '手续费总额', value: '¥' + m(r.totalFee) },
+            { label: '名义年化费率', value: money(r.nominalRate) + '%' },
+            { label: '真实年化利率（IRR）', value: r.realIrr === null ? '—' : money(r.realIrr) + '%', hint: '资金逐月占用折算，通常远高于「宣传费率×12」' },
+          ]
+        }
+        const res = amortize(loan, Number(v.r), months, 'axbx')
+        return [
+          { label: '每月月供', value: '¥' + m(res.monthly), primary: true },
+          { label: '利息总额', value: '¥' + m(res.totalInterest) },
+          { label: '本息合计', value: '¥' + m(res.total) },
+          { label: '对比：0.33%/期手续费在同期限下的真实年化', value: (() => { const f = installmentIrr(loan, months, 0.33); return f.realIrr === null ? '—' : money(f.realIrr) + '%' })(), hint: '判断「手续费模式」是否比利率模式更贵' },
+        ]
+      },
+      note: '口径：手续费模式按全额计费、本金等额摊还，IRR 牛顿迭代年化；装修贷资金用途受监管约束，费率以银行合同为准。',
+    },
+  },
+  {
+    slug: 'balloon-loan-calculator', title: '气球贷计算器', category: 'finance',
+    desc: '低月供 + 大额尾付的气球贷测算：月供、尾付与利息总额，附压力提示。',
+    keywords: ['气球贷', '尾付', '子弹贷', '月供'],
+    calcDef: {
+      fields: [
+        { key: 'loan', label: '贷款金额', type: 'number', default: '', suffix: '元' },
+        { key: 'r', label: '年利率', type: 'number', default: 4.0, suffix: '%', step: 0.01 },
+        { key: 'months', label: '期限（月）', type: 'number', default: 36 },
+        { key: 'balloon', label: '末期尾付比例', type: 'number', default: 30, suffix: '%', hint: '最后一期一次性归还的本金占比' },
+      ],
+      compute: (v) => {
+        const loan = Number(v.loan), r = Number(v.r) / 100 / 12, months = Math.round(Number(v.months)), bp = Number(v.balloon) / 100
+        if (!(loan > 0) || months < 2 || !(bp >= 0 && bp < 1)) return [{ label: '请填写贷款金额与尾付比例', value: '尾付比例 0~99%' }]
+        const fv = loan * bp // 末期尾付
+        const p = loan - fv // 前期摊还本金
+        // PV = P×(1−(1+i)^−(n−1))/i → 前期月供
+        const monthly = r === 0 ? p / (months - 1) : (p * r) / (1 - Math.pow(1 + r, -(months - 1)))
+        const total = monthly * (months - 1) + fv + loan * r // 末月还款 = 尾付 + 最后一期利息（近似）
+        const totalInterest = total - loan
+        const m = (x: number) => money(x)
+        const eq = amortize(loan, Number(v.r) * 100, months, 'axbx')
+        return [
+          { label: '前期月供', value: '¥' + m(monthly), primary: true, hint: '共 ' + (months - 1) + ' 期' },
+          { label: '末期尾付', value: '¥' + m(fv + loan * r), hint: '尾付本金 ¥' + m(fv) + ' + 末期利息' },
+          { label: '利息总额', value: '¥' + m(totalInterest) },
+          { label: '对比等额本息月供', value: '¥' + m(eq.monthly) + '（利息 ¥' + m(eq.totalInterest) + '）' },
+          { label: '风险提示', value: '尾付占比 ' + money(bp * 100) + '%，到期需一次性筹措大额资金，请预留再融资或出售渠道', primary: false },
+        ]
+      },
+      note: '口径：前期月供按「摊还本金部分的年金」计算，末期利息按剩余尾付单月利息估算；气球贷实际结息方式各机构不同，以合同为准。',
+    },
   },
 ]
 

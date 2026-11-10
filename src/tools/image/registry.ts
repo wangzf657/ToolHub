@@ -1,6 +1,6 @@
 import type { ToolDef } from '@/types'
 
-/** 图片工具注册表（64 项）—— imgcvt 走通用转换组件，其余为专用组件 */
+/** 图片工具注册表（73 项）—— imgcvt 走通用转换组件，其余为专用组件 */
 const tools: ToolDef[] = [
   { slug: 'compress-image-to-size', title: '压缩图片到指定大小', category: 'image', desc: '把 JPG/PNG/WebP 压到精确的 KB 目标（二分质量），适配上传限制。', keywords: ['压缩', 'kb', '大小'], component: () => import('./components/CompressToSize.vue'), steps: ['拖入图片', '输入目标体积（如 200KB）', '自动压缩并下载'] },
   { slug: 'resize-image', title: '调整图片尺寸', category: 'image', desc: '缩放到精确像素尺寸，支持锁定比例与缩放模式，画质平滑。', keywords: ['尺寸', '缩放', 'resize'], component: () => import('./components/ResizeImage.vue') },
@@ -68,6 +68,16 @@ const tools: ToolDef[] = [
   { slug: 'blemish-remover', title: '瑕疵修补笔', category: 'image', desc: '画笔涂抹痘印、灰尘与噪点，用邻近像素自然修复。', keywords: ['瑕疵', '痘印', '修图'], component: () => import('./components/BlemishRemover.vue') },
   { slug: 'image-steganography', title: '图片隐写术', category: 'image', desc: '把秘密消息藏进 PNG 最低有效位，或提取此前隐藏的消息。', keywords: ['隐写', '密写', 'steganography'], component: () => import('./components/Steganography.vue') },
   { slug: 'photo-editor', title: '照片编辑器', category: 'image', desc: '浏览器里的分层修图工作台：调整、滤镜、文字、裁剪与 AI 工具。', keywords: ['修图', 'photoshop', '编辑器'], studio: true, component: () => import('../editors/components/PhotoStudio.vue'), steps: ['打开照片', '调整 / 滤镜 / 文字 / 裁剪', '导出 JPG 或 PNG'] },
+  { slug: 'screenshot-dress-up', title: '截图套壳美化', category: 'image', desc: '截图加浏览器/手机壳、圆角阴影与渐变背景，自媒体配图一键出片。', keywords: ['截图', '套壳', '美化', '配图'], component: () => import('./components/ScreenshotDressUp.vue') },
+  /* ---- 文件格式批次新增 ---- */
+  { slug: 'psd-to-jpg', title: 'PSD 转 JPG', category: 'image', desc: '浏览器解析 PSD 合成图导出 JPG/PNG，附图层树预览与单图层透明 PNG 导出。', keywords: ['psd', 'photoshop', 'jpg', 'png', '图层'], component: () => import('./components/PsdToJpg.vue'), steps: ['拖入 .psd 文件', '预览合成图与图层', '导出 JPG/PNG'] },
+  { slug: 'ico-to-png', title: 'ICO 转 PNG', category: 'image', desc: '零依赖原生解码 ICO：展示目录头内含尺寸，主图与逐帧全部可导出 PNG。', keywords: ['ico', 'png', '图标', 'favicon'], component: () => import('./components/IcoToPng.vue'), steps: ['拖入 .ico 图标', '查看内含各尺寸帧', '导出 PNG / 打包 ZIP'] },
+  { slug: 'font-converter', title: '字体格式转换', category: 'image', desc: 'TTF/OTF ↔ WOFF 双向转换（逐表 zlib 压缩），附表列表/字形数等字体信息。', keywords: ['ttf', 'otf', 'woff', '字体', '转换'], component: () => import('./components/FontConverter.vue'), steps: ['拖入字体文件', '自动识别转换方向', '转换并下载'] },
+  { slug: 'gif-compressor', title: 'GIF 压缩', category: 'image', desc: '减帧、降色、缩尺寸三招压缩 GIF 动图，透明区域保留，前后体积对比。', keywords: ['gif', '压缩', '减帧', '动图'], component: () => import('./components/GifCompressor.vue'), steps: ['拖入 GIF', '调减帧/颜色/缩放', '压缩并下载'] },
+  { slug: 'gif-editor', title: 'GIF 编辑器', category: 'image', desc: 'GIF 裁剪、缩放、旋转、变速、倒放一站式逐帧编辑后重新编码下载。', keywords: ['gif', '编辑', '裁剪', '变速', '倒放'], component: () => import('./components/GifEditor.vue'), steps: ['拖入 GIF', '设置裁剪/缩放/速度', '生成并下载'] },
+  { slug: 'batch-file-rename', title: '文件夹批量重命名', category: 'image', desc: '选文件夹按前缀/序号/查找替换/大小写规则批量改名，预览后导出 zip 副本。', keywords: ['重命名', '批量', '改名', '文件夹'], component: () => import('./components/BatchFileRename.vue'), steps: ['选择文件夹', '配置改名规则并预览', '导出 zip 副本'] },
+  { slug: 'folder-content-lister', title: '文件夹内容清单', category: 'image', desc: '一键生成文件夹文件清单（路径/大小/类型/时间），支持树形视图与 CSV/Excel 导出。', keywords: ['清单', '文件夹', '目录', '列表', '盘点'], component: () => import('./components/FolderContentLister.vue'), steps: ['选择文件夹', '切换树形/平铺视图', '导出 CSV / Excel'] },
+  { slug: 'app-icon-generator', title: 'App 图标生成', category: 'image', desc: '一张 PNG 生成 iOS/Android 全尺寸图标与 favicon.ico，按官方惯例命名打包 ZIP。', keywords: ['图标', 'icon', 'ios', 'android', 'favicon'], component: () => import('./components/AppIconGenerator.vue'), steps: ['上传 1024×1024 PNG', '选平台与圆角', '打包下载 ZIP'] },
 ]
 
 export default tools

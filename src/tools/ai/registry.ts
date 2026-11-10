@@ -1,7 +1,7 @@
 import type { ToolDef } from '@/types'
 import { summarize, extractKeywords, grammarCheck, paraphrase } from '@/lib/nlpEngine'
 
-/** AI 工具注册表（13 项）—— nlpEngine 规则模型即时可用，无需下载 */
+/** AI 工具注册表（15 项）—— nlpEngine 规则模型即时可用，无需下载 */
 const tools: ToolDef[] = [
   {
     slug: 'text-summarizer', title: 'AI 文本摘要', category: 'ai',
@@ -102,6 +102,8 @@ const tools: ToolDef[] = [
   },
   { slug: 'image-caption', title: '图像描述生成', category: 'ai', desc: '为图片生成中文描述与可直接使用的 alt 文本（本地启发式分析）。', keywords: ['图像描述', 'alt', '无障碍'], needModel: true, component: () => import('./components/ImageCaption.vue') },
   { slug: 'object-detector', title: '图像物体检测', category: 'ai', desc: '检测并标注照片中的常见物体（端侧模型，首次需下载）。', keywords: ['物体检测', '识别', 'detection'], needModel: true, component: () => import('./components/ObjectDetector.vue') },
+  { slug: 'text-similarity', title: '文本相似度对比', category: 'ai', desc: '两段文本的多算法相似度（字符 n-gram 余弦/Jaccard/编辑距离），查重与去重辅助。', keywords: ['相似度', '查重', '文本对比', '余弦'], component: () => import('./components/TextSimilarity.vue') },
+  { slug: 'image-classifier', title: '图像分类识别', category: 'ai', desc: '端侧模型识别图片主体类别（首次下载模型，之后离线可用）。', keywords: ['图像分类', '识别', '图片内容'], needModel: true, component: () => import('./components/ImageClassifier.vue') },
 ]
 
 export default tools

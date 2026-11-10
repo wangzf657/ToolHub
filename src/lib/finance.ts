@@ -187,3 +187,154 @@ export function sharpeSortino(returns: number[], riskFree = 0): { mean: number; 
 export function formatMoney(n: number, digits = 2): string {
   return n.toLocaleString('zh-CN', { minimumFractionDigits: digits, maximumFractionDigits: digits })
 }
+
+/** 现金流内部收益率 IRR（牛顿迭代 + 二分兜底），flows[0] 通常是期初投入（负数） */
+export function irr(flows: number[]): number | null {
+  if (flows.length < 2) return null
+  const hasPos = flows.some((v) => v > 0)
+  const hasNeg = flows.some((v) => v < 0)
+  if (!hasPos || !hasNeg) return null
+  const f = (rate: number) => flows.reduce((acc, v, i) => acc + v / Math.pow(1 + rate, i), 0)
+  // 先试牛顿迭代
+  let r = 0.1
+  for (let i = 0; i < 100; i++) {
+    const val = f(r)
+    if (Math.abs(val) < 1e-7) return r
+    const h = 1e-7
+    const d = (f(r + h) - f(r - h)) / (2 * h)
+    if (!Number.isFinite(d) || Math.abs(d) < 1e-12) break
+    r -= val / d
+    if (r <= -0.9999) r = -0.9999
+  }
+  // 二分兜底：在 (-0.9999, 10) 中找符号变化区间
+  let lo = -0.9999
+  let hi = 10
+  const flo = f(lo)
+  const fhi = f(hi)
+  if (flo === 0) return lo
+  if (fhi === 0) return hi
+  if (flo * fhi > 0) return null
+  for (let i = 0; i < 200; i++) {
+    const mid = (lo + hi) / 2
+    const fm = f(mid)
+    if (Math.abs(fm) < 1e-7) return mid
+    if (flo * fm < 0) hi = mid
+    else lo = mid
+  }
+  return (lo + hi) / 2
+}
+
+/** 净现值 NPV（rate 为每期折现率小数，flows 期末发生） */
+export function npv(rate: number, flows: number[]): number {
+  return flows.reduce((acc, v, i) => acc + v / Math.pow(1 + rate, i), 0)
+}
+
+/** 修正内部收益率 MIRR（financeRate/reinvestRate 为每期小数） */
+export function mirr(flows: number[], financeRate: number, reinvestRate: number): number | null {
+  const n = flows.length
+  if (n < 2) return null
+  let negPv = 0
+  let posFv = 0
+  flows.forEach((v, i) => {
+    if (v < 0) negPv += v / Math.pow(1 + financeRate, i)
+    else posFv += v * Math.pow(1 + reinvestRate, n - 1 - i)
+  })
+  if (negPv === 0 || posFv === 0) return null
+  return Math.pow(posFv / -negPv, 1 / (n - 1)) - 1
+}
+
+/** 信用卡分期真实年化：每期手续费、本金等额摊还（总手续费/总本金口径） */
+export function installmentIrr(
+  principal: number,
+  months: number,
+  monthlyFeePercent: number,
+): { monthlyPayment: number; totalFee: number; nominalRate: number; realIrr: number | null } {
+  const fee = (principal * monthlyFeePercent) / 100
+  const monthlyPayment = principal / months + fee
+  const flows = [-principal]
+  for (let i = 0; i < months; i++) flows.push(monthlyPayment)
+  const monthlyIrr = irr(flows)
+  const realIrr = monthlyIrr === null ? null : (Math.pow(1 + monthlyIrr, 12) - 1) * 100
+  return {
+    monthlyPayment,
+    totalFee: fee * months,
+    nominalRate: monthlyFeePercent * 12,
+    realIrr,
+  }
+}
+
+export interface AmortRow {
+  month: number
+  payment: number // 当月还款额
+  interest: number
+  principal: number
+  balance: number // 还款后剩余本金
+}
+
+export interface AmortResult {
+  monthly: number // 等额本息月供；等额本金为首月月供
+  rows: AmortRow[]
+  totalInterest: number
+  total: number
+  months: number
+}
+
+/** 房贷逐月计划表。mode: 'axbx' 等额本息 | 'axbj' 等额本金；prepay 在第 month 期额外还 amount */
+export function amortize(
+  principal: number,
+  annualRatePercent: number,
+  months: number,
+  mode: 'axbx' | 'axbj',
+  prepay?: { month: number; amount: number },
+): AmortResult {
+  const r = annualRatePercent / 100 / 12
+  const rows: AmortRow[] = []
+  let balance = principal
+  let monthly = 0
+  let monthlyPrincipal = 0
+  if (mode === 'axbx') {
+    monthly =
+      r === 0
+        ? principal / months
+        : (principal * r * Math.pow(1 + r, months)) / (Math.pow(1 + r, months) - 1)
+  } else {
+    monthlyPrincipal = principal / months
+  }
+  let totalInterest = 0
+  let total = 0
+  let remaining = months
+  for (let m = 1; m <= months && balance > 0.005; m++) {
+    const interest = balance * r
+    let principalPart = mode === 'axbx' ? monthly - interest : monthlyPrincipal
+    if (principalPart > balance) principalPart = balance
+    let pay = principalPart + interest
+    let extra = 0
+    if (prepay && prepay.month === m && prepay.amount > 0) {
+      extra = Math.min(prepay.amount, balance - principalPart)
+      balance -= extra
+      remaining = m // 剩余期数从下月起重算
+      const rest = months - m
+      if (balance > 0 && rest > 0) {
+        if (mode === 'axbx') {
+          monthly =
+            r === 0
+              ? balance / rest
+              : (balance * r * Math.pow(1 + r, rest)) / (Math.pow(1 + r, rest) - 1)
+        } else {
+          monthlyPrincipal = balance / rest
+        }
+      }
+    }
+    balance -= principalPart
+    totalInterest += interest
+    total += pay
+    rows.push({ month: m, payment: pay, interest, principal: principalPart, balance: Math.max(0, balance) })
+  }
+  return {
+    monthly,
+    rows,
+    totalInterest,
+    total,
+    months: rows.length,
+  }
+}

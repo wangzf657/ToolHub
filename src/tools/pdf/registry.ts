@@ -1,6 +1,6 @@
 import type { ToolDef } from '@/types'
 
-/** PDF 工具注册表（48 项） */
+/** PDF 工具注册表（54 项） */
 const tools: ToolDef[] = [
   { slug: 'merge-pdf', title: '合并 PDF', category: 'pdf', desc: '把多个 PDF 按顺序合并成一个文件，可拖动调整先后次序。', keywords: ['pdf', '合并', 'merge'], component: () => import('./components/MergePdf.vue'), steps: ['拖入两个或以上 PDF', '拖动卡片调整顺序', '点击合并下载'] },
   { slug: 'split-pdf', title: '拆分 PDF', category: 'pdf', desc: '把 PDF 拆成单页文件分别下载，或打包为 ZIP 一次拿走。', keywords: ['pdf', '拆分', 'split'], component: () => import('./components/SplitPdf.vue') },
@@ -52,6 +52,13 @@ const tools: ToolDef[] = [
   { slug: 'redact-pdf', title: 'PDF 深度脱敏', category: 'pdf', desc: '黑条不等于脱敏——本工具把匹配文本真正从内容流中移除。', keywords: ['pdf', '脱敏', '移除'], component: () => import('./components/DeepRedact.vue') },
   { slug: 'pdf-to-markdown', title: 'PDF 转 Markdown', category: 'pdf', desc: '把 PDF 转成带标题层级与 GFM 表格的 Markdown，适合 README 与 AI 提示词。', keywords: ['pdf', 'markdown', 'md'], component: () => import('./components/PdfToMarkdown.vue') },
   { slug: 'pdf-form-data', title: 'PDF 表单数据汇总', category: 'pdf', desc: '收回来的一批已填表单 PDF，一键汇总成「一行一份」的电子表格。', keywords: ['pdf', '表单', '汇总'], component: () => import('./components/FormSpreadsheet.vue') },
+  { slug: 'flatten-pdf', title: 'PDF 扁平化', category: 'pdf', desc: '把表单字段压平为普通内容，防止再被改写，打印归档提交前必备。', keywords: ['pdf', '扁平', '表单', 'flatten'], component: () => import('./components/FlattenPdf.vue') },
+  { slug: 'repair-pdf', title: '修复损坏 PDF', category: 'pdf', desc: '打不开的受损 PDF 两级抢救：重建交叉引用，必要时转为图片版救回内容。', keywords: ['pdf', '修复', '损坏', '打不开'], component: () => import('./components/RepairPdf.vue') },
+  /* ---- 文件格式批次新增 ---- */
+  { slug: 'split-pdf-by-size', title: 'PDF 按体积拆分', category: 'pdf', desc: '按目标 MB 逐卷贪心打包页面，多卷打包 ZIP 下载，邮箱附件与上传限制专用。', keywords: ['pdf', '拆分', '体积', '大小', '10mb'], component: () => import('./components/SplitPdfBySize.vue'), steps: ['拖入 PDF 并输入目标体积', '逐页实测体积分卷', '打包下载 ZIP'] },
+  { slug: 'pdf-attachments', title: 'PDF 附件管理', category: 'pdf', desc: '列出 PDF 内嵌附件并可逐个下载打包，也能添加新附件或移除后另存副本。', keywords: ['pdf', '附件', '嵌入', 'attachment'], component: () => import('./components/PdfAttachments.vue'), steps: ['拖入含附件的 PDF', '查看/下载内嵌附件', '可添加或移除后保存副本'] },
+  { slug: 'pdf-annotation-remover', title: 'PDF 注释清除', category: 'pdf', desc: '一键移除批注、高亮、印章等全部注释，可选保留可点击链接。', keywords: ['pdf', '注释', '批注', '清除', 'annota'], component: () => import('./components/PdfAnnotationRemover.vue'), steps: ['拖入 PDF', '选择是否保留链接', '清除注释并下载'] },
+  { slug: 'grayscale-pdf', title: 'PDF 黑白化', category: 'pdf', desc: '逐页渲染转灰度后重建 PDF，打印省墨、统一扫描件观感（100 页内）。', keywords: ['pdf', '黑白', '灰度', 'grayscale', '打印'], component: () => import('./components/GrayscalePdf.vue'), steps: ['拖入 PDF（100 页内）', '选 JPG 质量', '灰度化重建并下载'] },
 ]
 
 export default tools

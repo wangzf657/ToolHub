@@ -1,14 +1,19 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { nextTick, ref } from 'vue'
 import { FileText, Download, Code2 } from 'lucide-vue-next'
 import { saveBlob, copyText } from '@/lib/download'
+import { mdToHtml, renderMermaidIn } from '@/lib/mdEngine'
 import { useToast } from '@/composables/useToast'
 
 const toast = useToast()
-const input = ref('# 百宝工具箱\n\n**本地优先**的在线工具箱，无需注册，数据不出设备。\n\n- 支持 `Markdown` 语法\n- [链接示例](https://example.com)\n\n> 所有渲染在浏览器完成。')
+const input = ref('# 百宝工具箱\n\n**本地优先**的在线工具箱，无需注册，数据不出设备。\n\n- 支持 `Markdown` 语法\n- [链接示例](https://example.com)\n\n> 所有渲染在浏览器完成。\n\n## 数学公式（KaTeX）\n\n质能方程 $E = mc^2$，求和公式：\n\n$$\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2}$$\n\n## 流程图（Mermaid）\n\n```mermaid\ngraph LR\n  A[Markdown] --> B{数学?}\n  B -->|是| C[KaTeX]\n  B -->|否| D[直接渲染]\n```')
 const html = ref('')
 const busy = ref(false)
 const renderErr = ref('')
+const withMath = ref(true)
+const withMermaid = ref(true)
+
+const previewRef = ref<HTMLDivElement | null>(null)
 
 const render = async () => {
   if (!input.value.trim()) {
@@ -18,26 +23,27 @@ const render = async () => {
   busy.value = true
   renderErr.value = ''
   try {
-    const { marked } = await import('marked')
-    const DOMPurify = (await import('dompurify')).default
-    const raw = await marked.parse(input.value)
-    html.value = DOMPurify.sanitize(raw)
+    html.value = await mdToHtml(input.value, { math: withMath.value, mermaid: withMermaid.value })
+    await nextTick()
+    if (previewRef.value) await renderMermaidIn(previewRef.value)
   } catch (e) {
     renderErr.value = `渲染失败：${(e as Error).message}`
   } finally {
     busy.value = false
   }
 }
+void render()
 
 const copyHtml = async () => {
   if (!html.value) return toast.warn('请先渲染内容')
   const okFlag = await copyText(html.value)
-  okFlag ? toast.ok('HTML 已复制') : toast.err('复制失败')
+  okFlag ? toast.ok('HTML 已复制（公式/图表为静态结果）') : toast.err('复制失败')
 }
 
-const downloadHtml = () => {
+const downloadHtml = async () => {
   if (!html.value) return toast.warn('请先渲染内容')
-  const doc = `<!DOCTYPE html>\n<html lang="zh-CN">\n<head>\n<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width, initial-scale=1.0">\n<title>Markdown 导出</title>\n<style>body{max-width:760px;margin:40px auto;padding:0 20px;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;line-height:1.7;color:#24292f}code{background:#f0f1f4;padding:2px 5px;border-radius:4px}pre{background:#f6f8fa;padding:14px;border-radius:8px;overflow:auto}blockquote{border-left:4px solid #d0d7de;margin:0;padding-left:14px;color:#57606a}table{border-collapse:collapse}th,td{border:1px solid #d0d7de;padding:6px 12px}</style>\n</head>\n<body>\n${html.value}\n</body>\n</html>`
+  const katexCss = withMath.value ? '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16/dist/katex.min.css">\n' : ''
+  const doc = `<!DOCTYPE html>\n<html lang="zh-CN">\n<head>\n<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width, initial-scale=1.0">\n<title>Markdown 导出</title>\n${katexCss}<style>body{max-width:760px;margin:40px auto;padding:0 20px;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;line-height:1.7;color:#24292f}code{background:#f0f1f4;padding:2px 5px;border-radius:4px}pre{background:#f6f8fa;padding:14px;border-radius:8px;overflow:auto}blockquote{border-left:4px solid #d0d7de;margin:0;padding-left:14px;color:#57606a}table{border-collapse:collapse}th,td{border:1px solid #d0d7de;padding:6px 12px}.mermaid-src svg{max-width:100%}</style>\n</head>\n<body>\n${html.value}\n</body>\n</html>`
   saveBlob(new Blob([doc], { type: 'text/html;charset=utf-8' }), 'markdown.html')
   toast.ok('已下载独立 HTML 文件')
 }
@@ -55,21 +61,23 @@ const loadSample = () => {
       <button class="btn btn-ghost btn-sm" @click="copyHtml"><Code2 :size="15" /> 复制 HTML</button>
       <button class="btn btn-ghost btn-sm" @click="downloadHtml"><Download :size="15" /> 下载 HTML</button>
       <button class="btn btn-soft btn-sm" @click="loadSample">追加表格示例</button>
+      <label class="check"><input v-model="withMath" type="checkbox" @change="render" /> 数学公式</label>
+      <label class="check"><input v-model="withMermaid" type="checkbox" @change="render" /> Mermaid 图表</label>
     </div>
 
     <div class="grid-2" style="gap: 12px">
       <div>
-        <span class="field-label">Markdown 输入</span>
+        <span class="field-label">Markdown 输入（$行内公式$、$$独立公式$$、```mermaid 代码块）</span>
         <textarea v-model="input" class="textarea mono" style="min-height: 380px"></textarea>
       </div>
       <div>
         <span class="field-label">渲染预览（已净化）</span>
-        <div class="preview-box prose" v-html="html"></div>
+        <div ref="previewRef" class="preview-box prose" v-html="html"></div>
       </div>
     </div>
 
     <div v-if="renderErr" class="notice notice-err mt-2">{{ renderErr }}</div>
-    <p class="notice notice-info mt-2 small">使用 marked 渲染 + DOMPurify 消毒，脚本与危险标签已被移除，可安全预览。</p>
+    <p class="notice notice-info mt-2 small">marked 渲染 + DOMPurify 消毒；KaTeX 公式与 Mermaid 图表在本地渲染成静态结果后随 HTML 一起复制/导出。</p>
   </div>
 </template>
 
@@ -88,5 +96,16 @@ const loadSample = () => {
 }
 .preview-box :deep(img) {
   max-width: 100%;
+}
+.preview-box :deep(.mermaid-src) {
+  display: flex;
+  justify-content: center;
+  padding: 10px 0;
+}
+.preview-box :deep(.mermaid-src svg) {
+  max-width: 100%;
+}
+.preview-box :deep(.katex-display) {
+  overflow-x: auto;
 }
 </style>

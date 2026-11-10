@@ -11,11 +11,69 @@ type Run = ParagraphChild
 /* Markdown → HTML                                                     */
 /* ------------------------------------------------------------------ */
 
-export async function mdToHtml(md: string): Promise<string> {
+export async function mdToHtml(md: string, opts: { math?: boolean; mermaid?: boolean } = {}): Promise<string> {
   const { marked } = await import('marked')
   const DOMPurify = (await import('dompurify')).default
   const raw = await marked.parse(md, { gfm: true, breaks: false })
-  return DOMPurify.sanitize(raw)
+  let html = raw
+  if (opts.math) html = await renderMathBlocks(html)
+  if (opts.mermaid) html = await markMermaidBlocks(html)
+  return DOMPurify.sanitize(html, { ADD_TAGS: ['math', 'semantics', 'annotation', 'svg', 'g', 'path', 'use', 'div'], ADD_ATTR: ['encoding', 'data-mermaid', 'xmlns'] })
+}
+
+/** 把 $…$ / $$…$$ 用 KaTeX 渲染成 HTML（失败时保留原文） */
+export async function renderMathBlocks(html: string): Promise<string> {
+  const katex = await import('katex')
+  const block = /\$\$([\s\S]+?)\$\$/g
+  const inline = /\$([^$\n]+?)\$/g
+  html = html.replace(block, (m, tex) => {
+    try {
+      return katex.renderToString(tex.trim(), { displayMode: true, throwOnError: false })
+    } catch {
+      return m
+    }
+  })
+  html = html.replace(inline, (m, tex) => {
+    try {
+      return katex.renderToString(tex.trim(), { displayMode: false, throwOnError: false })
+    } catch {
+      return m
+    }
+  })
+  return html
+}
+
+/** 把 ```mermaid 代码块标记为 <div data-mermaid="编码后的源码">，由预览组件在挂载后调 mermaid 渲染 */
+export async function markMermaidBlocks(html: string): Promise<string> {
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  let changed = false
+  doc.querySelectorAll('pre > code.language-mermaid, pre > code[class*="language-mermaid"]').forEach((code) => {
+    const pre = code.parentElement
+    if (!pre) return
+    const div = doc.createElement('div')
+    div.setAttribute('data-mermaid', btoa(unescape(encodeURIComponent(code.textContent ?? ''))))
+    div.className = 'mermaid-src'
+    pre.replaceWith(div)
+    changed = true
+  })
+  return changed ? doc.body.innerHTML : html
+}
+
+/** 在容器内把 data-mermaid 占位渲染成图（预览组件挂载后调用） */
+export async function renderMermaidIn(root: HTMLElement): Promise<void> {
+  const nodes = root.querySelectorAll<HTMLElement>('div[data-mermaid]')
+  if (!nodes.length) return
+  const mermaid = (await import('mermaid')).default
+  mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: 'neutral' })
+  for (const node of nodes) {
+    const src = decodeURIComponent(escape(atob(node.getAttribute('data-mermaid') ?? '')))
+    try {
+      const { svg } = await mermaid.render(`mmd-${Math.random().toString(36).slice(2, 9)}`, src)
+      node.innerHTML = svg
+    } catch (e) {
+      node.innerHTML = `<pre style="color:var(--err)">Mermaid 语法错误：${(e as Error).message.slice(0, 120)}</pre>`
+    }
+  }
 }
 
 /* ------------------------------------------------------------------ */

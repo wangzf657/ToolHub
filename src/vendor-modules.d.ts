@@ -75,4 +75,32 @@ declare module 'lunar-javascript' {
     getFirstDaySolar(): Solar
     static fromYm(year: number, month: number): LunarMonth | null
   }
+  /** 法定节假日查询（数据内置至 2027 年，含调休补班标记） */
+  export class HolidayUtil {
+    static getHoliday(date: string): { isWork: () => boolean; getName: () => string; getTarget: () => string; getStart?: () => unknown; getEnd?: () => unknown } | null
+  }
+}
+
+declare module 'relationship.js' {
+  interface RelationshipOptions {
+    /** 称谓链文本（如「妈妈的哥哥」）或称谓（type=chain 时） */
+    text: string
+    /** 我的性别：1 男 / 0 女 */
+    sex?: number
+    /** 对方性别（chain 模式下用于推导） */
+    target?: number
+    /** default=由称谓链推称呼；chain=由称呼反推称谓链 */
+    type?: 'default' | 'chain' | 'toggle'
+    /** 家乡方言模式（本项目不用） */
+    mode?: string
+  }
+  function relationship(options: RelationshipOptions): string[]
+  const dataCount: number
+  export { relationship as default, dataCount }
+}
+
+declare module 'gbk.js' {
+  export function encode(text: string): number[]
+  export function decode(bytes: number[] | Uint8Array): string
+  export const URI: unknown
 }

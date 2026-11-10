@@ -460,7 +460,7 @@ export function numberToChinese(input: number | string, finance = false): string
     const yuan = Math.floor(cents / 100)
     const jiao = Math.floor((cents % 100) / 10)
     const fen = cents % 10
-    let out = yuan === 0 ? '' : intToCn(yuan) + '元'
+    let out = yuan === 0 ? (jiao || fen ? '零元' : '') : intToCn(yuan) + '元'
     if (jiao === 0 && fen === 0) {
       out += yuan === 0 ? '零元整' : '整'
     } else {

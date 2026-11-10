@@ -1,8 +1,10 @@
-import type { ToolDef } from '@/types'
+import type { ToolDef, CalcResultRow } from '@/types'
+import { jsonToJava } from '@/lib/jsEngine'
 import { b64encode, b64decode, urlEncode, urlDecode, htmlEntityEncode, htmlEntityDecode, jsonEscapeEncode, jsonEscapeDecode, b32encode, b32decode } from '@/lib/textEngine'
 import { formatJson, minifyJson, validateJson, jsonToYaml, yamlToJson, yamlToJsonHeavy, jsonToXml, xmlToJson, jsonToTs, jsonSchemaFrom, jsonPathQuery, generateMock, fakeRows, FAKE_FIELDS, uaParse, curlToFetch, HTTP_STATUS, formatXml, chmodToSymbol, chmodFromSymbol } from '@/lib/jsEngine'
+import { bytesToBase64, bytesToLatin1, base64ToBytes, latin1ToBytes, convertIdentifier, CASE_TARGETS, type CaseTarget, parseCookieInput, cookieJsonToHeader, dockerRunToCompose, dockerComposeToRun, convertCoord, COORD_LABELS, outOfChina, type CoordSys } from '@/lib/devExt'
 
-/** 开发工具注册表（71 项） */
+/** 开发工具注册表（92 项） */
 const tools: ToolDef[] = [
   { slug: 'json-formatter', title: 'JSON 格式化校验', category: 'developer', desc: '粘贴 JSON 即时格式化、压缩与校验，错误定位到行列。', keywords: ['json', '格式化', '校验'], component: () => import('./components/JsonFormatter.vue'), steps: ['粘贴 JSON 文本', '选择格式化或压缩', '复制或下载结果'] },
   { slug: 'timestamp-converter', title: 'Unix 时间戳转换', category: 'developer', desc: '秒/毫秒时间戳与可读日期互转，本地与 UTC 双时区显示。', keywords: ['时间戳', 'unix', 'epoch'], component: () => import('./components/TimestampConverter.vue') },
@@ -206,19 +208,213 @@ const tools: ToolDef[] = [
   { slug: 'http-status-codes', title: 'HTTP 状态码速查', category: 'developer', desc: '1xx–5xx 全部状态码的可搜索速查表，含中文名与场景说明。', keywords: ['http', '状态码', '404'], component: () => import('./components/HttpStatusCodes.vue') },
   { slug: 'placeholder-image', title: '占位图生成', category: 'developer', desc: '自定义尺寸、背景与文字颜色的占位图，实时预览并下载 PNG。', keywords: ['占位图', 'placeholder', 'mock'], component: () => import('./components/PlaceholderImage.vue') },
   { slug: 'slugify', title: 'Slug 生成器', category: 'developer', desc: '把标题转成 URL 友好的 slug：去重音、转小写、自定义分隔符。', keywords: ['slug', 'url', 'seo'], component: () => import('./components/SlugGenerator.vue') },
+  { slug: 'encoding-converter', title: '文本编码检测与转换', category: 'developer', desc: '自动识别 GBK/GB18030/Big5/UTF-8 等编码并互转，专治 txt/CSV 打开乱码。', keywords: ['编码', 'GBK', '乱码', 'UTF-8', '转码'], component: () => import('./components/EncodingConverter.vue') },
+  { slug: 'code-screenshot', title: '代码截图美化', category: 'developer', desc: '粘贴代码生成 Carbon 风格卡片：主题、窗口条、渐变背景，导出高清 PNG。', keywords: ['代码截图', 'carbon', '代码图片', '分享'], component: () => import('./components/CodeScreenshot.vue') },
+  {
+    slug: 'json-to-java-entity', title: 'JSON 转 Java 实体类', category: 'developer',
+    desc: 'JSON 生成 Java POJO（可选 Lombok），嵌套对象自动拆子类，后端开发提效。',
+    keywords: ['json', 'java', 'pojo', '实体类'],
+    textDef: {
+      options: [
+        { key: 'cls', label: '根类名', type: 'text', default: 'Demo', placeholder: '如 User' },
+        { key: 'lombok', label: '使用 Lombok @Data', type: 'toggle', default: true },
+      ],
+      placeholder: '粘贴 JSON（顶层对象或对象数组），生成 Java 实体类…',
+      transform: (t, o) => jsonToJava(t, String(o.cls || 'Demo'), o.lombok !== false),
+    },
+  },
+  /* ---- P2 新增：开发者进阶工具 17 件 ---- */
+  { slug: 'totp-generator', title: 'TOTP 动态口令', category: 'developer', desc: '粘贴 otpauth:// 链接或输入 Base32 密钥，实时生成 6/8 位两步验证码并自动倒计时换码。', keywords: ['totp', '两步验证', '动态口令', '2fa', 'otp', '验证码'], component: () => import('./components/TotpGenerator.vue'), steps: ['粘贴 otpauth:// 链接或手动填密钥', '自动生成当前口令并倒计时', '一键复制，超时自动换码'] },
+  { slug: 'bcrypt-hash', title: 'Bcrypt 哈希生成验证', category: 'developer', desc: '浏览器本地生成 bcrypt 密码哈希（4–15 轮可调），并支持哈希与明文的匹配校验。', keywords: ['bcrypt', '哈希', '密码', '加密', 'salt'], component: () => import('./components/BcryptTool.vue'), steps: ['输入密码选择轮次生成哈希', '复制 $2a$ 开头的哈希入库', '粘贴哈希验证明文是否匹配'] },
+  { slug: 'rsa-key-generator', title: 'RSA 密钥对生成', category: 'developer', desc: '浏览器本地生成 2048/4096 位 RSA 密钥对，导出 PEM 公私钥，可下载保存。', keywords: ['rsa', '密钥', 'pem', '公钥', '私钥', 'ssh'], component: () => import('./components/RsaKeyGenerator.vue'), steps: ['选择密钥长度', '点击生成（4096 位需等待）', '复制或下载 PEM 文件'] },
+  { slug: 'pgp-encrypt', title: 'PGP 加密解密', category: 'developer', desc: '文本 PGP 加密解密，支持密码与公钥两种模式，可生成 ECC/RSA 密钥对。', keywords: ['pgp', 'gpg', '加密', '解密', 'openpgp', '密钥'], component: () => import('./components/PgpTool.vue'), steps: ['选加密/解密/生成密钥', '首次使用自动加载 OpenPGP 引擎', '复制或下载 .asc 结果'] },
+  {
+    slug: 'gzip-compress', title: 'Gzip 压缩解压', category: 'developer',
+    desc: '文本与 gzip/deflate 压缩串互转，输出 Base64 或 Latin1，排查压缩问题利器。',
+    keywords: ['gzip', '压缩', '解压', 'deflate', 'pako', 'zlib'],
+    textDef: {
+      options: [
+        { key: 'dir', label: '方向', type: 'select', default: 'compress', choices: [
+          { value: 'compress', label: '压缩（文本 → 压缩串）' }, { value: 'decompress', label: '解压（压缩串 → 文本）' },
+        ] },
+        { key: 'algo', label: '算法', type: 'select', default: 'gzip', choices: [
+          { value: 'gzip', label: 'gzip（带头部，最通用）' }, { value: 'deflate', label: 'deflate（zlib 头）' }, { value: 'deflateRaw', label: 'deflateRaw（纯数据流）' },
+        ] },
+        { key: 'enc', label: '压缩串编码', type: 'select', default: 'base64', choices: [
+          { value: 'base64', label: 'Base64' }, { value: 'latin1', label: 'Latin1 二进制字符串' },
+        ] },
+      ],
+      transform: async (t, o) => {
+        const pako = await import('pako')
+        try {
+          if (o.dir === 'compress') {
+            const bytes = new TextEncoder().encode(t)
+            const out = o.algo === 'gzip' ? pako.gzip(bytes) : o.algo === 'deflate' ? pako.deflate(bytes) : pako.deflateRaw(bytes)
+            return o.enc === 'base64' ? bytesToBase64(out) : bytesToLatin1(out)
+          }
+          const bytes = o.enc === 'base64' ? base64ToBytes(t) : latin1ToBytes(t)
+          const out = o.algo === 'gzip' ? pako.ungzip(bytes) : o.algo === 'deflate' ? pako.inflate(bytes) : pako.inflateRaw(bytes)
+          return new TextDecoder().decode(out)
+        } catch (e) {
+          throw new Error(o.dir === 'decompress'
+            ? `解压失败：输入不是合法的${o.enc === 'base64' ? ' Base64' : ''}压缩串或已损坏，且需与压缩算法一致（${(e as Error).message}）`
+            : `压缩失败：${(e as Error).message}`)
+        }
+      },
+      placeholder: '输入要压缩的文本，或粘贴压缩串进行解压…',
+    },
+  },
+  {
+    slug: 'docker-run-to-compose', title: 'Docker Run 转 Compose', category: 'developer',
+    desc: 'docker run 命令转 compose v3 配置，支持反向还原，端口/卷/环境变量全解析。',
+    keywords: ['docker', 'compose', '容器', 'yaml', 'dockerfile'],
+    textDef: {
+      options: [{ key: 'dir', label: '方向', type: 'select', default: 'toCompose', choices: [
+        { value: 'toCompose', label: 'docker run → compose' }, { value: 'toRun', label: 'compose → docker run' },
+      ] }],
+      transform: (t, o) => (o.dir === 'toCompose' ? dockerRunToCompose(t) : dockerComposeToRun(t)),
+      placeholder: '粘贴完整 docker run 命令或 compose 服务配置…',
+    },
+  },
+  {
+    slug: 'code-minifier', title: 'JS/CSS 压缩混淆', category: 'developer',
+    desc: 'terser 压缩 JS（mangle+compress），csso 压缩 CSS，自动识别语言并报告压缩率。',
+    keywords: ['压缩', 'minify', 'terser', '混淆', 'css', 'js'],
+    textDef: {
+      options: [{ key: 'lang', label: '语言', type: 'select', default: 'auto', choices: [
+        { value: 'auto', label: '自动识别' }, { value: 'js', label: 'JavaScript（terser）' }, { value: 'css', label: 'CSS（csso）' },
+      ] }],
+      transform: async (t, o) => {
+        if (!t.trim()) return ''
+        const cssHits = (t.match(/[{;]\s*[-\w]+\s*:\s*[^;{}]+;/g) ?? []).length + (t.match(/@(media|import|charset|font-face|keyframes|supports)\b/g) ?? []).length
+        const jsHits = (t.match(/\b(function|const|let|var|return|import|export|class)\b|=>/g) ?? []).length
+        const isCss = o.lang === 'css' || (o.lang === 'auto' && cssHits > jsHits)
+        let out: string
+        try {
+          if (isCss) {
+            const csso = await import('csso')
+            out = csso.minify(t).css
+          } else {
+            const { minify } = await import('terser')
+            const r = await minify(t, { module: true, compress: true, mangle: true, format: { comments: false } })
+            out = r.code ?? ''
+          }
+        } catch (e) {
+          throw new Error(`压缩失败：${(e as Error).message}（请确认代码语法正确，或手动指定语言）`)
+        }
+        const a = new Blob([t]).size
+        const b = new Blob([out]).size
+        const pct = a > 0 ? Math.round((1 - b / a) * 1000) / 10 : 0
+        return `${out}\n\n/* 压缩统计（${isCss ? 'CSS/csso' : 'JS/terser'}）：${a} B → ${b} B，减小 ${pct}% */`
+      },
+      placeholder: '粘贴 JS 或 CSS 代码，自动压缩…',
+    },
+  },
+  { slug: 'json-visualizer', title: 'JSON 可视化树', category: 'developer', desc: 'JSON 渲染为可折叠树：类型着色、搜索高亮、点击复制路径，超大数据懒展开。', keywords: ['json', '可视化', '树', '查看器', 'viewer', '折叠'], component: () => import('./components/JsonVisualizer.vue'), steps: ['粘贴 JSON 自动解析', '搜索键名自动展开高亮', '点击键名复制 a.b[0].c 路径'] },
+  {
+    slug: 'map-coordinate-converter', title: '地图坐标系转换', category: 'developer',
+    desc: 'WGS84/GCJ02/BD09 经纬度互转，支持批量粘贴，公开纠偏算法本地计算。',
+    keywords: ['坐标系', '火星坐标', 'gcj02', 'bd09', 'wgs84', '经纬度', '地图'],
+    calcDef: {
+      fields: [
+        { key: 'input', label: '经纬度输入（每行一个「经度,纬度」，可批量）', type: 'text', default: '', placeholder: '如 116.404,39.915' },
+        { key: 'from', label: '输入坐标系', type: 'select', default: 'wgs84', choices: [
+          { value: 'wgs84', label: 'WGS84（GPS 原始坐标）' },
+          { value: 'gcj02', label: 'GCJ02（火星坐标：高德/腾讯）' },
+          { value: 'bd09', label: 'BD09（百度坐标）' },
+        ] },
+      ],
+      compute: (v) => {
+        const lines = String(v.input ?? '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean).slice(0, 200)
+        if (!lines.length) return [{ label: '请输入经纬度', value: '每行一个「经度,纬度」，如 116.404,39.915' }]
+        const from = String(v.from) as CoordSys
+        const rows: CalcResultRow[] = []
+        let outOfCn = false
+        lines.forEach((line, idx) => {
+          const nums = line.split(/[,，\s]+/).map(Number)
+          const lon = nums[0], lat = nums[1]
+          if (nums.length < 2 || !Number.isFinite(lon) || !Number.isFinite(lat) || Math.abs(lat!) > 90 || Math.abs(lon!) > 180) {
+            rows.push({ label: `第 ${idx + 1} 行`, value: '格式不合法：应为「经度,纬度」，纬度 ±90、经度 ±180 内' })
+            return
+          }
+          for (const to of ['wgs84', 'gcj02', 'bd09'] as const) {
+            const r = convertCoord(lon!, lat!, from, to)
+            const mark = to === from ? '（原坐标系）' : ''
+            rows.push({
+              label: `第 ${idx + 1} 行 · ${COORD_LABELS[to].split('（')[0]}`,
+              value: `${r.lon.toFixed(6)}, ${r.lat.toFixed(6)}${mark}`,
+              primary: idx === 0 && to !== from,
+            })
+          }
+          if (outOfChina(lon!, lat!)) outOfCn = true
+        })
+        if (outOfCn) rows.push({ label: '提示', value: '检测到中国境外坐标：纠偏算法仅对中国大陆生效，境外各坐标系结果一致' })
+        return rows
+      },
+      note: '口径：公开纠偏算法。GCJ02 为国测局加偏的「火星坐标」（高德/腾讯地图），BD09 在 GCJ02 基础上二次加偏（百度地图），WGS84 为 GPS 原始值（海外地图/卫星影像）；WGS84↔GCJ02 反算采用迭代逼近，误差约 1 米。',
+    },
+  },
+  {
+    slug: 'punycode-converter', title: '中文域名转码', category: 'developer',
+    desc: '中文域名与 xn-- Punycode 双向转换（IDN），支持批量，附 URL 合法性校验。',
+    keywords: ['punycode', '中文域名', 'idn', 'xn--', '域名'],
+    textDef: {
+      options: [{ key: 'dir', label: '方向', type: 'select', default: 'toAscii', choices: [
+        { value: 'toAscii', label: '中文域名 → xn-- 编码' }, { value: 'toUnicode', label: 'xn-- → 中文域名' },
+      ] }],
+      transform: async (t, o) => {
+        const mod = await import('punycode.js')
+        const p = mod.default ?? (mod as unknown as typeof mod.default)
+        const fn = o.dir === 'toAscii' ? p.toASCII : p.toUnicode
+        return t.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((l) => {
+          try {
+            const r = fn(l)
+            if (o.dir === 'toAscii') {
+              // 浏览器 URL API 校验：转换结果必须能构成合法 URL 才可直接用于解析
+              try {
+                new URL(`http://${r}`)
+                return r
+              } catch {
+                return `${r}（未通过 URL 校验：含非法字符或格式不完整）`
+              }
+            }
+            return r
+          } catch {
+            return `${l}（无法转换，请检查是否为合法域名）`
+          }
+        }).join('\n')
+      },
+      placeholder: '每行一个域名，如 百度.示例 或 xn--fsq092h…',
+    },
+  },
+  { slug: 'mac-oui-lookup', title: 'MAC 厂商查询', category: 'developer', desc: '按 OUI 前缀查 MAC 地址厂商，支持批量与 EUI-64 展开，识别随机化地址。', keywords: ['mac', 'oui', '厂商', '网卡', 'eui64', 'ipv6'], component: () => import('./components/MacOuiLookup.vue'), steps: ['输入或批量粘贴 MAC 地址', '首次自动加载厂商库（约 2MB）', '查看厂商与 EUI-64 展开结果'] },
+  { slug: 'file-type-detector', title: '文件真实类型检测', category: 'developer', desc: '按魔数识别文件真实 MIME 与扩展名，与文件名扩展名比对，识破伪装后缀。', keywords: ['文件类型', 'mime', '魔数', 'magic', '伪装'], component: () => import('./components/FileTypeDetector.vue'), steps: ['拖入一个或多个文件', '自动读取文件头魔数比对', '查看真实类型与扩展名是否一致'] },
+  { slug: 'snowflake-id-generator', title: '雪花 ID 生成解析', category: 'developer', desc: '批量生成 64 位雪花 ID（可配机器位与 epoch），支持从 ID 反查生成时间。', keywords: ['雪花id', 'snowflake', '分布式', 'id 生成', '时间戳'], component: () => import('./components/SnowflakeTool.vue'), steps: ['配置数据中心/机器 ID 与 epoch', '批量生成并复制', '粘贴 ID 反查生成时间'] },
+  {
+    slug: 'case-style-converter', title: '变量命名风格转换', category: 'developer',
+    desc: 'snake_case、camelCase、PascalCase、kebab-case、CONSTANT_CASE 五种风格批量互转。',
+    keywords: ['命名', 'camelcase', 'snake_case', 'kebab', '变量名', '驼峰'],
+    textDef: {
+      options: [{ key: 'target', label: '目标风格', type: 'select', default: 'camel', choices: CASE_TARGETS.map((c) => ({ value: c.value, label: `${c.label}（如 ${c.example}）` })) }],
+      transform: (t, o) => t.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((l) => convertIdentifier(l, o.target as CaseTarget)).join('\n'),
+      placeholder: '每行一个变量名，任何风格皆可，如 user_name、userName、UserName、user-name…',
+    },
+  },
+  {
+    slug: 'cookie-parser', title: 'Cookie 解析构建', category: 'developer',
+    desc: 'Cookie 字符串与 JSON 互转，Set-Cookie 属性（Domain/Expires/HttpOnly…）完整拆解。',
+    keywords: ['cookie', 'set-cookie', 'httponly', 'samesite', '解析'],
+    textDef: {
+      options: [{ key: 'dir', label: '方向', type: 'select', default: 'parse', choices: [
+        { value: 'parse', label: 'Cookie / Set-Cookie → JSON' }, { value: 'build', label: 'JSON → Cookie 字符串' },
+      ] }],
+      transform: (t, o) => (o.dir === 'build' ? cookieJsonToHeader(t) : parseCookieInput(t)),
+      placeholder: '粘贴 document.cookie 串、Set-Cookie 响应头（可多行）或 JSON…',
+    },
+  },
+  { slug: 'keycode-lookup', title: '按键KeyCode查询', category: 'developer', desc: '按下任意键实时显示 event.key、event.code、keyCode 三元组与修饰键，附速查表。', keywords: ['keycode', '键盘', '按键', 'event', '快捷键'], component: () => import('./components/KeycodeLookup.vue'), steps: ['点击捕获区获得焦点', '按下任意键查看三元组', '下方速查表可搜索'] },
+  { slug: 'function-plotter', title: '函数图像绘制', category: 'developer', desc: '多条 y=f(x) 曲线同图绘制：滚轮缩放、悬停取值、mathjs 表达式，导出 PNG。', keywords: ['函数', '绘图', '图表', 'plot', '数学', '曲线'], component: () => import('./components/FunctionPlotter.vue'), steps: ['每行输入一条表达式如 sin(x)*x^2', '调整范围或滚轮缩放', '悬停取值，导出 PNG'] },
+  { slug: 'markdown-to-slides', title: 'Markdown 转幻灯片', category: 'developer', desc: '用 --- 分页的 Markdown 导出为零依赖单文件 HTML 幻灯片，方向键翻页。', keywords: ['幻灯片', 'slides', '演示', 'ppt'], component: () => import('./components/MarkdownToSlides.vue') },
 ]
 
 export default tools
-void validateJson
-void minifyJson
-void formatJson
-void jsonSchemaFrom
-void jsonPathQuery
-void generateMock
-void fakeRows
-void uaParse
-void curlToFetch
-void HTTP_STATUS
-void formatXml
-void chmodToSymbol
-void chmodFromSymbol

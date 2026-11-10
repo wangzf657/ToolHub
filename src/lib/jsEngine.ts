@@ -921,3 +921,75 @@ export function pxRem(px: number | null, rem: number | null, root = 16): { rem?:
   if (rem !== null) return { px: Number((rem * root).toFixed(2)) }
   return {}
 }
+
+/** JSON → Java 实体类（POJO，可选 Lombok；与 jsonToTs 同思路的类型推断） */
+export function jsonToJava(text: string, className = 'Demo', lombok = true, indentStr = '    '): string {
+  const data = JSON.parse(text)
+  const pascal = (s: string) => s.replace(/[^a-zA-Z0-9]/g, ' ').split(/\s+/).filter(Boolean).map((w) => w[0]!.toUpperCase() + w.slice(1)).join('') || 'Item'
+  const lines: string[] = []
+  const seen = new Set<string>()
+
+  const javaType = (v: unknown, name: string): { type: string; nested?: string } => {
+    if (v === null) return { type: 'Object' }
+    if (typeof v === 'string') return { type: 'String' }
+    if (typeof v === 'number') return { type: Number.isInteger(v) ? 'Integer' : 'Double' }
+    if (typeof v === 'boolean') return { type: 'Boolean' }
+    if (Array.isArray(v)) {
+      const elem = v.length ? javaType(v[0], name) : { type: 'Object' }
+      return { type: `List<${elem.type}>`, nested: elem.nested }
+    }
+    // 嵌套对象 → 生成子类
+    const cls = pascal(name) + 'Dto'
+    if (!seen.has(cls)) {
+      seen.add(cls)
+      emitClass(cls, v as Record<string, unknown>, indentStr)
+    }
+    return { type: cls }
+  }
+
+  const emitClass = (cls: string, obj: Record<string, unknown>, ind: string) => {
+    // 先收集字段类型（嵌套类在字段遍历中递归注册）
+    const fields: { name: string; type: string }[] = []
+    for (const [k, v] of Object.entries(obj)) {
+      const t = javaType(v, k)
+      fields.push({ name: camel(k), type: t.type })
+    }
+    lines.push(`/** ${cls} */`)
+    if (lombok) lines.push(`@Data`)
+    lines.push(`public class ${cls} {`)
+    for (const f of fields) {
+      lines.push(`${ind}private ${f.type} ${f.name};`)
+    }
+    lines.push('')
+    if (!lombok) {
+      // 无 Lombok 时补 getter/setter
+      for (const f of fields) {
+        const cap = f.name[0]!.toUpperCase() + f.name.slice(1)
+        lines.push(`${ind}public ${f.type} get${cap}() {`)
+        lines.push(`${ind}${ind}return this.${f.name};`)
+        lines.push(`${ind}}`)
+        lines.push(`${ind}public void set${cap}(${f.type} ${f.name}) {`)
+        lines.push(`${ind}${ind}this.${f.name} = ${f.name};`)
+        lines.push(`${ind}}`)
+      }
+    }
+    lines.push('}')
+    lines.push('')
+  }
+
+  const rootObj = Array.isArray(data) && data.length ? data[0] : data
+  if (typeof rootObj !== 'object' || rootObj === null) {
+    throw new Error('顶层应为 JSON 对象（或非空对象数组）')
+  }
+  emitClass(pascal(className) || 'Demo', rootObj as Record<string, unknown>, indentStr)
+  // emitClass 递归产生的子类排在 lines 尾部，反转注释行处理即可——按序返回
+  return lines.join('\n').trimEnd() + '\n'
+}
+
+function camel(s: string): string {
+  const clean = s.replace(/[^a-zA-Z0-9_]/g, '_')
+  const parts = clean.split('_').filter(Boolean)
+  if (!parts.length) return 'field'
+  const first = parts[0]!.toLowerCase()
+  return first + parts.slice(1).map((w) => w[0]!.toUpperCase() + w.slice(1)).join('')
+}

@@ -6,7 +6,7 @@ const F = (k: string, label: string, extra: Partial<CalcFieldDef> = {}): CalcFie
 const money = (n: number) => n.toLocaleString('zh-CN', { maximumFractionDigits: 2 })
 const pct = (n: number) => `${n.toFixed(2)}%`
 
-/** 商业 SaaS 工具注册表（15 项） */
+/** 商业 SaaS 工具注册表（16 项） */
 const tools: ToolDef[] = [
   { slug: 'resume-builder', title: '简历生成器', category: 'business', desc: '填写经历即可生成排版整洁的简历页面，浏览器直接打印/另存 PDF，无水印。', keywords: ['简历', 'cv', 'resume'], component: () => import('./components/ResumeBuilder.vue'), steps: ['填写基本信息与经历', '选择模板样式', '打印或另存为 PDF'] },
   {
@@ -342,6 +342,7 @@ const tools: ToolDef[] = [
       },
     },
   },
+  { slug: 'email-signature-generator', title: '邮件签名生成器', category: 'business', desc: '生成 Outlook/Gmail/Foxmail 兼容的 HTML 邮件签名，一键复制富文本。', keywords: ['邮件签名', '签名档', 'outlook'], component: () => import('./components/EmailSignatureGenerator.vue') },
 ]
 
 export default tools

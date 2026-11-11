@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { Keyboard, MousePointerClick } from 'lucide-vue-next'
 
 /** 最近一次按键事件信息 */
@@ -67,6 +67,13 @@ const COMMON: { key: string; code: string; kc: string }[] = [
   { key: 'F1–F12', code: 'F1–F12', kc: '112–123' },
 ]
 const filter = ref('')
+/** 速查表筛选：按键名 / event.code / keyCode 数字列三者任一命中即保留（输入数字可反查按键，如 13 → Enter） */
+const filtered = computed(() => {
+  const q = filter.value.trim().toLowerCase()
+  const raw = filter.value.trim()
+  if (!q) return COMMON
+  return COMMON.filter((c) => c.key.toLowerCase().includes(q) || c.code.toLowerCase().includes(q) || c.kc.includes(raw))
+})
 </script>
 
 <template>
@@ -98,7 +105,7 @@ const filter = ref('')
     <div class="mt-3">
       <div class="row row-wrap" style="gap: 10px; align-items: center">
         <span class="field-label" style="margin: 0">常用键码速查</span>
-        <input v-model="filter" class="input" style="max-width: 220px" placeholder="筛选，如 F、arrow、enter" />
+        <input v-model="filter" class="input" style="max-width: 220px" placeholder="筛选，如 F、arrow、13" />
       </div>
       <div class="mt-2 table-wrap">
         <table class="data-table">
@@ -106,7 +113,7 @@ const filter = ref('')
             <tr><th>按键</th><th>event.code</th><th>keyCode</th></tr>
           </thead>
           <tbody>
-            <tr v-for="c in COMMON" :key="c.key + c.kc" v-show="!filter || c.key.toLowerCase().includes(filter.toLowerCase()) || c.code.toLowerCase().includes(filter.toLowerCase())">
+            <tr v-for="c in filtered" :key="c.key + c.kc">
               <td>{{ c.key }}</td>
               <td class="mono">{{ c.code }}</td>
               <td class="mono">{{ c.kc }}</td>

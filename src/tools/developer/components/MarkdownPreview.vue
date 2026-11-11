@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, ref } from 'vue'
+import { nextTick, ref, watch } from 'vue'
 import { FileText, Download, Code2 } from 'lucide-vue-next'
 import { saveBlob, copyText } from '@/lib/download'
 import { mdToHtml, renderMermaidIn } from '@/lib/mdEngine'
@@ -32,7 +32,12 @@ const render = async () => {
     busy.value = false
   }
 }
-void render()
+// 输入即渲染（300ms 防抖）：预览与编辑保持联动，不必手点「渲染预览」
+let debTimer = 0
+watch([input, withMath, withMermaid], () => {
+  window.clearTimeout(debTimer)
+  debTimer = window.setTimeout(() => void render(), 300)
+})
 
 const copyHtml = async () => {
   if (!html.value) return toast.warn('请先渲染内容')

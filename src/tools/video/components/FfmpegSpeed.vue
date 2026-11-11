@@ -3,6 +3,7 @@
 import { ref } from 'vue'
 import FfBase from './FfBase.vue'
 import SliderRow from './SliderRow.vue'
+import { getFf, probeAudioRate } from '@/lib/ffmpeg'
 
 const base = ref<InstanceType<typeof FfBase> | null>(null)
 const speed = ref(1.5)
@@ -24,11 +25,36 @@ function atempoChain(v: number): string {
   return parts.join(',')
 }
 
+/**
+ * 变调档滤镜链：asetrate 是"按新采样率解读现有样本"，必须用源采样率计算，
+ * 硬编码 44100 会把 48kHz 源的实际变速错算成 44100×v/48000，导致音画失步。
+ * 先探测源采样率并透传；探测失败时回退为"先统一重采样到已知采样率"，倍率仍精确。
+ */
+async function pitchChain(v: number): Promise<string> {
+  const f = base.value?.file()
+  if (f) {
+    try {
+      const ff = await getFf()
+      const sr = await probeAudioRate(ff, 'input', new Uint8Array(await f.arrayBuffer()))
+      if (sr && sr > 0) return `asetrate=${sr}*${v.toFixed(4)},aresample=${sr}`
+    } catch {
+      /* 探测失败走下方安全写法 */
+    }
+  }
+  return `aresample=44100,asetrate=44100*${v.toFixed(4)},aresample=44100`
+}
+
 const run = async () => {
   const b = base.value
   if (!b || speed.value <= 0) return
   const v = speed.value
-  const af = keepPitch.value ? atempoChain(v) : `asetrate=44100*${v.toFixed(4)},aresample=44100`
+  let af: string
+  if (keepPitch.value) {
+    af = atempoChain(v)
+  } else {
+    b.setBusy(true, '正在读取音频参数…')
+    af = await pitchChain(v)
+  }
   await b.runWithFf(
     [
       '-y', '-i', 'input',

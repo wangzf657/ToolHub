@@ -29,9 +29,10 @@ const addTable = () => {
 }
 
 const removeTable = (id: number) => {
+  // 表 id 由 nextId 单调递增、tableOf 按 id 查找，因此删除时绝不重映射 id/字段索引；
+  // 只需同步清理与被删表关联的连线，其余连线保持原字段对位不变（旧行为会把无关连线改连到不存在的表且抹掉 fIdx/tIdx）
   tables.value = tables.value.filter((t) => t.id !== id)
   links.value = links.value.filter((l) => l.from !== id && l.to !== id)
-  links.value = links.value.map((l) => ({ ...l, from: l.from > id ? l.from - 1 : l.from, to: l.to > id ? l.to - 1 : l.to, fIdx: 0, tIdx: 0 }))
   if (selected.value === id) selected.value = null
 }
 

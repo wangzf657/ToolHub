@@ -22,7 +22,8 @@ const run = async () => {
     mode.value === 'dur'
       ? Math.max(0.5, segMin.value * 60)
       : dur / Math.max(2, Math.floor(segCount.value))
-  const n = Math.min(60, Math.ceil(dur / segLen))
+  // 不设段数上限：Math.ceil 保证最后不足一段的尾段也被切出，避免长视频后半被静默丢弃
+  const n = Math.ceil(dur / segLen)
   if (n < 1) return
   const parts: { name: string; blob: Blob }[] = []
   for (let i = 0; i < n; i++) {
@@ -63,13 +64,13 @@ const run = async () => {
         </template>
         <template v-else>
           <span class="field-label">段数 N</span>
-          <input v-model.number="segCount" type="number" min="2" max="60" class="input" style="width: 120px" />
+          <input v-model.number="segCount" type="number" min="2" class="input" style="width: 120px" />
         </template>
       </div>
     </div>
     <p class="split-note">
-      使用流复制切分，速度快不损画质，切点按关键帧对齐；最多 60 段，超出请增大每段时长。
-      微信朋友圈等平台建议每段 ≤ 60 秒（0.9 分钟更保险）。
+      使用流复制切分，速度快不损画质，切点按关键帧对齐；最后不足一段的尾部也会完整保留。
+      微信朋友圈等平台建议每段 ≤ 60 秒（0.9 分钟更保险），段数越多耗时越长。
     </p>
   </FfBase>
 </template>

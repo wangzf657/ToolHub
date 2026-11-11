@@ -122,6 +122,12 @@ const preset = (name: string) => {
     <div v-if="explained.ok" class="notice notice-ok mt-2">{{ explained.summary }}</div>
     <div v-else class="notice notice-err mt-2">{{ explained.error }}</div>
 
+    <p class="muted small mt-1">
+      已有表达式想逐字段核对含义？去
+      <RouterLink to="/t/cron-explainer">Cron 表达式解读</RouterLink>
+      粘贴即可逐字段解释并预览下次执行时间。
+    </p>
+
     <div class="row mt-2">
       <button class="btn btn-primary" @click="computeRuns"><CalendarClock :size="16" /> 计算未来执行时间</button>
     </div>

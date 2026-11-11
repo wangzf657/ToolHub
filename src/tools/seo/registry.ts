@@ -34,14 +34,19 @@ const tools: ToolDef[] = [
       options: [],
       transform: (t) => {
         const r = readability(t)
+        const cn = r.mode === 'cn'
         return [
           `综合可读性评分：${r.score.toFixed(0)} / 100（${r.level}）`,
           `句子数：${r.sentences}`,
           `字词数：${r.words}`,
-          `平均句长：${r.avgSentenceLen.toFixed(1)} 字/词`,
-          `平均词长：${r.avgWordLen.toFixed(1)}`,
+          cn ? `句均字数：${r.avgSentenceLen.toFixed(1)} 字/句` : `平均句长：${r.avgSentenceLen.toFixed(1)} 词/句`,
+          cn ? `估算词长：${r.avgWordLen.toFixed(1)} 字/词（中文以双字词为主）` : `平均词长：${r.avgWordLen.toFixed(1)}`,
           '',
           r.avgSentenceLen > 25 ? '建议：句子偏长，试着拆分长句，提升扫读体验。' : '句子长度适中，阅读体验良好。',
+          '',
+          cn
+            ? '口径说明：中文文本按「句均字数」简化估分（30 字/句以内每字扣 0.9 分，超出部分每字扣 0.45 分），不套用英文 Flesch 公式。'
+            : '口径说明：英文文本按句长与词长综合罚分估分（句均词长与平均词长越高越难读）。',
         ].join('\n')
       },
       placeholder: '粘贴要评估的文本…',

@@ -53,7 +53,7 @@ const downloadSvg = () => {
     <div v-else-if="svg" class="svg-stage" v-html="svg"></div>
     <div v-else class="muted small">点击「可视化」生成铁路结构图：序列从左到右、分支纵向展开、量词以虚线框 + 角标标注、捕获组标「第 N 组」、虚线盒为元字符/断言。</div>
 
-    <p class="notice notice-info mt-2 small">解析使用 regjsparser（支持命名分组、后顾断言、\p{…} 与 u/v 标志）；flags 栏填 g i m u 等标志；下载的 SVG 可直接贴进文档。</p>
+    <p class="notice notice-info mt-2 small">解析使用 regjsparser（支持命名分组、后顾断言、\p{…} 与 u/v 标志）；flags 栏填 g i m u 等标志；下载的 SVG 可直接贴进文档。要看实际匹配效果请去 <RouterLink to="/t/regex-tester">正则测试</RouterLink>。</p>
   </div>
 </template>
 

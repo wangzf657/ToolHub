@@ -18,6 +18,13 @@ const fileB = ref<File | null>(null)
 const busy = ref(false)
 const pages = ref<PageDiff[]>([])
 const stats = ref({ added: 0, removed: 0, changedPages: 0 })
+/** 双方均无可提取文本（疑似扫描件）时置位：明示不可比，而不是误报「完全一致」 */
+const noTextBoth = ref(false)
+
+/** 全册非空白字符总数（空串/纯空白/极少量字符都视为「无可提取文本」） */
+const charVolume = (texts: string[]) => texts.join('').replace(/\s/g, '').length
+/** 近空阈值：全册非空白字符不足 10 个视为无文本层（扫描件偶尔残留页码等零星字符） */
+const NEAR_EMPTY = 10
 
 const onA = (l: File[]) => (fileA.value = l[0] ?? null)
 const onB = (l: File[]) => (fileB.value = l[0] ?? null)
@@ -29,8 +36,18 @@ const run = async () => {
   }
   busy.value = true
   pages.value = []
+  noTextBoth.value = false
   try {
     const [textsA, textsB] = await Promise.all([pdfPageTexts(fileA.value), pdfPageTexts(fileB.value)])
+    // 文本层护栏：双方可提取文本均为空/近空（典型为扫描件）时逐字比对无意义，
+    // 空对空 diff 会得到 changedPages=0 而误报「完全一致」——此处直接明示不可比
+    if (charVolume(textsA) < NEAR_EMPTY && charVolume(textsB) < NEAR_EMPTY) {
+      pages.value = []
+      stats.value = { added: 0, removed: 0, changedPages: 0 }
+      noTextBoth.value = true
+      toast.warn('两者均无可提取文本，无法逐字比对（扫描件请用视觉比对工具）')
+      return
+    }
     const { diffWordsWithSpace } = await import('diff')
     const total = Math.max(textsA.length, textsB.length)
     let added = 0
@@ -101,6 +118,10 @@ const run = async () => {
       <span v-if="pages.length" class="small muted">
         {{ stats.changedPages }} 页有差异 · 新增 {{ stats.added }} 字 / 删除 {{ stats.removed }} 字
       </span>
+    </div>
+
+    <div v-if="noTextBoth" class="notice notice-warn mt-2">
+      两者均无可提取文本，无法逐字比对（扫描件请用视觉比对工具）
     </div>
 
     <div v-if="pages.length" class="diff-list mt-2">

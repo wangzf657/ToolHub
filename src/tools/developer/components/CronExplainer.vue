@@ -193,6 +193,12 @@ const run = () => {
 
     <div v-if="result && !result.ok" class="notice notice-err mt-2">{{ result.error }}</div>
 
+    <p class="muted small mt-1">
+      想可视化搭建而不是手写表达式？去
+      <RouterLink to="/t/crontab-builder">Cron 表达式生成器</RouterLink>
+      逐字段拼好再粘回来解读。
+    </p>
+
     <template v-if="result && result.ok">
       <div class="notice notice-ok mt-2">{{ result.summary }}</div>
 

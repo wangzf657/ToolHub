@@ -30,6 +30,8 @@ interface RenameRow {
   newPath: string
   newName: string
   file: File
+  /** true = 规则产出重名，已自动追加序号后缀 */
+  conflict?: boolean
 }
 
 const pickFolder = (e: Event) => {
@@ -70,7 +72,38 @@ const rows = computed<RenameRow[]>(() =>
   }),
 )
 
-const changedCount = computed(() => rows.value.filter((r) => r.newPath !== r.path).length)
+/** 在主名与扩展名之间插入序号后缀：name.jpg → name(2).jpg（目录部分保留） */
+const withSeqSuffix = (path: string, k: number): string => {
+  const slash = path.lastIndexOf('/')
+  const dir = slash >= 0 ? path.slice(0, slash + 1) : ''
+  const name = slash >= 0 ? path.slice(slash + 1) : path
+  const dot = name.lastIndexOf('.')
+  const base = dot > 0 ? name.slice(0, dot) : name
+  const ext = dot > 0 ? name.slice(dot) : ''
+  return `${dir}${base}(${k})${ext}`
+}
+
+/**
+ * 重名消解：zip 内同名条目会静默互相覆盖，规则产出撞名时自动追加 (2)、(3)… 序号后缀。
+ * 未改名行先占住原路径（不让改名结果抢占），改名行逐个撞名消解；消解结果在预览与导出中保持一致。
+ */
+const finalRows = computed<RenameRow[]>(() => {
+  const used = new Set<string>()
+  for (const r of rows.value) if (r.newPath === r.path) used.add(r.path)
+  return rows.value.map((r) => {
+    if (r.newPath === r.path) return { ...r, conflict: false }
+    let p = r.newPath
+    let k = 2
+    while (used.has(p)) p = withSeqSuffix(r.newPath, k++)
+    used.add(p)
+    if (p === r.newPath) return { ...r, conflict: false }
+    const slash = p.lastIndexOf('/')
+    return { ...r, newPath: p, newName: slash >= 0 ? p.slice(slash + 1) : p, conflict: true }
+  })
+})
+
+const conflictCount = computed(() => finalRows.value.filter((r) => r.conflict).length)
+const changedCount = computed(() => finalRows.value.filter((r) => r.newPath !== r.path).length)
 
 const execute = async () => {
   if (!files.value.length) {
@@ -85,8 +118,8 @@ const execute = async () => {
   try {
     const { default: JSZip } = await import('jszip')
     const zip = new JSZip()
-    for (const r of rows.value) {
-      // 保留相对路径（含子文件夹）；文件本体按 File 原样写入
+    for (const r of finalRows.value) {
+      // 保留相对路径（含子文件夹）；使用消解后的路径，避免 zip 内同名条目静默覆盖
       zip.file(r.newPath, r.file)
     }
     const blob = await zip.generateAsync({ type: 'blob', compression: 'STORE' })
@@ -98,7 +131,11 @@ const execute = async () => {
     a.click()
     a.remove()
     setTimeout(() => URL.revokeObjectURL(url), 3000)
-    toast.ok(`已生成 ${rows.value.length} 个文件的 zip 副本（改名 ${changedCount.value} 个）`)
+    toast.ok(
+      `已生成 ${finalRows.value.length} 个文件的 zip 副本（改名 ${changedCount.value} 个${
+        conflictCount.value ? `，重名自动加序号 ${conflictCount.value} 个` : ''
+      }）`,
+    )
   } catch (e) {
     toast.err(`打包失败：${(e as Error).message}`)
   } finally {
@@ -144,25 +181,32 @@ const execute = async () => {
 
     <div v-if="files.length" class="mt-2">
       <div class="row row-wrap" style="gap: 10px">
-        <span class="chip">预览 {{ rows.length }} 项 · 改名 {{ changedCount }} 个</span>
+        <span class="chip">预览 {{ finalRows.length }} 项 · 改名 {{ changedCount }} 个</span>
+        <span v-if="conflictCount" class="chip chip-warn">重名自动加序号 {{ conflictCount }} 个</span>
         <span class="grow"></span>
         <button class="btn btn-primary" :disabled="busy" @click="execute">
           <Loader2 v-if="busy" :size="15" class="spin" /> <Package v-else :size="15" /> 确认并导出 zip
         </button>
       </div>
       <div class="list mt-1">
-        <div v-for="r in rows.slice(0, 300)" :key="r.path" class="entry" :class="{ same: r.newPath === r.path }">
+        <div
+          v-for="r in finalRows.slice(0, 300)"
+          :key="r.path"
+          class="entry"
+          :class="{ same: r.newPath === r.path, conflict: r.conflict }"
+        >
           <span class="old">{{ r.path }}</span>
           <span class="arrow">→</span>
           <span class="new">{{ r.newPath }}</span>
+          <span v-if="r.conflict" class="conflict-tag" title="规则产出重名，已自动追加序号后缀">重名已加序号</span>
         </div>
       </div>
-      <p v-if="rows.length > 300" class="small muted mt-1">仅预览前 300 项，导出包含全部 {{ rows.length }} 项。</p>
+      <p v-if="finalRows.length > 300" class="small muted mt-1">仅预览前 300 项，导出包含全部 {{ finalRows.length }} 项。</p>
     </div>
 
     <p class="notice notice-warn mt-2 small">
       浏览器无法改写磁盘上的原文件——导出的是保留相对路径结构的 zip 副本，解压后即为改名结果。
-      序号按选择时的文件顺序编号；空文件夹不会保留。
+      序号按选择时的文件顺序编号；空文件夹不会保留。规则产生重名时会自动追加序号后缀（预览中有标注），不会互相覆盖。
     </p>
   </div>
 </template>
@@ -180,6 +224,22 @@ const execute = async () => {
   background: var(--accent-soft);
   color: var(--accent-text);
   font-size: 12.5px;
+}
+.chip-warn {
+  background: color-mix(in srgb, #f59e0b 14%, transparent);
+  color: #b45309;
+}
+.conflict-tag {
+  flex: none;
+  font-size: 11.5px;
+  color: #b45309;
+  background: color-mix(in srgb, #f59e0b 12%, transparent);
+  border: 1px solid color-mix(in srgb, #f59e0b 35%, transparent);
+  padding: 1px 8px;
+  border-radius: 999px;
+}
+.entry.conflict .new {
+  color: #b45309;
 }
 .list {
   border: 1px solid var(--border);

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /** Markdown 转公众号排版：主题渲染 → CSS 逐元素内联 → 复制富文本直接粘贴公众号后台 */
-import { ref } from 'vue'
+import {ref, watch} from 'vue'
 import { Check, ClipboardCopy, FileText } from 'lucide-vue-next'
 import { mdToWechatHtml, WECHAT_THEMES, type WechatTheme } from '@/lib/mdEngine'
 import { useToast } from '@/composables/useToast'
@@ -11,6 +11,15 @@ const theme = ref<WechatTheme>(WECHAT_THEMES[0])
 const html = ref('')
 const busy = ref(false)
 const copied = ref(false)
+
+// 输入或换主题即时重排（400ms 防抖，正文排版场景节流）
+let debTimer = 0
+watch([input, theme], () => {
+  window.clearTimeout(debTimer)
+  debTimer = window.setTimeout(() => {
+    if (input.value.trim()) void render()
+  }, 400)
+})
 
 const render = async () => {
   if (!input.value.trim()) return toast.warn('请输入 Markdown 内容')

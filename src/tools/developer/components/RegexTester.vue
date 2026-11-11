@@ -74,6 +74,10 @@ const applySnippet = (re: string) => {
       <code class="flagstr mono">{{ flagStr || '（无标志）' }}</code>
     </div>
 
+    <p class="muted small" style="margin: 2px 0 0">
+      想看这条正则的结构图？去 <RouterLink to="/t/regex-visualizer">正则可视化</RouterLink> 粘贴同一表达式生成铁路图。
+    </p>
+
     <div class="row mt-1" style="gap: 14px">
       <label v-for="(v, k) in flags" :key="k" class="check">
         <input v-model="flags[k]" type="checkbox" />

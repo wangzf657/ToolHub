@@ -12,8 +12,9 @@ const tool = ref<Tool>('pen')
 const color = ref('#4f46e5')
 const width = ref(3)
 const shapes = ref<Shape[]>([])
+/** 撤销/重做均为「全量形状快照」栈：任何变更（画一笔、加文字、清空）前先存快照，清空因此可整体撤销 */
 const undoStack = ref<Shape[][]>([])
-const redoStack = ref<Shape[]>([])
+const redoStack = ref<Shape[][]>([])
 const drawing = ref<Shape | null>(null)
 
 const canvasRef = ref<HTMLCanvasElement | null>(null)
@@ -22,6 +23,15 @@ const pos = (e: PointerEvent): { x: number; y: number } => {
   const cv = canvasRef.value!
   const r = cv.getBoundingClientRect()
   return { x: ((e.clientX - r.left) / r.width) * cv.width, y: ((e.clientY - r.top) / r.height) * cv.height }
+}
+
+/** 深拷贝当前形状列表为历史快照（点位逐点复制，避免栈内外互相影响） */
+const snapshot = (): Shape[] => shapes.value.map((s) => ({ ...s, pts: s.pts.map((p) => ({ ...p })) }))
+
+/** 每次变更前调用：快照入撤销栈并作废重做分支 */
+const pushHistory = () => {
+  undoStack.value.push(snapshot())
+  redoStack.value = []
 }
 
 const drawShape = (g: CanvasRenderingContext2D, s: Shape) => {
@@ -78,6 +88,7 @@ const down = (e: PointerEvent) => {
   if (tool.value === 'text') {
     const t = window.prompt('输入文字内容')
     if (!t) return
+    pushHistory()
     shapes.value.push({ tool: 'text', color: color.value, width: width.value, pts: [p], text: t })
     render()
     return
@@ -93,26 +104,32 @@ const move = (e: PointerEvent) => {
 
 const up = () => {
   if (!drawing.value) return
+  pushHistory()
   shapes.value.push(drawing.value)
   drawing.value = null
   render()
 }
 
 const undo = () => {
-  if (!shapes.value.length) return
-  redoStack.value.push(shapes.value.pop()!)
+  const prev = undoStack.value.pop()
+  if (!prev) return
+  redoStack.value.push(snapshot())
+  shapes.value = prev
   render()
 }
 
 const redo = () => {
-  const s = redoStack.value.pop()
-  if (!s) return
-  shapes.value.push(s)
+  const next = redoStack.value.pop()
+  if (!next) return
+  undoStack.value.push(snapshot())
+  shapes.value = next
   render()
 }
 
 const clearAll = () => {
-  undoStack.value.push([...shapes.value])
+  if (!shapes.value.length) return
+  // 清空作为一次可撤销操作推入历史栈：误触清空后撤销即可整体恢复（旧实现的快照从不被 undo 消费）
+  pushHistory()
   shapes.value = []
   render()
 }

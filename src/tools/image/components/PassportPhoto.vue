@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /** 证件照制作：标准尺寸裁剪（cover + 白底 + 参考线），附六寸相纸排版 */
-import { ref, shallowRef, watch } from 'vue'
+import { computed, ref, shallowRef, watch } from 'vue'
 import { Download } from 'lucide-vue-next'
 import ImageToolBase from './ImageToolBase.vue'
 import { applyOps, canvasToBlob } from '@/lib/imageEngine'
@@ -14,12 +14,16 @@ const guides = ref(true)
 const result = shallowRef<HTMLCanvasElement | null>(null)
 const printing = ref(false)
 
+/** 规格：w/h 为像素尺寸；cols/rows 为六寸相纸（1800×1200）上的排版行列数（格子=规格原尺寸，不缩放） */
 const SPECS = [
-  { label: '一寸 295×413', w: 295, h: 413 },
-  { label: '二寸 413×579', w: 413, h: 579 },
-  { label: '小二寸 413×531', w: 413, h: 531 },
-  { label: '美签 600×600', w: 600, h: 600 },
+  { label: '一寸 295×413', w: 295, h: 413, cols: 4, rows: 2 },
+  { label: '二寸 413×579', w: 413, h: 579, cols: 4, rows: 2 },
+  { label: '小二寸 413×531', w: 413, h: 531, cols: 4, rows: 2 },
+  { label: '美签 600×600', w: 600, h: 600, cols: 3, rows: 2 },
 ]
+
+/** 当前规格在六寸相纸上的排版张数（供按钮文案显示） */
+const sheetCount = computed(() => SPECS[spec.value].cols * SPECS[spec.value].rows)
 
 function render() {
   const s = SPECS[spec.value]
@@ -66,18 +70,38 @@ watch([spec, guides], () => {
   timer = window.setTimeout(render, 100)
 })
 
-/** 六寸相纸（1800×1200）排 8 张一寸照 */
+/** cover 贴图：源画布按格子宽高比等比缩放居中裁切绘制，绝不拉伸变形 */
+function drawCoverCell(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLCanvasElement,
+  x: number,
+  y: number,
+  cw: number,
+  ch: number,
+) {
+  const scale = Math.max(cw / img.width, ch / img.height)
+  const dw = img.width * scale
+  const dh = img.height * scale
+  ctx.drawImage(img, x + (cw - dw) / 2, y + (ch - dh) / 2, dw, dh)
+}
+
+/** 六寸相纸（1800×1200）排版：格子为当前规格原尺寸，行列数随规格，cover 裁切不拉伸 */
 async function printSheet() {
   const out = result.value
   if (!out) return
+  const s = SPECS[spec.value]
+  const W = 1800
+  const H = 1200
+  if (s.cols * s.w > W || s.rows * s.h > H) {
+    toast.err('当前规格排不进六寸相纸')
+    return
+  }
   printing.value = true
   try {
-    const W = 1800
-    const H = 1200
-    const pw = 295
-    const ph = 413
-    const cols = 4
-    const rows = 2
+    const pw = s.w
+    const ph = s.h
+    const cols = s.cols
+    const rows = s.rows
     const gapX = (W - cols * pw) / (cols + 1)
     const gapY = (H - rows * ph) / (rows + 1)
     const sheet = document.createElement('canvas')
@@ -91,7 +115,7 @@ async function printSheet() {
       for (let c = 0; c < cols; c++) {
         const x = gapX + c * (pw + gapX)
         const y = gapY + r * (ph + gapY)
-        ctx.drawImage(out, x, y, pw, ph)
+        drawCoverCell(ctx, out, x, y, pw, ph)
         ctx.strokeStyle = 'rgba(0,0,0,0.25)'
         ctx.lineWidth = 1
         ctx.strokeRect(x, y, pw, ph)
@@ -130,9 +154,9 @@ async function printSheet() {
     >
       <div class="row mt-2">
         <button class="btn btn-ghost" :disabled="!result || printing" @click="printSheet">
-          <Download :size="15" /> 生成六寸相纸排版（8 张）
+          <Download :size="15" /> 生成六寸相纸排版（{{ sheetCount }} 张）
         </button>
-        <span class="muted small">排版固定按一寸 295×413 缩放放置</span>
+        <span class="muted small">格子为当前规格原尺寸，居中裁切放置，不拉伸变形</span>
       </div>
     </ImageToolBase>
   </div>

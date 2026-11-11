@@ -351,19 +351,27 @@ export function paraphrase(text: string, intensity = 1): string {
 
 /* ---------------- 可读性 ---------------- */
 
-export function readability(text: string): { sentences: number; words: number; avgSentenceLen: number; avgWordLen: number; score: number; level: string } {
+export function readability(text: string): { sentences: number; words: number; avgSentenceLen: number; avgWordLen: number; score: number; level: string; mode: 'cn' | 'en' } {
   const sentences = splitSentences(text)
   const en = (text.match(/[a-zA-Z]+/g) ?? []).length
   const cjk = (text.match(/[\u4e00-\u9fff]/g) ?? []).length
   const words = cjk + en
   const avgSentenceLen = sentences.length ? words / sentences.length : words
-  const enChars = (text.match(/[a-zA-Z]/g) ?? []).length
-  const avgWordLen = en ? enChars / en : cjk
-  // 中文可读性：长句越少越易读
-  const score = Math.max(0, Math.min(100, 100 - avgSentenceLen * 2.2 - Math.max(0, avgWordLen - 2) * 4))
-  const level =
+  const levelOf = (score: number) =>
     score > 80 ? '很容易（初中及以下）' : score > 60 ? '容易（初中）' : score > 40 ? '中等（高中）' : score > 20 ? '较难（大学）' : '很难（专业）'
-  return { sentences: sentences.length, words, avgSentenceLen, avgWordLen, score, level }
+  // 中文为主（汉字数多于英文词数）走中文口径：旧逻辑在无英文词时把全文汉字总数当"平均词长"，
+  // 词长罚分直接把纯中文文本评分压成 0，此处改为按句均字数的简化可读性
+  if (cjk > en) {
+    // 简化中文口径：句均 30 字以内每字扣 0.9 分，超出部分每字扣 0.45 分（长句边际递减）
+    const score = Math.max(0, Math.min(100, 100 - (avgSentenceLen <= 30 ? avgSentenceLen * 0.9 : 27 + (avgSentenceLen - 30) * 0.45)))
+    // 中文以双字词为主，按 1.7 字/词估算词长
+    return { sentences: sentences.length, words, avgSentenceLen, avgWordLen: 1.7, score, level: levelOf(score), mode: 'cn' }
+  }
+  // 英文口径（保持原公式）：句长 + 词长综合罚分
+  const enChars = (text.match(/[a-zA-Z]/g) ?? []).length
+  const avgWordLen = en ? enChars / en : 0
+  const score = Math.max(0, Math.min(100, 100 - avgSentenceLen * 2.2 - Math.max(0, avgWordLen - 2) * 4))
+  return { sentences: sentences.length, words, avgSentenceLen, avgWordLen, score, level: levelOf(score), mode: 'en' }
 }
 
 /* ---------------- 关键词密度 ---------------- */

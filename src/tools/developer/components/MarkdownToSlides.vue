@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import {computed, ref, watch} from 'vue'
 import { Presentation, Download } from 'lucide-vue-next'
 import { saveBlob } from '@/lib/download'
 import { mdToHtml } from '@/lib/mdEngine'
@@ -46,6 +46,12 @@ const render = async () => {
   previews.value = parts
 }
 void render()
+// 输入变化预览联动（500ms 防抖，逐页渲染较重）
+let debTimer = 0
+watch(input, () => {
+  window.clearTimeout(debTimer)
+  debTimer = window.setTimeout(() => void render(), 500)
+})
 
 const exportHtml = async () => {
   await render()

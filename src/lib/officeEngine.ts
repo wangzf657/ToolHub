@@ -1,4 +1,5 @@
 /** Office 文档引擎：docx/xlsx/pptx 读取与生成（懒加载） */
+import { hasCJK, textToPng } from '@/tools/pdf/components/cjkText'
 
 export interface SheetData {
   name: string
@@ -118,7 +119,10 @@ export async function htmlToPdfBlob(html: string, opts: { title?: string; pageSi
   for (const b of blocks) {
     const size = b.level === 1 ? 20 : b.level === 2 ? 16 : 11
     const bold = b.level > 0
-    const lines = doc.splitTextToSize(b.text, w - 80)
+    // jsPDF 标准 14 字体（helvetica）不含 CJK 字形，中文块必须走 canvas→PNG 贴图（同 cjkText 基建做法）；
+    // 且 splitTextToSize 用 helvetica 量宽对中文无意义，中文块改用 canvas 量宽逐字折行
+    const cjk = hasCJK(b.text)
+    const lines = cjk ? wrapCjkByCanvas(b.text, size, w - 80) : doc.splitTextToSize(b.text, w - 80)
     for (const line of lines) {
       if (y > h - 40) {
         doc.addPage()
@@ -126,7 +130,13 @@ export async function htmlToPdfBlob(html: string, opts: { title?: string; pageSi
       }
       doc.setFontSize(size)
       doc.setFont('helvetica', bold ? 'bold' : 'normal')
-      doc.text(line, 40, y)
+      if (cjk) {
+        // 贴图坐标以左上为原点：对齐 text 的基线 y（em 方框顶 ≈ 基线上方 1em）
+        const png = textToPng(line, { sizePt: size, bold, color: [0, 0, 0] })
+        doc.addImage(png.dataUrl, 'PNG', 40, y - size, png.wPt, png.hPt)
+      } else {
+        doc.text(line, 40, y)
+      }
       y += size * 1.5
     }
     y += 6
@@ -143,6 +153,32 @@ export async function htmlToPdfBlob(html: string, opts: { title?: string; pageSi
 interface Block {
   text: string
   level: number
+}
+
+/** 中文块 canvas 量宽折行：按 pt 最大宽逐字换行（与 cjkText 的字体/超采样口径一致） */
+function wrapCjkByCanvas(text: string, sizePt: number, maxWidthPt: number): string[] {
+  const SS = 4
+  const fontPx = Math.max(8, sizePt) * SS
+  const c = document.createElement('canvas')
+  const ctx = c.getContext('2d')!
+  ctx.font = `${fontPx}px 'PingFang SC','Microsoft YaHei',sans-serif`
+  const lines: string[] = []
+  let line = ''
+  for (const ch of Array.from(text)) {
+    if (ch === '\n') {
+      lines.push(line)
+      line = ''
+      continue
+    }
+    if (line && ctx.measureText(line + ch).width > maxWidthPt * SS) {
+      lines.push(line)
+      line = ch
+    } else {
+      line += ch
+    }
+  }
+  lines.push(line)
+  return lines
 }
 
 function extractBlocks(root: HTMLElement): Block[] {

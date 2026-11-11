@@ -96,6 +96,168 @@ async function doRun(
   }
 }
 
+/**
+ * 探测输入文件音频采样率（Hz）：干跑 `-i` 从 stderr 流信息行解析，失败返回 null。
+ * 供 asetrate 等需按源采样率计算的滤镜使用，避免硬编码采样率导致变速倍率错误。
+ */
+export async function probeAudioRate(ff: FFmpeg, name: string, data: Uint8Array): Promise<number | null> {
+  const lines: string[] = []
+  const h = ({ message }: { message: string }) => lines.push(message)
+  ff.on('log', h)
+  try {
+    await ff.writeFile(name, data)
+    // 无输出文件的 `-i` 以非零码退出属预期，不影响流信息打印
+    await ff.exec(['-hide_banner', '-i', name])
+  } catch {
+    /* 解析不到由调用方回退 */
+  } finally {
+    ff.off('log', h)
+    try {
+      await ff.deleteFile(name)
+    } catch {
+      /* 忽略 */
+    }
+  }
+  // 形如 "  Stream #0:1: Audio: aac (LC), 48000 Hz, stereo, fltp, 128 kb/s"
+  for (const l of lines) {
+    const m = /Audio:.*?,\s*(\d{2,9})\s*Hz/.exec(l)
+    if (m) return Number(m[1])
+  }
+  return null
+}
+
+export interface SilenceRange {
+  /** 静音起点（秒） */
+  start: number
+  /** 静音终点（秒） */
+  end: number
+}
+
+/**
+ * 干跑 silencedetect 检测静音区间：写入文件 → `-vn -af silencedetect -f null -` → 解析日志。
+ * 返回总时长与静音区间列表；解析不到时长或音频流（无音轨等异常）返回 null。
+ */
+export async function detectSilences(
+  ff: FFmpeg,
+  name: string,
+  data: Uint8Array,
+  thresholdDb: number,
+  minSilence = 0.05,
+): Promise<{ duration: number; silences: SilenceRange[] } | null> {
+  const lines: string[] = []
+  const h = ({ message }: { message: string }) => lines.push(message)
+  ff.on('log', h)
+  try {
+    await ff.writeFile(name, data)
+    await ff.exec([
+      '-hide_banner', '-i', name, '-vn',
+      '-af', `silencedetect=noise=${thresholdDb}dB:d=${minSilence}`,
+      '-f', 'null', '-',
+    ])
+  } catch {
+    /* 干跑失败按无法解析处理 */
+  } finally {
+    ff.off('log', h)
+    try {
+      await ff.deleteFile(name)
+    } catch {
+      /* 忽略 */
+    }
+  }
+  if (!lines.some((l) => /Stream #\d+:\d+.*:\s*Audio:/.test(l))) return null
+  // 总时长：形如 "  Duration: 00:01:23.45, start: 0.000000, bitrate:"
+  let duration = 0
+  for (const l of lines) {
+    const m = /Duration:\s*(\d+):(\d{2}):(\d{2}(?:\.\d+)?)/.exec(l)
+    if (m) {
+      duration = Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3])
+      break
+    }
+  }
+  if (!duration) return null
+  // 静音区间：silence_start / silence_end 交替配对；以静音收尾时只有 start，补到结尾
+  const silences: SilenceRange[] = []
+  let pending = -1
+  for (const l of lines) {
+    const ms = /silence_start:\s*(-?[\d.]+)/.exec(l)
+    const me = /silence_end:\s*([\d.]+)/.exec(l)
+    if (ms) {
+      if (pending >= 0) silences.push({ start: pending, end: Math.max(pending, Number(ms[1])) })
+      pending = Math.max(0, Number(ms[1]))
+    } else if (me && pending >= 0) {
+      silences.push({ start: pending, end: Math.max(pending, Number(me[1])) })
+      pending = -1
+    }
+  }
+  if (pending >= 0) silences.push({ start: pending, end: duration })
+  return { duration, silences }
+}
+
+export interface SyncRemovePlan {
+  /** filter_complex：视频与音频按同一组保留区间剪除后 concat，保证音画同步 */
+  filter: string
+  /** 保留区间数（输出段数） */
+  segments: number
+  /** 剪除区间数（含掐头去尾） */
+  cutCount: number
+  /** 剪除总时长（秒） */
+  cutTotal: number
+}
+
+/**
+ * 由静音区间计算音视频同步剪除方案：掐头去尾各保留 edgePad 秒缓冲，
+ * inner=true 时中间超过 innerMin 秒的停顿整段剪除。
+ * 两轨使用同一组保留区间（trim/atrim + concat），从根本上消除
+ * "音频时间轴压缩、视频原时间轴保留"导致的音画失步。
+ */
+export function buildSyncRemoveFilter(
+  duration: number,
+  silences: SilenceRange[],
+  opts: { edgePad: number; inner: boolean; innerMin: number },
+): SyncRemovePlan | null {
+  const cuts: [number, number][] = []
+  for (let i = 0; i < silences.length; i++) {
+    const s = silences[i]
+    if (i === 0 && s.start <= 0.01) {
+      // 开头静音：保留 edgePad 秒缓冲后剪除
+      if (s.end - opts.edgePad > 0) cuts.push([0, s.end - opts.edgePad])
+    } else if (i === silences.length - 1 && s.end >= duration - 0.01) {
+      // 结尾静音：保留 edgePad 秒缓冲后剪除
+      if (s.start + opts.edgePad < duration) cuts.push([s.start + opts.edgePad, duration])
+    } else if (opts.inner && s.end - s.start > opts.innerMin) {
+      cuts.push([s.start, s.end])
+    }
+  }
+  // 保留区间 = [0, duration] 减去 cuts
+  const keep: [number, number][] = []
+  let cur = 0
+  for (const [a, b] of cuts) {
+    if (a > cur) keep.push([cur, Math.min(a, duration)])
+    cur = Math.max(cur, b)
+  }
+  if (cur < duration) keep.push([cur, duration])
+  const segs = keep.filter(([a, b]) => b - a > 0.05)
+  if (!segs.length) return null // 整段都是静音，无可保留内容
+  const cutTotal = duration - segs.reduce((acc, [a, b]) => acc + (b - a), 0)
+  const fmt = (n: number) => n.toFixed(3)
+  const vParts: string[] = []
+  const aParts: string[] = []
+  segs.forEach(([a, b], i) => {
+    vParts.push(`[0:v]trim=start=${fmt(a)}:end=${fmt(b)},setpts=PTS-STARTPTS[v${i}]`)
+    aParts.push(`[0:a]atrim=start=${fmt(a)}:end=${fmt(b)},asetpts=PTS-STARTPTS[a${i}]`)
+  })
+  const vOut =
+    segs.length === 1 ? '[v0]null[vout]' : `${vParts.map((_, i) => `[v${i}]`).join('')}concat=n=${segs.length}:v=1:a=0[vout]`
+  const aOut =
+    segs.length === 1 ? '[a0]anull[aout]' : `${aParts.map((_, i) => `[a${i}]`).join('')}concat=n=${segs.length}:v=0:a=1[aout]`
+  return {
+    filter: [...vParts, ...aParts, vOut, aOut].join(';'),
+    segments: segs.length,
+    cutCount: cuts.length,
+    cutTotal,
+  }
+}
+
 /** 输出文件扩展名 → mime */
 export function mimeFor(ext: string): string {
   const map: Record<string, string> = {

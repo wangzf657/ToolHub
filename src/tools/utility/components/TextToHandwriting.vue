@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { PenLine, Download, Loader2 } from 'lucide-vue-next'
 import { saveBlob } from '@/lib/download'
 import { useToast } from '@/composables/useToast'
@@ -16,9 +16,37 @@ const busy = ref(false)
 
 const FONT_STACK = `'KaiTi','STKaiti','楷体','GC2012Kai','DFKai-SB',cursive`
 const canvasRef = ref<HTMLCanvasElement | null>(null)
+/** 内容超出浏览器画布高度上限时置位，模板中给出分批导出提示 */
+const truncated = ref(false)
 
 /** 手写感：每个字带轻微随机位移与旋转 */
 const rand = (n: number) => (Math.random() * 2 - 1) * n
+
+/** 单个字符的排版宽度（空格按 0.6 字宽，其余按 1.05 字宽估算） */
+const charW = (ch: string) => (ch === ' ' ? fontSize.value * 0.6 : fontSize.value * 1.05)
+
+/** 把输入文本按可视宽度折成若干行：超宽自动换到下一行，不再丢弃剩余字符 */
+const layoutRows = (): string[][] => {
+  const maxW = 760 - 46 * 2
+  const rows: string[][] = []
+  for (const line of text.value.split('\n')) {
+    let row: string[] = []
+    let x = 0
+    for (const ch of line) {
+      const w = charW(ch)
+      if (row.length > 0 && x + w > maxW) {
+        rows.push(row)
+        row = []
+        x = 0
+        if (ch === ' ') continue // 折行产生的行首空格直接丢弃
+      }
+      row.push(ch)
+      x += w
+    }
+    rows.push(row)
+  }
+  return rows
+}
 
 const render = () => {
   const cv = canvasRef.value
@@ -26,8 +54,13 @@ const render = () => {
   const g = cv.getContext('2d')!
   const W = 760
   const pad = 46
-  const lines = text.value.split('\n')
-  const H = Math.max(560, pad * 2 + lines.length * lineGap.value + 60)
+  const rows = layoutRows()
+  // 画布高度随折行后的可视行数动态增高，长文不再被单页高度截断；超过浏览器画布上限时截断并提示分批导出
+  const MAX_H = 16000
+  const fullH = pad * 2 + rows.length * lineGap.value + 60
+  const H = Math.max(560, Math.min(fullH, MAX_H))
+  truncated.value = fullH > MAX_H
+  const visible = fullH > MAX_H ? rows.slice(0, Math.max(0, Math.floor((MAX_H - pad * 2 - 60) / lineGap.value))) : rows
   cv.width = W
   cv.height = H
   g.fillStyle = '#fff'
@@ -58,18 +91,14 @@ const render = () => {
     }
     g.strokeStyle = '#9ec1e0'
   }
-  // 逐字手写渲染
+  // 逐字手写渲染：按折行后的可视行号定位，超宽内容换行呈现而非截断
   g.fillStyle = ink.value
   g.textBaseline = 'alphabetic'
-  for (let li = 0; li < lines.length; li++) {
-    const line = lines[li]!
-    const baseY = pad + 24 + li * lineGap.value
+  visible.forEach((row, ri) => {
+    const baseY = pad + 24 + ri * lineGap.value
     let x = pad
-    for (const ch of line) {
-      const isSpace = ch === ' '
-      const w = isSpace ? fontSize.value * 0.6 : fontSize.value * 1.05
-      if (x + w > W - pad) break // 简单换行保护
-      if (!isSpace) {
+    for (const ch of row) {
+      if (ch !== ' ') {
         g.save()
         g.translate(x + rand(jitter.value), baseY + rand(jitter.value))
         g.rotate((rand(jitter.value) * Math.PI) / 180 * 2)
@@ -77,9 +106,9 @@ const render = () => {
         g.fillText(ch, 0, 0)
         g.restore()
       }
-      x += w
+      x += charW(ch)
     }
-  }
+  })
 }
 
 const exportPng = () => {
@@ -111,7 +140,8 @@ const exportPdf = async () => {
   }
 }
 
-render()
+// setup 阶段模板 ref 尚未绑定（原顶层 render() 实际不生效），挂载后渲染保证首屏即有内容
+onMounted(render)
 </script>
 
 <template>
@@ -137,11 +167,12 @@ render()
       </div>
     </div>
     <canvas ref="canvasRef" class="sheet mt-2"></canvas>
+    <p v-if="truncated" class="hint mt-1" style="color: var(--warn, #d97706)">内容过长，已超出单张画布的高度上限，超出部分未能呈现，请分批粘贴导出。</p>
     <div class="row gap mt-2">
       <button class="btn btn-primary" @click="exportPng"><Download :size="16" /> 导出 PNG</button>
       <button class="btn" :disabled="busy" @click="exportPdf"><Loader2 v-if="busy" :size="16" class="spin" /><Download v-else :size="16" /> 导出 PDF</button>
     </div>
-    <p class="hint mt-1">字体使用系统楷体（Windows: KaiTi / macOS: STKaiti）；未安装楷体的设备会退化为默认字体。抖动参数越大字越「潦草」。本工具仅供练习演示用途。</p>
+    <p class="hint mt-1">字体使用系统楷体（Windows: KaiTi / macOS: STKaiti）；未安装楷体的设备会退化为默认字体。抖动参数越大字越「潦草」。超宽行会自动折行，画布随内容自动加高。本工具仅供练习演示用途。</p>
   </div>
 </template>
 

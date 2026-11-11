@@ -129,3 +129,21 @@ export function dateAddMonths(dateStr: string, months: number): string {
   if (d.getDate() < day) d.setDate(0) // 月末溢出回退
   return fmt(d)
 }
+
+/** 下一个春节（农历正月初一）的公历日期 YYYY-MM-DD，用 lunar-javascript 精确推算（替代写死的公历近似） */
+export async function nextSpringFestival(from: Date = new Date()): Promise<string> {
+  const lunar = await load()
+  // 与上方 HolidayUtil 相同的属性访问模式：兼容打包器对 CJS 动态导入的 interop（命名解构在部分打包形态下为 undefined）
+  const Lunar = (lunar as unknown as { Lunar: typeof import('lunar-javascript')['Lunar'] }).Lunar
+  const ymd = (ly: number) => {
+    const s = Lunar.fromYmd(ly, 1, 1).getSolar()
+    return `${s.getYear()}-${`${s.getMonth()}`.padStart(2, '0')}-${`${s.getDay()}`.padStart(2, '0')}`
+  }
+  // 农历年与公历年存在错位（公历 1~2 月可能仍属上一个农历年），前后各探一年取第一个未来日期
+  for (let y = from.getFullYear() - 1; y <= from.getFullYear() + 1; y++) {
+    const ds = ymd(y)
+    if (new Date(`${ds}T00:00:00`).getTime() > from.getTime()) return ds
+  }
+  // 理论不可达（相邻三个农历年必有未过的春节），兜底再往后推一个农历年
+  return ymd(from.getFullYear() + 2)
+}

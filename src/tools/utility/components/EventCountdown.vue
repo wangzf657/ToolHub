@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { Plus, Trash2, CalendarClock } from 'lucide-vue-next'
 import { useToast } from '@/composables/useToast'
+import { nextSpringFestival } from '@/lib/chinaCalendar'
 
 const toast = useToast()
 
@@ -51,28 +52,33 @@ const removeEvent = (id: number) => {
   save()
 }
 
-/** 预设（春节按近年公历近似标注，非农历精确推算） */
+/** 预设（春节按农历精确推算，其余为固定公历节日） */
 const now0 = () => {
   const d = new Date()
   d.setSeconds(0, 0)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T00:00`
 }
-const presets: { label: string; name: string; at: () => string; note?: string }[] = [
+const presets: { label: string; name: string; at: () => string | Promise<string> }[] = [
   { label: '元旦', name: '元旦', at: () => `${new Date().getFullYear() + 1}-01-01T00:00` },
-  { label: '春节（公历近似）', name: '春节', at: () => `${new Date().getFullYear() + 1}-02-17T00:00`, note: '按公历近似' },
+  // 农历正月初一无固定公历日期（如 2027 年是 2 月 6 日），用农历引擎推算下一个春节
+  { label: '春节', name: '春节', at: async () => `${await nextSpringFestival()}T00:00` },
   { label: '国庆节', name: '国庆节', at: () => `${new Date().getFullYear()}-10-01T00:00` },
 ]
-const applyPreset = (p: (typeof presets)[number]) => {
+const applyPreset = async (p: (typeof presets)[number]) => {
   name.value = p.name
-  const at = p.at()
-  if (new Date(at).getTime() < Date.now()) {
-    // 国庆若已过则取明年
-    const y = new Date().getFullYear() + 1
-    target.value = p.name === '国庆节' ? `${y}-10-01T00:00` : at
-  } else {
-    target.value = at
+  try {
+    const at = await p.at()
+    if (new Date(at).getTime() < Date.now()) {
+      // 国庆若已过则取明年
+      const y = new Date().getFullYear() + 1
+      target.value = p.name === '国庆节' ? `${y}-10-01T00:00` : at
+    } else {
+      target.value = at
+    }
+    toast.ok(`已选择 ${p.label}，可自行修改日期`)
+  } catch {
+    toast.warn('节日日期推算失败，请手动选择日期')
   }
-  toast.ok(`已选择 ${p.label}${p.note ? `（${p.note}，可自行修改日期）` : '，可自行修改日期'}`)
 }
 void now0
 

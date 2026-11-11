@@ -107,7 +107,7 @@ function drawOverlay() {
   ctx.strokeRect(x, y, w, h)
 }
 
-function toImage(e: MouseEvent) {
+function toImage(e: PointerEvent) {
   const o = overlayEl.value!
   const rect = o.getBoundingClientRect()
   return {
@@ -116,9 +116,12 @@ function toImage(e: MouseEvent) {
   }
 }
 
-function onDown(e: MouseEvent) {
-  if (!overlayEl.value) return
+function onDown(e: PointerEvent) {
+  // 只响应主指针：触屏多指/笔+手并用时不误重置选区
+  if (!overlayEl.value || !e.isPrimary) return
   e.preventDefault()
+  // 捕获指针：手指/笔拖出画布仍持续跟踪，松开自动释放（触屏拖拽不再触发页面滚动）
+  ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
   dragging.value = true
   start.value = toImage(e)
   sel.value = null
@@ -126,8 +129,8 @@ function onDown(e: MouseEvent) {
   drawOverlay()
 }
 
-function onMove(e: MouseEvent) {
-  if (!dragging.value || !start.value || !src.value) return
+function onMove(e: PointerEvent) {
+  if (!dragging.value || !start.value || !src.value || !e.isPrimary) return
   const p = toImage(e)
   let x = Math.max(0, Math.min(Math.min(p.x, start.value.x), src.value.width))
   let y = Math.max(0, Math.min(Math.min(p.y, start.value.y), src.value.height))
@@ -198,13 +201,22 @@ async function download() {
 
       <div class="stage-wrap mt-2">
         <div ref="stage" class="stage">
-          <canvas v-show="src" ref="overlayEl" class="overlay-cv" @mousedown="onDown" @mousemove="onMove" @mouseup="onUp" @mouseleave="onUp"></canvas>
+          <canvas
+            v-show="src"
+            ref="overlayEl"
+            class="overlay-cv"
+            @pointerdown="onDown"
+            @pointermove="onMove"
+            @pointerup="onUp"
+            @pointerleave="onUp"
+            @pointercancel="onUp"
+          ></canvas>
         </div>
       </div>
 
       <p class="muted small mt-1">
         <template v-if="sel">选区：X {{ Math.round(sel.x) }}，Y {{ Math.round(sel.y) }}，宽 {{ Math.round(sel.w) }}，高 {{ Math.round(sel.h) }} px</template>
-        <template v-else>在图上按住鼠标拖拽即可框选</template>
+        <template v-else>在图上按住拖拽即可框选（支持鼠标、触摸与手写笔）</template>
       </p>
 
       <div class="row mt-2">
@@ -234,6 +246,8 @@ async function download() {
   display: inline-block;
   max-width: 100%;
   line-height: 0;
+  /* 触屏拖拽框选时禁止浏览器默认滚动/缩放手势 */
+  touch-action: none;
 }
 .stage :deep(canvas:first-child) {
   max-width: 100%;

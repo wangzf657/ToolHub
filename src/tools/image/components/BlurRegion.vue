@@ -124,8 +124,8 @@ function renderWork() {
   work.value = out
 }
 
-/* ---------- 鼠标框选（坐标换算到图像坐标） ---------- */
-function toImage(e: MouseEvent): { x: number; y: number } {
+/* ---------- 指针框选（鼠标/触摸/笔通用，坐标换算到图像坐标） ---------- */
+function toImage(e: PointerEvent): { x: number; y: number } {
   const o = overlayEl.value!
   const rect = o.getBoundingClientRect()
   return {
@@ -134,15 +134,18 @@ function toImage(e: MouseEvent): { x: number; y: number } {
   }
 }
 
-function onDown(e: MouseEvent) {
-  if (!overlayEl.value) return
+function onDown(e: PointerEvent) {
+  // 只响应主指针：触屏多指/笔+手并用时不误重置拖拽起点
+  if (!overlayEl.value || !e.isPrimary) return
   e.preventDefault()
+  // 捕获指针：手指/笔拖出画布仍持续跟踪，松开自动释放（触屏拖拽不再触发页面滚动）
+  ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
   dragging.value = true
   dragStart.value = toImage(e)
   tempRect.value = null
 }
-function onMove(e: MouseEvent) {
-  if (!dragging.value || !dragStart.value) return
+function onMove(e: PointerEvent) {
+  if (!dragging.value || !dragStart.value || !e.isPrimary) return
   const p = toImage(e)
   tempRect.value = {
     x: Math.min(p.x, dragStart.value.x),
@@ -221,10 +224,11 @@ watch(mode, drawOverlay)
             v-show="src"
             ref="overlayEl"
             class="overlay-cv"
-            @mousedown="onDown"
-            @mousemove="onMove"
-            @mouseup="onUp"
-            @mouseleave="onUp"
+            @pointerdown="onDown"
+            @pointermove="onMove"
+            @pointerup="onUp"
+            @pointerleave="onUp"
+            @pointercancel="onUp"
           ></canvas>
         </div>
       </div>
@@ -262,6 +266,8 @@ watch(mode, drawOverlay)
   display: inline-block;
   max-width: 100%;
   line-height: 0;
+  /* 触屏拖拽框选时禁止浏览器默认滚动/缩放手势 */
+  touch-action: none;
 }
 .stage :deep(canvas:first-child) {
   max-width: 100%;

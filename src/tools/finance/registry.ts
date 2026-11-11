@@ -70,7 +70,8 @@ const tools: ToolDef[] = [
         const m = Number(v.monthly)
         const r = (Number(v.rate) || 0) / 100 / 12
         const n = Math.round((Number(v.years) || 0) * 12)
-        const fv = r === 0 ? m * n : m * ((Math.pow(1 + r, n) - 1) / r) * (1 + r)
+        // 月末（期末）普通年金终值：fv = m × ((1+r)^n − 1) / r，每期投入不计当月利息
+        const fv = r === 0 ? m * n : m * ((Math.pow(1 + r, n) - 1) / r)
         const invested = m * n
         return [
           { label: '到期总值', value: money(fv), primary: true },
@@ -79,7 +80,7 @@ const tools: ToolDef[] = [
           { label: '收益占本金比', value: invested ? `${(((fv - invested) / invested) * 100).toFixed(0)}%` : '—' },
         ]
       },
-      note: '按月末定投、收益按月复利计算（标准 SIP 公式）。实际市场存在波动。',
+      note: '按月末（期末）定投、收益按月复利计算（普通年金终值公式，每期投入从次月起计息）。实际市场存在波动。',
     },
   },
   {
@@ -286,22 +287,48 @@ const tools: ToolDef[] = [
           { value: 'AUDUSD', label: 'AUD/USD' }, { value: 'USDJPY', label: 'USD/JPY' },
           { value: 'USDCHF', label: 'USD/CHF' }, { value: 'USDCAD', label: 'USD/CAD' },
         ] },
-        F('pipSize', '点差大小', { default: 0.0001, step: 0.00001 }),
-        F('rate', '报价货币兑美元汇率（直盘填 1）', { default: 1, step: 0.0001 }),
+        F('pipSize', '点差大小（JPY 对自动按 0.01 计）', { default: 0.0001, step: 0.00001 }),
+        F('rate', '汇率（USD/JPY 等美元在前的对填该货币对现价；EUR/USD 等美元报价对固定按 1）', { default: 1, step: 0.0001 }),
         F('lots', '手数', { default: 1, step: 0.01 }),
       ],
       compute: (v) => {
-        const pipValue = Number(v.pipSize) * 100000 * Number(v.lots) * Number(v.rate)
-        const jpy = String(v.pair).includes('JPY')
-        const pv = jpy ? pipValue * 100 : pipValue
+        const pair = String(v.pair || '')
+        const lots = Number(v.lots) || 0
+        // 货币对真实参与计算：JPY 对按百分位报价计点（1 点 = 0.01），不再叠加 ×100 补偿（避免双重补偿）
+        const pipSize = pair.includes('JPY') ? 0.01 : Number(v.pipSize)
+        // 报价货币兑美元汇率（当前预设均为对 USD 直盘）：
+        // - 美元报价对（EUR/USD 等）：1 报价货币 = 1 USD，恒为 1；
+        // - 美元在前的对（USD/JPY 等）：按所填货币对现价取倒数换算；旧版"填 1 再 ×100"会放大上百倍，已移除
+        let rate: number
+        let rateHint = ''
+        if (/^USD/.test(pair)) {
+          const r = Number(v.rate)
+          if (r > 0 && r !== 1) {
+            rate = 1 / r
+            rateHint = `已按 ${pair} 现价 ${r} 换算：1 ${pair.slice(3)} ≈ ${rate.toFixed(5)} USD`
+          } else {
+            // 未填现价时不出数字，防止默认汇率 1 把点值高估上百倍
+            const ask = `请先填写 ${pair} 现价（如 150），即可得到准确的美元点值`
+            return [
+              { label: '每点价值（标准手 10 万单位）', value: '$—', hint: ask },
+              { label: '当前手数每点价值', value: '$—', primary: true, hint: ask },
+              { label: '10 点波动盈亏', value: '$—', hint: ask },
+              { label: '100 点波动盈亏', value: '$—', hint: ask },
+            ]
+          }
+        } else {
+          rate = 1
+        }
+        const pv = pipSize * 100000 * lots * rate
+        const perLot = lots > 0 ? pv / lots : pv
         return [
-          { label: '每点价值（标准手 10 万单位）', value: `$${money(pv / Number(v.lots || 1))}` },
-          { label: '当前手数每点价值', value: `$${money(pv)}`, primary: true },
+          { label: '每点价值（标准手 10 万单位）', value: `$${money(perLot)}` },
+          { label: '当前手数每点价值', value: `$${money(pv)}`, primary: true, hint: rateHint },
           { label: '10 点波动盈亏', value: `$${money(pv * 10)}` },
           { label: '100 点波动盈亏', value: `$${money(pv * 100)}` },
         ]
       },
-      note: '点值 = 点差 × 合约单位 × 手数 × 报价货币汇率。JPY 对点差为 0.01。',
+      note: '点值 = 点差 × 合约单位（10 万）× 手数 × 报价货币兑美元汇率。JPY 对 1 点 = 0.01（自动应用，无需手动改点差）；USD/JPY 等美元在前的货币对填该货币对现价，自动取倒数换算。',
     },
   },
   {

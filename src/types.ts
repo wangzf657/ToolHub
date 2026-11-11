@@ -109,6 +109,8 @@ export interface CalcToolDef {
   compute: (v: Record<string, string | number | boolean>) => CalcResultRow[]
   /** 结果下方的补充说明（口径/免责） */
   note?: string
+  /** 结果区下方的关联工具入口（如贷款→逐期明细），query 由当前输入实时生成 */
+  links?: { label: string; to: string; query?: (v: Record<string, string | number | boolean>) => Record<string, string> }[]
 }
 
 /** 文件选择项 */

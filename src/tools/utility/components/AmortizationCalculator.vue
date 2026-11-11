@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { Table2, Loader2 } from 'lucide-vue-next'
 import { amortize, formatMoney, type AmortRow } from '@/lib/finance'
 import { renderChart } from '@/lib/chartEngine'
@@ -9,10 +10,33 @@ import { useToast } from '@/composables/useToast'
 
 const toast = useToast()
 const busy = ref(false)
+const route = useRoute()
 
 const principal = ref<number | ''>('')
 const rate = ref(3.6)
 const years = ref(30)
+
+// 贷款计算器等站内入口透传 ?p=&r=&y=，带入即算
+onMounted(() => {
+  const q = route.query
+  const p = Number(q.p)
+  const r = Number(q.r)
+  const y = Number(q.y)
+  let touched = false
+  if (Number.isFinite(p) && p > 0) {
+    principal.value = p
+    touched = true
+  }
+  if (Number.isFinite(r) && r > 0) {
+    rate.value = r
+    touched = true
+  }
+  if (Number.isFinite(y) && y > 0) {
+    years.value = Math.min(50, Math.round(y))
+    touched = true
+  }
+  if (touched) void run()
+})
 const mode = ref<'axbx' | 'axbj'>('axbx')
 const withPrepay = ref(false)
 const prepayMonth = ref(12)

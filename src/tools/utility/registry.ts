@@ -40,26 +40,41 @@ const tools: ToolDef[] = [
   { slug: 'word-counter', title: '字数统计', category: 'utility', desc: '实时统计字数、字符数（含/不含空格）、行数、段落数与阅读时长。', keywords: ['字数', '统计', 'count'], component: () => import('./components/WordCounter.vue') },
   {
     slug: 'loan-calculator', title: '贷款计算器', category: 'utility',
-    desc: '等额本息月供、总利息与总还款一步算清，支持任意金额利率期限。',
-    keywords: ['贷款', '月供', '等额本息'],
+    desc: '等额本息/等额本金双方式月供、利息对比一步算清，可跳转逐期还款明细。',
+    keywords: ['贷款', '月供', '等额本息', '等额本金'],
     calcDef: {
       fields: [
-        { key: 'p', label: '贷款金额', type: 'number', default: '' },
-        { key: 'r', label: '年利率（%）', type: 'number', default: '' },
-        { key: 'y', label: '期限（年）', type: 'number', default: '' },
+        { key: 'p', label: '贷款金额（元）', type: 'number', default: 1000000 },
+        { key: 'r', label: '年利率（%）', type: 'number', default: 4.0 },
+        { key: 'y', label: '期限（年）', type: 'number', default: 30 },
+        { key: 'mode', label: '主视图', type: 'select', default: 'bx', choices: [
+          { value: 'bx', label: '等额本息为主' }, { value: 'bj', label: '等额本金为主' },
+        ] },
       ],
       compute: (v) => {
         if (!v.p || !v.r || !v.y) return [{ label: '请填写贷款金额、年利率与期限', value: '—' }]
-        const r = loanPayment(Number(v.p), Number(v.r), Number(v.y))
+        const P = Number(v.p), R = Number(v.r), Y = Number(v.y)
+        const r = loanPayment(P, R, Y)
+        // 等额本金：首月 = P/n + P×月利率，每月递减 P×月利率/n；总利息 = P×月利率×(n+1)/2
+        const n = Math.round(Y * 12)
+        const mr = R / 100 / 12
+        const bjFirst = P / n + P * mr
+        const bjTotalInterest = P * mr * ((n + 1) / 2)
+        const bjPrimary = v.mode === 'bj'
         return [
-          { label: '每月还款（等额本息）', value: `¥${moneyCn(r.monthly)}`, primary: true },
-          { label: '还款总期数', value: `${Math.round(Number(v.y) * 12)} 期` },
-          { label: '利息总额', value: `¥${moneyCn(r.totalInterest)}` },
-          { label: '本息合计', value: `¥${moneyCn(r.total)}` },
-          { label: '利息占本金', value: Number(v.p) ? `${((r.totalInterest / Number(v.p)) * 100).toFixed(1)}%` : '—' },
+          { label: '每月还款（等额本息）', value: `¥${moneyCn(r.monthly)}`, primary: !bjPrimary },
+          { label: '首月还款（等额本金）', value: `¥${moneyCn(bjFirst)}`, hint: `此后每月递减 ¥${moneyCn((P * mr) / n)}`, primary: bjPrimary },
+          { label: '还款总期数', value: `${n} 期` },
+          { label: '利息总额（本息 / 本金）', value: `¥${moneyCn(r.totalInterest)} / ¥${moneyCn(bjTotalInterest)}` },
+          { label: '两种方式利息差', value: `¥${moneyCn(r.totalInterest - bjTotalInterest)}`, hint: '等额本金总利息更少，但前期月供更高' },
+          { label: '本息合计（等额本息）', value: `¥${moneyCn(r.total)}` },
+          { label: '利息占本金', value: P ? `${((r.totalInterest / P) * 100).toFixed(1)}%` : '—' },
         ]
       },
-      note: '月供公式：P × r × (1+r)^n ÷ ((1+r)^n − 1)，r 为月利率、n 为总月数。',
+      note: '等额本息：P × r × (1+r)^n ÷ ((1+r)^n − 1)；等额本金：每期本金 P/n 固定、利息逐月递减。',
+      links: [
+        { label: '查看逐期还款明细（图表/年度汇总）', to: '/t/amortization-calculator', query: (v) => ({ p: String(v.p ?? ''), r: String(v.r ?? ''), y: String(v.y ?? '') }) },
+      ],
     },
   },
   {

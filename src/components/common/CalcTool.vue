@@ -129,6 +129,16 @@ const copyRow = async (r: { value: string }, i: number) => {
       </div>
     </div>
     <p v-if="note" class="calc-note muted small">{{ note }}</p>
+    <div v-if="def.links?.length" class="calc-links row row-wrap">
+      <RouterLink
+        v-for="lk in def.links"
+        :key="lk.to"
+        class="btn btn-ghost btn-sm"
+        :to="{ path: lk.to, query: lk.query ? lk.query({ ...values }) : undefined }"
+      >
+        {{ lk.label }} →
+      </RouterLink>
+    </div>
   </div>
 </template>
 
@@ -205,5 +215,8 @@ const copyRow = async (r: { value: string }, i: number) => {
 }
 .calc-note {
   margin-top: 12px;
+}
+.calc-links {
+  margin-top: 4px;
 }
 </style>

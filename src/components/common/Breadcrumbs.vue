@@ -27,7 +27,7 @@ const props = withDefaults(
   gap: 7px;
   font-size: 13px;
   color: var(--text-3);
-  margin-bottom: 18px;
+  margin-bottom: 10px;
 }
 .sep {
   color: var(--text-3);

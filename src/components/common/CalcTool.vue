@@ -3,18 +3,54 @@ import { ref, watch } from 'vue'
 import type { CalcToolDef } from '@/types'
 import CalcFieldInput from './CalcFieldInput.vue'
 import { useToast } from '@/composables/useToast'
+import { copyText } from '@/lib/download'
+import { Copy, Check } from 'lucide-vue-next'
 
-const props = defineProps<{ def: CalcToolDef }>()
-const { err } = useToast()
+const props = defineProps<{ def: CalcToolDef; slug?: string }>()
+const { err, ok } = useToast()
 
 const values = ref<Record<string, string | number | boolean>>({})
 const results = ref<{ label: string; value: string; primary?: boolean; hint?: string }[]>([])
 const note = ref('')
+/** 最近一次单值复制的结果行（用于行内 ✓ 反馈） */
+const copiedIndex = ref(-1)
+
+/** 输入记忆 key：toolhub.calc.<slug>；无 slug（引擎级直调）时不持久化 */
+const memKey = () => (props.slug ? `toolhub.calc.${props.slug}` : '')
+
+const loadMem = () => {
+  const key = memKey()
+  if (!key) return
+  try {
+    const saved: unknown = JSON.parse(localStorage.getItem(key) ?? 'null')
+    if (saved && typeof saved === 'object') {
+      // 只回填注册表里仍然存在的字段，防止旧记忆带入已下线字段
+      for (const f of props.def.fields) {
+        if (f.key in (saved as Record<string, unknown>)) {
+          values.value[f.key] = (saved as Record<string, string | number | boolean>)[f.key]!
+        }
+      }
+    }
+  } catch {
+    /* 记忆损坏则忽略，回到默认值 */
+  }
+}
+
+const saveMem = () => {
+  const key = memKey()
+  if (!key) return
+  try {
+    localStorage.setItem(key, JSON.stringify(values.value))
+  } catch {
+    /* 隐私模式/超限时静默放弃 */
+  }
+}
 
 const init = () => {
   const v: Record<string, string | number | boolean> = {}
   for (const f of props.def.fields) v[f.key] = f.default ?? (f.type === 'check' ? false : f.type === 'number' ? '' : '')
   values.value = v
+  loadMem()
   recompute()
 }
 
@@ -37,7 +73,26 @@ const recompute = () => {
 }
 
 watch(() => props.def, init, { immediate: true, deep: true })
-watch(values, recompute, { deep: true })
+watch(values, () => {
+  recompute()
+  saveMem()
+}, { deep: true })
+
+/** 结果行单值复制：提取首个数字（去 ¥/%/千分位/单位文字），无数字则原样复制 */
+const copyRow = async (r: { value: string }, i: number) => {
+  const m = String(r.value).replace(/,/g, '').match(/-?\d+(?:\.\d+)?/)
+  const text = m?.[0] ?? String(r.value)
+  const okFlag = await copyText(text)
+  if (okFlag) {
+    copiedIndex.value = i
+    setTimeout(() => {
+      if (copiedIndex.value === i) copiedIndex.value = -1
+    }, 1500)
+    ok(`已复制 ${text}`)
+  } else {
+    err('复制失败，请手动选择复制')
+  }
+}
 </script>
 
 <template>
@@ -61,6 +116,15 @@ watch(values, recompute, { deep: true })
       >
         <span class="cr-label">{{ r.label }}</span>
         <strong class="cr-value">{{ r.value }}</strong>
+        <button
+          class="cr-copy"
+          :title="`复制「${r.label}」数值`"
+          :aria-label="`复制「${r.label}」数值`"
+          @click="copyRow(r, i)"
+        >
+          <Check v-if="copiedIndex === i" :size="13" color="#34d399" />
+          <Copy v-else :size="13" />
+        </button>
         <span v-if="r.hint" class="cr-hint">{{ r.hint }}</span>
       </div>
     </div>
@@ -105,6 +169,34 @@ watch(values, recompute, { deep: true })
 .calc-result-row.primary .cr-value {
   font-size: 26px;
   color: var(--accent-text);
+}
+/* 单值复制按钮：hover 行时浮现，触屏常显低透明度 */
+.cr-copy {
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--text-3);
+  border-radius: 7px;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+  align-self: center;
+}
+.calc-result-row:hover .cr-copy,
+.cr-copy:focus-visible {
+  opacity: 1;
+}
+.cr-copy:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+@media (hover: none) {
+  .cr-copy {
+    opacity: 0.55;
+  }
 }
 .cr-hint {
   width: 100%;

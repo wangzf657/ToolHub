@@ -50,7 +50,7 @@ const defaultSteps = ['打开工具，输入或拖入内容', '按需调整选�
 
 <template>
   <NotFoundPage v-if="!tool" />
-  <div v-else class="container tool-page" style="padding-top: 30px">
+  <div v-else class="container tool-page" style="padding-top: 14px">
     <Breadcrumbs
       :items="[
         { label: '首页', to: '/' },
@@ -80,8 +80,8 @@ const defaultSteps = ['打开工具，输入或拖入内容', '按需调整选�
         <component :is="component" v-else-if="component" />
         <!-- 通用文本工具 -->
         <TextTool v-else-if="tool.textDef" :def="tool.textDef" />
-        <!-- 通用计算器 -->
-        <CalcTool v-else-if="tool.calcDef" :def="tool.calcDef" />
+        <!-- 通用计算器（slug 用于输入记忆隔离） -->
+        <CalcTool v-else-if="tool.calcDef" :def="tool.calcDef" :slug="tool.slug" />
         <!-- 通用图片格式转换 -->
         <ImageConvertTool
           v-else-if="tool.imgcvt"
@@ -113,21 +113,21 @@ const defaultSteps = ['打开工具，输入或拖入内容', '按需调整选�
   align-items: flex-start;
   justify-content: space-between;
   gap: 18px;
-  margin-bottom: 22px;
+  margin-bottom: 12px;
 }
 .tool-head h1 {
-  font-size: clamp(28px, 4vw, 40px);
-  letter-spacing: -0.8px;
-  margin: 0 0 10px;
+  font-size: clamp(24px, 3.4vw, 34px);
+  letter-spacing: -0.6px;
+  margin: 0 0 8px;
 }
 .privacy-badge {
   display: inline-block;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 500;
   color: var(--accent-text);
   background: var(--accent-soft);
   border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
-  padding: 7px 13px;
+  padding: 5px 11px;
   border-radius: 10px;
 }
 .privacy-badge em {
@@ -167,8 +167,8 @@ const defaultSteps = ['打开工具，输入或拖入内容', '按需调整选�
   }
 }
 .tool-panel {
-  padding: 22px;
-  min-height: 260px;
+  padding: 18px;
+  min-height: 240px;
 }
 .loading {
   display: flex;
@@ -178,7 +178,7 @@ const defaultSteps = ['打开工具，输入或拖入内容', '按需调整选�
   padding: 30px 0;
 }
 .tool-about {
-  margin-top: 20px;
+  margin-top: 14px;
   color: var(--text-2);
   max-width: 760px;
 }

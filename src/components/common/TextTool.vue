@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import type { TextToolDef, TextOptionDef } from '@/types'
-import { copyText } from '@/lib/download'
+import { copyText, saveText } from '@/lib/download'
 import { localizeJsonError } from '@/lib/jsEngine'
 import { useToast } from '@/composables/useToast'
-import { Trash2, Copy, ArrowLeftRight } from 'lucide-vue-next'
+import { Trash2, Copy, ArrowLeftRight, Download, Loader2 } from 'lucide-vue-next'
 
 const props = defineProps<{ def: TextToolDef }>()
 const toast = useToast()
@@ -13,8 +13,27 @@ const input = ref('')
 const output = ref('')
 const opts = ref<Record<string, string | number | boolean>>({})
 const pending = ref(false)
+/** 慢转换提示：同步转换瞬时完成不闪 loading，仅异步（如词库下载）超过 120ms 才显示 */
+const slowPending = ref(false)
+let slowTimer = 0
 /** 异步转换（首次加载词典）竞态守卫：只采纳最后一次调用的结果 */
 let runId = 0
+
+const inputEl = ref<HTMLTextAreaElement | null>(null)
+const outputEl = ref<HTMLTextAreaElement | null>(null)
+/** 双窗滚动联动（对照校对场景）：按比例同步，避免回环 */
+let syncing = false
+const syncScroll = (from: 'in' | 'out') => {
+  if (syncing) return
+  const a = from === 'in' ? inputEl.value : outputEl.value
+  const b = from === 'in' ? outputEl.value : inputEl.value
+  if (!a || !b) return
+  const max = a.scrollHeight - a.clientHeight
+  if (max <= 0) return
+  syncing = true
+  b.scrollTop = (a.scrollTop / max) * Math.max(0, b.scrollHeight - b.clientHeight)
+  requestAnimationFrame(() => (syncing = false))
+}
 
 const initOpts = () => {
   const o: Record<string, string | number | boolean> = {}
@@ -31,6 +50,10 @@ const run = async () => {
   }
   const id = ++runId
   pending.value = true
+  clearTimeout(slowTimer)
+  slowTimer = window.setTimeout(() => {
+    if (pending.value && id === runId) slowPending.value = true
+  }, 120)
   try {
     const r = props.def.transform(input.value, { ...opts.value })
     const out = r instanceof Promise ? await r : r
@@ -40,17 +63,27 @@ const run = async () => {
     const msg = (e as Error).message || '转换失败'
     toast.err(/JSON|Unexpected token/i.test(msg) ? localizeJsonError(msg, input.value) : msg)
   } finally {
-    if (id === runId) pending.value = false
+    if (id === runId) {
+      pending.value = false
+      slowPending.value = false
+      clearTimeout(slowTimer)
+    }
   }
 }
 
 const auto = computed(() => !props.def.options?.some((o) => o.type === 'number'))
 watch([input, opts], run, { deep: true })
+onBeforeUnmount(() => clearTimeout(slowTimer))
 
 const doCopy = async () => {
   if (!output.value) return
   const okFlag = await copyText(output.value)
   okFlag ? toast.ok('已复制到剪贴板') : toast.err('复制失败，请手动选择复制')
+}
+
+const doDownload = () => {
+  if (!output.value) return
+  saveText(output.value, '转换结果.txt')
 }
 
 const swap = () => {
@@ -106,10 +139,12 @@ const clearAll = () => {
           <span class="io-count">{{ input.length }} 字符</span>
         </div>
         <textarea
+          ref="inputEl"
           v-model="input"
-          class="textarea mono"
+          class="textarea mono io-flex"
           :class="{ 'single-line': def.singleLine }"
           :placeholder="def.placeholder ?? '在此输入或粘贴文本…'"
+          @scroll="syncScroll('in')"
         ></textarea>
       </div>
 
@@ -120,16 +155,28 @@ const clearAll = () => {
 
       <div class="io-pane">
         <div class="io-head">
-          <span class="io-title">输出</span>
+          <span class="io-title">
+            输出
+            <span v-if="slowPending" class="io-pending"><Loader2 :size="12" class="spin" /> 处理中…</span>
+          </span>
           <span class="io-count">{{ output.length }} 字符</span>
         </div>
-        <textarea v-model="output" class="textarea mono" readonly placeholder="结果将出现在这里…"></textarea>
+        <textarea
+          ref="outputEl"
+          v-model="output"
+          class="textarea mono io-flex"
+          :class="{ 'is-loading': slowPending }"
+          readonly
+          :placeholder="slowPending ? '正在处理（首次使用需加载词库/数据，稍候）…' : '结果将出现在这里…'"
+          @scroll="syncScroll('out')"
+        ></textarea>
       </div>
     </div>
 
     <div class="row mt-2">
       <button v-if="!auto" class="btn btn-primary" @click="run">立即转换</button>
       <button class="btn btn-ghost" :disabled="!output" @click="doCopy"><Copy :size="15" /> 复制结果</button>
+      <button class="btn btn-ghost" :disabled="!output" @click="doDownload"><Download :size="15" /> 下载 TXT</button>
     </div>
   </div>
 </template>
@@ -176,6 +223,17 @@ const clearAll = () => {
   font-size: 13px;
   font-weight: 600;
   color: var(--text-2);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.io-pending {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--accent-text);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 .io-count {
   font-size: 12px;
@@ -187,9 +245,29 @@ const clearAll = () => {
   gap: 6px;
   justify-content: center;
 }
+/* 双窗弹性高度：内容撑开（Chromium 走 field-sizing），其余浏览器退回 min-height + 手动拉伸 */
+.io-flex {
+  min-height: 240px;
+  max-height: 64vh;
+  height: auto;
+  field-sizing: content;
+}
 .textarea.single-line {
   min-height: 44px;
   height: 44px;
+  max-height: none;
   resize: none;
+  field-sizing: normal;
+}
+.is-loading {
+  opacity: 0.65;
+}
+.spin {
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>

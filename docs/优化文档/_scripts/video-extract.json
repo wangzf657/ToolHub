@@ -1,0 +1,1894 @@
+{
+ "stat": {
+  "n": 42,
+  "avg": "58.1",
+  "max": 63,
+  "min": 52,
+  "dist": {
+   "ge60": 15,
+   "mid55": 25,
+   "le54": 2
+  },
+  "p0": 7,
+  "p1": 34,
+  "p2": 1
+ },
+ "tools": [
+  {
+   "file": "add-music-to-video",
+   "name": "视频配乐",
+   "slug": "add-music-to-video",
+   "score": 62,
+   "dims": {
+    "func": 12,
+    "usab": 10,
+    "val": 14,
+    "iact": 9,
+    "ui": 7,
+    "soul": 10,
+    "perf": 7,
+    "mob": 5
+   },
+   "head": [
+    "分类：视频工具｜模式：C（单列堆叠文件流，FfBase 基座）｜组件：`src/tools/video/components/FfmpegMusic.vue`（114 行）＋ 基座 `FfBase.vue`（272 行）｜引擎：`src/lib/ffmpeg.ts`（volume+afade+amix filter_complex，视频流 copy，FfmpegMusic.vue:30-41）｜注册：`registry.ts:38`（needModel）｜家族共性参见 `compress-video.md`；正面参照 `mute-video.md`（流复制样板）",
+    "对标标杆：剪映（配乐/音量自动化国民标杆，云）＋ Clideo（云，Add Audio 可视化对齐）"
+   ],
+   "conclusionBlock": [
+    "**交互优化** · P1（amix 归一化修复 + 试听闭环两大杠杆）",
+    "判据：62 分；流复制与双重钳制是家族样板级实现，但 amix 默认归一化让\"保留原声混合\"的成片人声无故变小——配乐工具最不能容忍的就是动了人声；补一行 normalize + 原声音量滑杆即可回到正轨。"
+   ],
+   "conclusion": "**交互优化** · P1（amix 归一化修复 + 试听闭环两大杠杆）",
+   "judge": "判据：62 分；流复制与双重钳制是家族样板级实现，但 amix 默认归一化让\"保留原声混合\"的成片人声无故变小——配乐工具最不能容忍的就是动了人声；补一行 normalize + 原声音量滑杆即可回到正轨。",
+   "deductions": [
+    "1. 【可用性-个性】amix 归一化压人声：`[0:a][m]amix=inputs=2:duration=first`（:34）默认 normalize 把每路乘 1/2——原声对白无故减半，用户只能靠音乐音量滑杆间接补救且没有\"原声音量\"旋钮；标准做法 `normalize=0`+weights 或给原声独立 volume 链",
+    "2. 【功能】无原声音量滑杆：只有音乐音量（:66），\"人声 100%+BGM 20%\"经典配比要靠数学换算硬凑",
+    "3. 【功能】无音乐起点偏移：整首从 0s 铺（:30 afade st=0），想用副歌/跳过前奏必须先去音频工具裁剪再回来——跨工具动线断裂",
+    "4. 【功能】音乐比视频短时无循环、无淡出兜底：duration=first 只保长度，音乐 2 分钟视频 5 分钟→后 3 分钟静音；note 只披露长音乐截断（:77）未披露短音乐裸奔，披露不对称",
+    "5. 【交互】无试听：混合参数改完只能全片编码+下载后耳机验证——音频混合恰是最依赖耳朵的工作，WebAudio 离线混音 30 秒试听纯前端可做",
+    "6. 【可用性-边界】无音轨视频+混合模式：`[0:a]` 不存在时 ffmpeg 失败走通用错误 toast（FfBase.vue:142），没有自动降级替换模式或明确检测提示",
+    "7. 【交互-个性】钳制静默：fadeOut 设 8s 但视频只剩 7s 时被自动改小（:21,:29），无任何回显，用户不知情",
+    "8. 【可用性-家族】执行按钮流内底部（FfBase.vue:199-206，M-14，共性-根因 4）；结果直接下载无试听（FfBase.vue:135-138）；25MB 无进度、无 beforeunload（compress-video.md 扣分 4/5）"
+   ],
+   "prescriptions": [
+    "归一化修复",
+    "原地试听",
+    "音乐起点",
+    "短音乐处理",
+    "无音轨降级",
+    "家族处方 1-2"
+   ],
+   "benchmarks": " - **剪映**：曲库+卡点标记+音量关键帧（人声说话自动压低 BGM 的 ducking）+试听即改。差距：**自动闪避（ducking）**是配乐工具分水岭，ffmpeg sidechaincompress 一行滤镜可补基础版；试听闭环纯前端可做。 - **Clideo**：拖动音乐波形对齐起点、可视化淡入淡出曲线。差距：音乐起点拖拽是纯前端交互，能补。 - 借鉴优先级：**amix 归一化修复 > 试听 > 音乐起点 > ducking > 循环选项**。 "
+  },
+  {
+   "file": "add-subtitles-to-video",
+   "name": "视频加字幕",
+   "slug": "add-subtitles-to-video",
+   "score": 58,
+   "dims": {
+    "func": 11,
+    "usab": 9,
+    "val": 14,
+    "iact": 8,
+    "ui": 7,
+    "soul": 9,
+    "perf": 4,
+    "mob": 4
+   },
+   "head": [
+    "分类：视频工具｜模式：C（单列堆叠文件流，FfBase 基座）｜组件：`src/tools/video/components/FfmpegSubtitles.vue`（127 行）＋ 基座 `FfBase.vue`（272 行）｜引擎：`src/lib/subtitles.ts`（parseSubs/serializeSubs）+ ffmpeg `subtitles=...:force_style`（FfmpegSubtitles.vue:51-58）｜注册：`registry.ts:11`（needModel）｜家族共性（按钮底部/进度带/25MB 提示）参见 `compress-video.md`",
+    "对标标杆：剪映/CapCut（自动字幕国民标杆，云）＋ Aegisub（字幕专业天花板）"
+   ],
+   "conclusionBlock": [
+    "**交互优化 + 需拓展** · P1（desc 口径兑现 + 叠加预览两大杠杆）",
+    "判据：58 分；烧录链路工程正确（extraFiles 写 subs.srt 且执行后清理，:58），但\"位置调整\"承诺未兑现、校对闭环缺失，与剪映\"自动字幕+逐条校对\"存在代差。"
+   ],
+   "conclusion": "**交互优化 + 需拓展** · P1（desc 口径兑现 + 叠加预览两大杠杆）",
+   "judge": "判据：58 分；烧录链路工程正确（extraFiles 写 subs.srt 且执行后清理，:58），但\"位置调整\"承诺未兑现、校对闭环缺失，与剪映\"自动字幕+逐条校对\"存在代差。",
+   "deductions": [
+    "1. 【口径-个性】desc 承诺\"支持样式与位置调整\"（registry.ts:11），实现 force_style 只有 FontSize/Outline（FfmpegSubtitles.vue:51）——位置（Alignment/MarginV/边距）UI 无入口；按 blur-video.md 三方矛盾判例登记，libass 一行 style 参数即可兑现",
+    "2. 【可用性-个性】解析失败静默：cues computed catch 后返回 []（:19-26），坏格式 SRT 只看到\"0 条字幕\"与灰按钮，无报错、无出错行定位",
+    "3. 【可用性-个性】编码盲区：`await f.text()`（:36）按 UTF-8 解码，字幕站常见的 GBK/GB18030 中文字幕直接烧成乱码——无编码探测（TextDecoder('gb18030') 可解）",
+    "4. 【交互】无字幕叠加预览：预览 video（FfBase.vue:169）与字幕参数零联动，哪怕\"截帧+canvas 叠字幕\"的静态示意都未做，全片重编码是唯一验证路径",
+    "5. 【功能】无逐条时间轴校对：不能编辑单条文本/起止、不能逐条跳转预览——烧录前校对是字幕工作流核心环节（Aegisub/剪映的立身之本）",
+    "6. 【功能】\"仅转换\"只出 SRT（:43 硬编码 'srt'）：解析支持 VTT/SBV 进，导出单一路径，页内亦无指引去 subtitle-converter",
+    "7. 【功能】无 ASS 输入：parseSubs 仅认 SRT/VTT/SBV（subtitles.ts:42-52）；stripCueStyling 会剥 {\\...} ASS 标签（subtitles.ts:133）说明引擎想过 ASS 却没做解析",
+    "8. 【性能】音频被无谓重编码 aac 128k（:56）——烧录只动视频流，`-c:a copy` 可省时保音质",
+    "9. 【可用性-家族】执行按钮流内底部（FfBase.vue:199-206，M-14，共性-根因 4）；结果直接下载无预览（FfBase.vue:135-138）；25MB 无进度、无 beforeunload（compress-video.md 扣分 4/5）"
+   ],
+   "prescriptions": [
+    "位置与颜色兑现",
+    "解析失败显性化",
+    "GBK 兼容",
+    "截帧示意预览",
+    "音频直拷",
+    "家族处方 1-2"
+   ],
+   "benchmarks": " - **剪映/CapCut**：语音识别自动出字幕→逐条校对→一键烧录全流程 3 分钟；字幕样式模板几十款。差距：**自动字幕生产端站内缺失**——audio-transcribe 只出无时间戳纯文本（AudioTranscribe.vue:157），\"录音→SRT\"链条断头，本工具只能吃外部 SRT。 - **Aegisub**：逐条时间轴+音波对轴+ASS 全量样式。差距：校对能力代差，ASS 互不相通。 - 借鉴优先级：**desc 口径兑现（位置/颜色）> 字幕叠加预览 > GBK 兼容 > 逐条校对 > 仅转换格式扩展**。 "
+  },
+  {
+   "file": "add-text-to-video",
+   "name": "视频加文字",
+   "slug": "add-text-to-video",
+   "score": 55,
+   "dims": {
+    "func": 10,
+    "usab": 9,
+    "val": 11,
+    "iact": 8,
+    "ui": 7,
+    "soul": 10,
+    "perf": 5,
+    "mob": 5
+   },
+   "head": [
+    "分类：视频工具｜模式：C（单列堆叠文件流，FfBase 基座）｜组件：`src/tools/video/components/FfmpegText.vue`（125 行）＋ 基座 `FfBase.vue`（272 行）｜引擎：`src/lib/ffmpeg.ts`（drawtext+textfile 避转义，FfmpegText.vue:50）｜注册：`registry.ts:36`（needModel）｜家族共性参见 `compress-video.md`",
+    "对标标杆：剪映（文字/花字模板国民标杆，云）＋ Clideo（云，Add Text 可视化定位）"
+   ],
+   "conclusionBlock": [
+    "**交互优化 + 需拓展** · P1（中文贴图引擎落地是生死项）",
+    "判据：55 分；警告文案与替代动线已是坦白从宽，但中文用户在中文站打不出中文文字是能力级缺口——canvas 文字转 PNG 再 overlay 是站内已验证路线（PDF 分类 cjkText.ts 同款做法），应落地为站内能力而非口头指引。"
+   ],
+   "conclusion": "**交互优化 + 需拓展** · P1（中文贴图引擎落地是生死项）",
+   "judge": "判据：55 分；警告文案与替代动线已是坦白从宽，但中文用户在中文站打不出中文文字是能力级缺口——canvas 文字转 PNG 再 overlay 是站内已验证路线（PDF 分类 cjkText.ts 同款做法），应落地为站内能力而非口头指引。",
+   "deductions": [
+    "1. 【功能-个性】中文渲染缺失（能力级）：ffmpeg.wasm 内置字体无中文字形，drawtext 出方块；本页止步于\"建议改用视频加字幕或加水印贴图\"（:70-71,:100）——站内已有 canvas 画字成熟先例（PDF cjkText.ts），文字先绘 PNG 再 overlay 即可站内闭环，却让用户手动跨工具三连",
+    "2. 【功能】单文字限制：一次运行只画一条 drawtext（:50）——desc\"给视频加标题与角标文字\"（registry.ts:36）实际要跑两遍全片重编码才能同时有标题+角标；无多文字图层列表",
+    "3. 【功能】排版能力单薄：只有浅色投影（shadowx=2:shadowy=2 :50），无描边、无半透明底板（中文视频标题标配）、无边距滑杆（钉死 32 :49）、无字体/粗细",
+    "4. 【交互】无落点预览：字号/颜色/位置改动都要几分钟编码后验证——对照图片版 add-text-to-image 的实时画布，交互代差一代",
+    "5. 【功能】无动画/模板：剪映的文字入场动画、花字模板是国民级预期；本页静态文字连\"淡入/打字机\"都没有（ffmpeg alpha/fade 表达式可做基础款）",
+    "6. 【交互】时段起止秒与预览时间轴无联动（不能\"播到哪定到哪\"，:89-98）；渐进披露本身做得好",
+    "7. 【可用性-家族】执行按钮流内底部（FfBase.vue:199-206，M-14，共性-根因 4）；结果直接下载无预览（FfBase.vue:135-138）；25MB 无进度、无 beforeunload（compress-video.md 扣分 4/5）"
+   ],
+   "prescriptions": [
+    "中文贴图模式",
+    "截帧预览",
+    "多文字图层",
+    "底板选项",
+    "边距可调",
+    "家族处方 1-2"
+   ],
+   "benchmarks": " - **剪映**：中文默认无障碍、花字/艺术字模板几十款、入场动画、文字跟随语音。差距：**中文能力代差是第一位的**；模板与动画其次。 - **Clideo**：预览上直接拖拽文字定位、实时看字号颜色。差距：拖拽+实时预览纯前端可做（截帧 canvas 绘制）。 - 借鉴优先级：**canvas 中文贴图引擎 > 截帧文字预览 > 多文字图层 > 底板/描边 > 动画预设**。 "
+  },
+  {
+   "file": "audiogram-maker",
+   "name": "播客波形视频",
+   "slug": "audiogram-maker",
+   "score": 62,
+   "dims": {
+    "func": 11,
+    "usab": 11,
+    "val": 13,
+    "iact": 10,
+    "ui": 8,
+    "soul": 9,
+    "perf": 4,
+    "mob": 4
+   },
+   "head": [
+    "分类：视频工具｜模式：C 变体（文件流＋Canvas 实时预览，**不走 FfBase/ffmpeg**：decodeAudio+CanvasRecorder，AudiogramMaker.vue:2）｜组件：`src/tools/video/components/AudiogramMaker.vue`（317 行）｜引擎：`src/lib/audioEngine`（decodeAudio）＋ `src/lib/videoEngine.ts:84-122`（CanvasRecorder）｜注册：`registry.ts:45`（needModel——**与实现不符，见扣分 1**）",
+    "对标标杆：headliner.app（audiogram 天花板）＋ Kapwing（audiogram 模板，见 README 对标库）"
+   ],
+   "conclusionBlock": [
+    "**交互优化 + 需拓展** · P1（录制健壮性 + 封面/模板能力）",
+    "判据：62 分；纯 Web API 路线与实时预览是本批工程亮点，但\"录制期间勿切后台\"这一硬约束无任何披露（丢帧=废片）、desc 卖的封面不存在——先堵正确性与口径，再补 headliner 式模板能力。"
+   ],
+   "conclusion": "**交互优化 + 需拓展** · P1（录制健壮性 + 封面/模板能力）",
+   "judge": "判据：62 分；纯 Web API 路线与实时预览是本批工程亮点，但\"录制期间勿切后台\"这一硬约束无任何披露（丢帧=废片）、desc 卖的封面不存在——先堵正确性与口径，再补 headliner 式模板能力。",
+   "deductions": [
+    "1. 【口径-个性】注册项 needModel: true（registry.ts:45）与实现矛盾：本页不用 ffmpeg（:2 注释自证），却让工具页徽章显示\"部分能力首次使用需下载模型\"（ToolPage.vue:67）——吓退用户+注册表元数据失真",
+    "2. 【口径-个性】desc\"标题与封面\"（registry.ts:45）vs 实现只有纯色背景（:59）无任何图片上传——封面能力不存在，按 blur-video.md 三方矛盾判例登记",
+    "3. 【可用性-个性】录制切后台失步：导出走 rAF 循环+AudioContext 实时播放（:126-148），标签页隐藏时 rAF 停摆而音频照走——波形冻结段与音频错位、成片废掉，且无\"录制期间请保持本页前台\"警告、无 visibilitychange 暂停保护",
+    "4. 【性能-个性】码率钉死 8Mbps（videoEngine.ts:102）：波形视频是大色块图形 2Mbps 足够，10 分钟播客导出约 600MB WebM——分享/上传双重受阻，无画质选项",
+    "5. 【功能】波形形态单一：全曲 64 条静态+进度染色（:32-45）是 audiogram 最低配形态；headliner 标志性的\"播放位置居中窗口内动态跳动\"只差绘制逻辑（数据已齐备）",
+    "6. 【功能】无封面图/头像/logo：节目封面是 audiogram 标配视觉（headliner 模板第一元素），本页颜色三选之外无图层",
+    "7. 【功能】无片段裁选：60 分钟播客只能整条导出（等 60 分钟），\"截 5:00~5:45 做切片\"是主场景却被拒；站内 audio-trimmer 也无动线衔接",
+    "8. 【交互】WebM 单一输出（:156）：微信/抖音/Instagram 实际要 MP4，站内 convert-video 可转但产物后无动线指引",
+    "9. 【灵魂】无模板空态：首用只见空画布，headliner 进门先给 10+ 模板挑选——波形样式/布局预设一条没有"
+   ],
+   "prescriptions": [
+    "录制保护",
+    "needModel 修正",
+    "码率选项",
+    "封面图层",
+    "片段裁选",
+    "动态波形"
+   ],
+   "benchmarks": " - **headliner.app**：模板库（波形样式×布局×封面位）、转写字幕同步、片段选择、MP4 导出。差距：**模板+封面+片段**三件纯前端可追（Canvas 数据与预览已齐备）；转写可接站内 audio-transcribe。 - **Kapwing**：audiogram 模板+多轨（波形+文字+图）。差距：图层化模板体系。 - 借鉴优先级：**录制防切后台 > 封面图 > 动态窗口波形 > 片段裁选 > MP4 动线**。 "
+  },
+  {
+   "file": "avi-to-mp4",
+   "name": "AVI 转 MP4",
+   "slug": "avi-to-mp4",
+   "score": 58,
+   "dims": {
+    "func": 11,
+    "usab": 9,
+    "val": 13,
+    "iact": 9,
+    "ui": 7,
+    "soul": 9,
+    "perf": 5,
+    "mob": 4
+   },
+   "head": [
+    "分类：视频工具｜模式：C（单列堆叠文件流，FfBase 基座）｜组件：`src/tools/video/components/FfmpegConvert.vue`（93 行）＋ 基座 `FfBase.vue`（272 行）｜引擎：`src/lib/ffmpeg.ts`；本 slug 目标预置 mp4、流复制默认关（FfmpegConvert.vue:14-21，正确默认）｜注册：`src/tools/video/registry.ts:18`｜家族共性（进度带/按钮底部/25MB 提示/无耗时预期）参见 `compress-video.md`",
+    "对标标杆：CloudConvert（云，**架构天花板**）＋ HandBrake（本地桌面，老格式解码参照）"
+   ],
+   "conclusionBlock": [
+    "**交互优化** · P0（疑似功能缺陷\"挡门\"实测定性后整改优先）",
+    "判据：58 分；重编码默认值与文案诚实度达标，但 AVI 是主流浏览器唯一\"零支持\"的常见容器之一，若实测确认 loadVideo 挡门（FfBase.vue:167 面板不渲染），本页在其存在的唯一理由上不可用，属 P0 功能缺陷。"
+   ],
+   "conclusion": "**交互优化** · P0（疑似功能缺陷\"挡门\"实测定性后整改优先）",
+   "judge": "判据：58 分；重编码默认值与文案诚实度达标，但 AVI 是主流浏览器唯一\"零支持\"的常见容器之一，若实测确认 loadVideo 挡门（FfBase.vue:167 面板不渲染），本页在其存在的唯一理由上不可用，属 P0 功能缺陷。",
+   "deductions": [
+    "1. 【可用性-疑似功能缺陷-硬伤】核心场景疑似整体挡门：AVI 容器（XviD/DivX 时代）主流浏览器均不支持，loadVideo 大概率 onerror（`videoEngine.ts:27-30`）→ 选项/按钮所在的整个面板 v-if 不渲染（FfBase.vue:167）——\"救老文件\"是这个工具存在的唯一理由，老文件恰恰进不了门；需实测定性",
+    "2. 【灵魂-口径】错误文案自相矛盾：挡门 toast 提示\"可尝试 ffmpeg 转码类工具\"（`videoEngine.ts:29`），而用户此刻就在 ffmpeg 转码工具里——口径未按上下文适配",
+    "3. 【功能】老源画质选项缺位：DV/录像带/老动画常为隔行扫描，无 deinterlace 开关，转出 H.264 必现拉丝；无分辨率放大/保持选项",
+    "4. 【交互】无正向耗时预期：老 AVI 多为 640×480 以下低分辨率，转换速度显著快于 1080p 现代视频——这个\"利好\"没有文案告诉用户（家族无耗时预期 + 本页可给更快承诺而不给）",
+    "5. 【可用性-家族】执行按钮流内底部（FfBase.vue:199-206，M-14，共性-根因 4；同 compress-video.md 扣分 1）",
+    "6. 【灵魂-家族】25MB 核心下载无进度、无 beforeunload 警告（同 compress-video.md 扣分 4/5）",
+    "7. 【美观】预览钉 340px（FfBase.vue:215-221，共性-根因 2）",
+    "8. 【功能】音频无重采样处理：老 AVI 常见 22050Hz 低采样音轨，转出后部分设备兼容性差，未统一重采样 48kHz（`-ar`），也无披露",
+    "9. 【灵魂】用户旅程无衔接：\"老文件救活→进站内裁剪/合并工具\"是本页天然的下一步（trim-video/merge-video 同站可达），页内无场景化引导（相关工具卡片兜底但无流程叙事）"
+   ],
+   "prescriptions": [
+    "挡门放行",
+    "去隔行开关",
+    "正向预期文案",
+    "家族处方 1-2"
+   ],
+   "benchmarks": " - **HandBrake**（本地）：AVI/老容器全吃，含 deinterlace（Yadif/Decomb）预设、源信息面板。差距：**老源画质处理**是转 AVI 的专业标配，本工具缺位。 - **CloudConvert**（云）：AVI 支持成熟（云端解码不依赖浏览器），参数含去隔行。差距：解码架构天花板——但 wasm 内 ffmpeg 本身具备 ASP/去隔行能力，纯前端可追。 - 借鉴优先级：**挡门放行 > 去隔行开关 > 老源速度预期文案 > 错误口径适配**。 "
+  },
+  {
+   "file": "blur-video",
+   "name": "视频局部打码",
+   "slug": "blur-video",
+   "score": 57,
+   "dims": {
+    "func": 12,
+    "usab": 9,
+    "val": 13,
+    "iact": 8,
+    "ui": 7,
+    "soul": 8,
+    "perf": 5,
+    "mob": 5
+   },
+   "head": [
+    "分类：视频工具｜模式：C（单列堆叠文件流，FfBase 基座）｜组件：`src/tools/video/components/FfmpegBlur.vue`（110 行）＋ 基座 `FfBase.vue`（272 行）｜引擎：`src/lib/ffmpeg.ts`（split+boxblur+crop+overlay filter_complex，时段 enable=between，FfmpegBlur.vue:32-34）｜注册：`registry.ts:44`（needModel）｜家族共性（按钮底部/进度带/25MB 提示）参见 `compress-video.md`；站内对照 `图片工具/blur-region.md`（画布框选+触摸失效教训）",
+    "对标标杆：Clideo（云，Blur Video 框选+时段打码）＋ ezgif（模糊/马赛克轻量参照）"
+   ],
+   "conclusionBlock": [
+    "**交互优化 + 需拓展** · P1（\"马赛克\"口径修正 + 画布框选是两大杠杆）",
+    "判据：57 分；时段打码与 filter_complex 工程是加分面，但\"打码\"工具的核心体验是**指哪打哪**——盲填坐标与名不副实的马赛克让用户在最重要的隐私场景里裸奔试错。"
+   ],
+   "conclusion": "**交互优化 + 需拓展** · P1（\"马赛克\"口径修正 + 画布框选是两大杠杆）",
+   "judge": "判据：57 分；时段打码与 filter_complex 工程是加分面，但\"打码\"工具的核心体验是**指哪打哪**——盲填坐标与名不副实的马赛克让用户在最重要的隐私场景里裸奔试错。",
+   "deductions": [
+    "1. 【口径-个性】\"马赛克\"承诺未兑现：desc\"模糊/马赛克\"（registry.ts:44）与 note\"强度调到 15 以上出马赛克\"（FfmpegBlur.vue:87）与实现只有 boxblur（:26,:32）三方矛盾——高强度 boxblur 是重模糊不是像素化；真马赛克需 `scale=w/10:h/10,scale=w:h:flags=neighbor` 降采样还原滤镜，一行即可补齐；隐私场景用户若以\"已打码\"心智发布重模糊产物，仍可能被逐帧还原，是安全级口径问题",
+    "2. 【可用性-个性】区域坐标盲填：X/Y/W/H 四个数字框（:52-69）与上方预览（FfBase.vue:169）零联动——对照图片版 blur-region 的画布拖拽红框预览，视频版连静态示意框都没有；\"人脸在画面哪个像素\"无任何辅助",
+    "3. 【灵魂-个性】坐标查证动线断裂：note 引导\"先用「视频截帧」查看尺寸\"（:87）——用户要带着坐标数字跨三个工具往返；至少应在 meta 条常驻源尺寸参照（FfBase.vue:170-174 已有分辨率，未与坐标系说明关联）",
+    "4. 【功能】单区域限制：一次只能打一个矩形（:27-34 filter_complex 单 crop），\"画面里两个人脸+一个车牌\"要跑三次全片重编码再拼——图片版 blur-region 支持多区域徽章列表，视频版应跟进",
+    "5. 【交互】验证闭环缺失：打码区域无预览示意（哪怕一个覆盖在预览上的静态红框），时段打码更无法确认\"10~20s 之间有没有真的糊上\"——只能下载后逐段播放抽查",
+    "6. 【功能】无运动跟踪：目标移动时区域固定失效（Clideo/剪映有跟踪打码），能力边界应在 note 诚实标注\"仅适合静止目标\"而非静默",
+    "7. 【可用性】越界无钳制回显：区域宽高偶数化（:28-29）与 X/Y 负值钳制（:30-31）静默生效，超出画面右下角的区域不警告——打码框一半在画面外时实际保护范围缩水且无提示",
+    "8. 【可用性-家族】执行按钮流内底部（FfBase.vue:199-206，M-14，共性-根因 4）；结果直接下载无预览（FfBase.vue:135-138）",
+    "9. 【灵魂-家族】25MB 核心下载无进度、无 beforeunload（compress-video.md 扣分 4/5）"
+   ],
+   "prescriptions": [
+    "真马赛克档",
+    "画布框选",
+    "区域示意框",
+    "多区域",
+    "越界回显",
+    "家族处方 1-2"
+   ],
+   "benchmarks": " - **Clideo**（云）：预览上拖拽框选打码区域、支持多区域、实时看模糊效果、可限定时段。差距：框选+多区域+效果预览三项均纯前端可做（图片版 blur-region 代码可移植，须换 pointer 事件）。 - **ezgif**：模糊/像素化（真正 mosaic）双引擎可选。差距：像素化引擎一行滤镜的差距，且它是\"马赛克\"名副其实的一方。 - 借鉴优先级：**真马赛克引擎（口径+安全） > 画布框选 > 多区域列表 > 区域红框预览 > 时段可视化标定**。 "
+  },
+  {
+   "file": "change-video-speed",
+   "name": "视频变速",
+   "slug": "change-video-speed",
+   "score": 57,
+   "dims": {
+    "func": 12,
+    "usab": 10,
+    "val": 13,
+    "iact": 9,
+    "ui": 7,
+    "soul": 6,
+    "perf": 5,
+    "mob": 4
+   },
+   "head": [
+    "分类：视频工具｜模式：C（单列堆叠文件流，FfBase 基座）｜组件：`src/tools/video/components/FfmpegSpeed.vue`（84 行）＋ 基座 `FfBase.vue`（272 行）｜引擎：`src/lib/ffmpeg.ts`（setpts + atempo 级联/asetrate 变调，FfmpegSpeed.vue:31-41）｜注册：`registry.ts:27`（needModel）｜家族共性（按钮底部/进度带/25MB 提示）参见 `compress-video.md`",
+    "对标标杆：ezgif（Video Speed 变速轻量标杆）＋ Clideo（云，Speed 含区间变速）"
+   ],
+   "conclusionBlock": [
+    "**交互优化** · P1（疑似功能缺陷：变调档采样率硬编码须定性修复）",
+    "判据：57 分；变速主链路（setpts+atempo）工程质量高，但 keepPitch 关闭路径的 `asetrate=44100*v` 对 48000Hz 采样源（手机拍摄绝对主流）音频变速倍率错误——缺陷修复优先于一切锦上添花。"
+   ],
+   "conclusion": "**交互优化** · P1（疑似功能缺陷：变调档采样率硬编码须定性修复）",
+   "judge": "判据：57 分；变速主链路（setpts+atempo）工程质量高，但 keepPitch 关闭路径的 `asetrate=44100*v` 对 48000Hz 采样源（手机拍摄绝对主流）音频变速倍率错误——缺陷修复优先于一切锦上添花。",
+   "deductions": [
+    "1. 【灵魂-疑似功能缺陷-个性】变调档采样率硬编码：`asetrate=44100*${v},aresample=44100`（FfmpegSpeed.vue:31）——asetrate 是\"按新采样率解读现有样本\"，源若为 48000Hz（手机视频主流）则实际变速为 44100×v/48000：2×档实际只变 1.84×，且变调量随之偏差、音画不同步；正确做法需先 `aresample=44100` 再 asetrate 或读取源采样率。需实测定性",
+    "2. 【功能】无静音变速：变速+消音是\"做卡点素材/纯画面倍速\"高频组合，本页无静音开关而 mute-video 是另一个工具（往返两次，且消音后再变速会二次重编码）——ezgif 变速页自带 mute 选项",
+    "3. 【功能】无区间变速：0.25–4× 施加全片，\"只慢放 10~15 秒精彩瞬间\"需剪出→变速→拼回三步（Clideo 支持区间变速）；与 trim/split 无任何联动",
+    "4. 【交互】无快捷档：1×/2×/0.5×/0.25× 一键点选缺失，精确到 2.0 要拖滑杆对齐（step 0.05 拖到 2.00 需手感）；1× 变速档仍触发全片重编码（输出=原片，应提示无变化或跳过）",
+    "5. 【灵魂】无音画同步预览：变速效果只能等重编码完下载后验证——wasm 侧无法实时预览，但可基于 1/v 时长换算给\"预计输出 X 分 Y 秒\"具体数值（现只有倍率 :53，无绝对时长）",
+    "6. 【功能】输出容器跟随源（FfBase.vue:65），MKV/AVI 源变速产物仍是原容器，投平台仍需二次转换",
+    "7. 【可用性-家族】执行按钮流内底部（FfBase.vue:199-206，M-14，共性-根因 4）；无结果预览直接下载（FfBase.vue:135-138）",
+    "8. 【灵魂-家族】25MB 核心下载无进度、无 beforeunload、重编码无量化耗时预期（compress-video.md 扣分 2/4/5）"
+   ],
+   "prescriptions": [
+    "变调档修复",
+    "静音变速",
+    "快捷档",
+    "绝对时长回显",
+    "1× 拦截",
+    "家族处方 1-2"
+   ],
+   "benchmarks": " - **ezgif**：变速支持 mute 选项、0.5~3× 档位+自定义、免登录即用，输出 GIF/MP4 可选。差距：静音开关与输出格式面。 - **Clideo**（云）：区间变速（指定片段改变速度其余不变）+在线预览。差距：区间变速是纯前端可做的能力（trim 联动或 filter 分段 setpts），预览可借输出 blob 回放。 - 借鉴优先级：**变调档修复（疑缺陷）> 静音变速开关 > 区间变速 > 快捷档 chips > 输出时长绝对值回显**。 "
+  },
+  {
+   "file": "compress-video",
+   "name": "压缩视频",
+   "slug": "compress-video",
+   "score": 60,
+   "dims": {
+    "func": 11,
+    "usab": 11,
+    "val": 13,
+    "iact": 9,
+    "ui": 7,
+    "soul": 9,
+    "perf": 5,
+    "mob": 4
+   },
+   "head": [
+    "分类：视频工具｜模式：C（单列堆叠文件流，FfBase 基座）｜组件：`src/tools/video/components/FfmpegCompress.vue`（93 行）＋ 基座 `src/tools/video/components/FfBase.vue`（272 行）｜引擎：`src/lib/ffmpeg`（getFf/ffRun）+ libx264 veryfast（FfmpegCompress.vue:28-40）｜注册表 `needModel: true`（registry.ts:5）",
+    "对标标杆：Clideo / VEED.io（云，**架构天花板**——云端 GPU 编码）＋ FFmpeg 命令行（能力上限同源参照）"
+   ],
+   "conclusionBlock": [
+    "**交互优化** · P1（按钮置顶 + 耗时预期管理两大杠杆）",
+    "判据：60 分；进度反馈已是全站最佳无需重做，但\"按钮在流内底部\"（共性-根因 4）与\"半小时压缩无耗时预告\"是两个明确交互硬伤；与 Clideo 的差距主要是云架构（标注天花板），交互层仍有可追空间。",
+    "整改优先序：按钮置顶+耗时文案（P1）→ 压后预览与体积对比（P1）→ CRF 连续滑条（P2）→ 工作台化（远期）。"
+   ],
+   "conclusion": "**交互优化** · P1（按钮置顶 + 耗时预期管理两大杠杆）",
+   "judge": "判据：60 分；进度反馈已是全站最佳无需重做，但\"按钮在流内底部\"（共性-根因 4）与\"半小时压缩无耗时预告\"是两个明确交互硬伤；与 Clideo 的差距主要是云架构（标注天花板），交互层仍有可追空间。",
+   "order": "整改优先序：按钮置顶+耗时文案（P1）→ 压后预览与体积对比（P1）→ CRF 连续滑条（P2）→ 工作台化（远期）。",
+   "deductions": [
+    "1. 【可用性】执行按钮位于内容流最底部（`FfBase.vue:199-206`，slot 选项盒 FfmpegCompress.vue:51-69 在按钮之上），叠加装饰层 ~250px+预览 340px 后，拖入文件即需滚动寻找\"开始压缩\"（M-14；共性-根因 4）",
+    "2. 【灵魂-硬伤边缘】无耗时预期管理：ffmpeg.wasm 实时比通常仅 0.2~0.5×（720p），进度条从 0% 爬到 3% 可能要一分钟——没有\"预计还需 X 分钟\"或\"压缩较慢属正常\"的文案，用户极易中途刷新放弃（FfBase.vue:189-197 仅显示状态+百分比）",
+    "3. 【交互】目标体积模式可在运行前估算码率（FfmpegCompress.vue:24 公式已实现）却不用它做**压前预估展示**（\"预计输出 ≈ 9.8MB · 预计耗时 X 分钟\"）",
+    "4. 【交互】处理中无 `beforeunload` 离开警告（FfBase.vue 全文无该事件），误关标签页损失全部等待",
+    "5. 【功能】首用 25MB 编解码核心下载只有一行 notice（FfBase.vue:184-187）无下载进度——弱网下\"加载编解码核心…\"可能挂 2 分钟且看起来像卡死",
+    "6. 【功能】缺\"先剪后压\"联动：trim-video 工具就在同分类，压缩前不能顺手剪掉片头片尾（Clideo 压缩页内置裁剪）",
+    "7. 【美观】预览 video 钉死 max-height:340px（FfBase.vue:215-221，共性-根因 2），核对压缩画质只能在小窗看",
+    "8. 【可用性】压缩完成即自动下载（FfBase.vue:135-138 默认 onDone 分支），无压后预览播放——blob URL 本可直接渲染 video 确认画质再决定是否下载，这个确认环节白白放弃",
+    "9. 【灵魂】完成后 toast\"处理完成，已开始下载\"不含输出体积，源大小在元信息条（:173）却无处对照——\"到底压小了多少\"要自己去下载目录看属性",
+    "10. 【交互】压缩结果不满意（画质过差/体积未达标）无\"调整参数再压一次\"快捷动作，要重新走一遍参数设置"
+   ],
+   "prescriptions": [
+    "按钮置顶",
+    "耗时预期管理",
+    "压前预估",
+    "核心下载进度",
+    "CRF 连续滑条",
+    "压后预览与体积对比",
+    "快捷再压"
+   ],
+   "benchmarks": " - **Clideo / VEED（云）**：上传后云端转码几分钟出片、内置裁剪/分辨率预设、完成后在线预览播放。差距：**算力架构天花板**——wasm 无法也不必追平云端速度；但\"压前预估、完成在线预览对比、内置裁剪\"三项交互纯前端完全可做。 - **FFmpeg 命令行（同源能力参照）**：CRF/preset/分辨率/音频全部可调。差距：本工具只暴露 3 档 CRF，把\"两档间\"的用户拱手让给命令行。 - 性能预期管理（纯前端最佳实践）：进度条旁明示\"wasm 压缩约为实时速度的 1/3，10 分钟视频约需 30 分钟\"，并提供 480p 快速档（速度可翻倍）。 - 借鉴优先级：**耗时预估文案 > 按钮置顶 > 压前体积预估 > beforeunload 警告 > 480p 快速档**。 "
+  },
+  {
+   "file": "convert-video",
+   "name": "视频格式转换",
+   "slug": "convert-video",
+   "score": 61,
+   "dims": {
+    "func": 12,
+    "usab": 11,
+    "val": 13,
+    "iact": 9,
+    "ui": 7,
+    "soul": 9,
+    "perf": 5,
+    "mob": 4
+   },
+   "head": [
+    "分类：视频工具｜模式：C（单列堆叠文件流，FfBase 基座）｜组件：`src/tools/video/components/FfmpegConvert.vue`（93 行）＋ 基座 `FfBase.vue`（272 行）｜引擎：`src/lib/ffmpeg.ts`（getFf/ffRun）+ libx264/libvpx-vp9（FfmpegConvert.vue:39-43）｜注册：`src/tools/video/registry.ts:6`｜家族共性（进度带全站最完善/按钮流内底部/25MB 首用提示/无耗时预期）参见 `compress-video.md`",
+    "对标标杆：CloudConvert（云，300+ 格式矩阵，**架构天花板**）＋ HandBrake（本地桌面转码的质量/速度参照）"
+   ],
+   "conclusionBlock": [
+    "**交互优化** · P1（源格式感知是本页第一杠杆）",
+    "判据：61 分居家族中上；与 CloudConvert 的格式广度差属云架构天花板，但\"源-目标联动、参数面\"纯前端完全可追，家族处方（按钮置顶/耗时文案）原样适用。"
+   ],
+   "conclusion": "**交互优化** · P1（源格式感知是本页第一杠杆）",
+   "judge": "判据：61 分居家族中上；与 CloudConvert 的格式广度差属云架构天花板，但\"源-目标联动、参数面\"纯前端完全可追，家族处方（按钮置顶/耗时文案）原样适用。",
+   "deductions": [
+    "1. 【交互】目标格式下拉与源文件零联动：默认恒 mp4（FfmpegConvert.vue:9），载入 mov/mkv/avi 源不预选合理目标，也无\"源已是 MP4\"的空转提示（FfBase.vue:56-70 载入只取元信息不识别容器）",
+    "2. 【灵魂】流复制开关不随源动态建议：载入 MOV/MKV 源（copy 最优路径）时默认仍关（:21 仅三个子 slug 预置 true），母工具享受不到自己给子页配的捷径",
+    "3. 【功能-疑似功能缺陷】desc 宣称 AVI 互转（registry.ts:6），但主流浏览器不支持 AVI 容器，loadVideo 大概率 onerror（`videoEngine.ts:27-30`）致面板不渲染（FfBase.vue:167）——AVI 源疑似进不了门，需实测定性",
+    "4. 【功能】缺视频参数：分辨率/帧率/音频码率全无（CloudConvert/HandBrake 标配），用户只能接受 crf23+veryfast 固定组合（FfmpegConvert.vue:42）",
+    "5. 【可用性-家族】执行按钮流内底部（FfBase.vue:199-206，M-14，共性-根因 4；同 compress-video.md 扣分 1）",
+    "6. 【灵魂-家族】无耗时预期管理、25MB 核心下载无进度、处理中无 beforeunload 警告（同 compress-video.md 扣分 2/4/5）",
+    "7. 【美观】AVI 目标项价值存疑：把 MP4/WebM 转回老容器需求近乎为零，挂在下拉里制造选择噪音（FfmpegConvert.vue:29）",
+    "8. 【灵魂】注册表无 steps（registry.ts:6），侧栏快速指南显示通用三条（ToolPage.vue:48）"
+   ],
+   "prescriptions": [
+    "源-目标联动",
+    "家族处方 1-2",
+    "AVI 源门禁实测",
+    "参数面",
+    "注册表补 steps"
+   ],
+   "benchmarks": " - **CloudConvert**（云）：300+ 格式矩阵、批量队列、逐格式转换参数。差距：格式广度是**架构天花板**；但 5 格式内的参数面与批量纯前端可及。 - **HandBrake**（本地）：源信息面板完整展示容器/编码/轨结构，preset 按目标设备组织。差距：**源感知**——它先读懂文件再给建议，本工具连源容器是什么都不展示。 - 借鉴优先级：**源格式识别与目标预选 > 参数面 > 批量 > steps 文案**。 "
+  },
+  {
+   "file": "crop-video",
+   "name": "裁切视频画面",
+   "slug": "crop-video",
+   "score": 55,
+   "dims": {
+    "func": 12,
+    "usab": 8,
+    "val": 13,
+    "iact": 8,
+    "ui": 7,
+    "soul": 7,
+    "perf": 5,
+    "mob": 5
+   },
+   "head": [
+    "分类：视频工具｜模式：C（单列堆叠文件流，FfBase 基座）｜组件：`src/tools/video/components/FfmpegCrop.vue`（118 行）＋ 基座 `FfBase.vue`（272 行）｜引擎：`src/lib/ffmpeg.ts`（crop 滤镜 + libx264 重编码，FfmpegCrop.vue:49-57）｜注册：`registry.ts:26`（needModel）｜家族共性（按钮底部/进度带/25MB 提示/预览钉 340px）参见 `compress-video.md`",
+    "对标标杆：Clideo（云，Crop Video 画布框选）＋ ezgif（Video Crop 数值裁切参照）；站内对照 `图片工具/crop-image.md`（画布框选+触摸失效教训）"
+   ],
+   "conclusionBlock": [
+    "**交互优化 + 需拓展** · P1（可视化框选是图片版已验证、视频版缺席的核心能力）",
+    "判据：55 分；裁切的行业交互是\"在画面上画个框\"（Clideo/剪映/图片版 crop-image 全是框选），本页只有数值——不是能力边界（wasm 侧 canvas 叠加框选完全可做），是交互层缺口。"
+   ],
+   "conclusion": "**交互优化 + 需拓展** · P1（可视化框选是图片版已验证、视频版缺席的核心能力）",
+   "judge": "判据：55 分；裁切的行业交互是\"在画面上画个框\"（Clideo/剪映/图片版 crop-image 全是框选），本页只有数值——不是能力边界（wasm 侧 canvas 叠加框选完全可做），是交互层缺口。",
+   "deductions": [
+    "1. 【可用性-个性】无可视化框选：预览区与裁切参数零联动（FfmpegCrop.vue:74-91 四个数字框 vs FfBase.vue:169 预览 video）——对照图片版 crop-image（画布遮罩+蓝框选区）与 blur-region（红框实时预览），视频裁切连框选都没有；X/Y/W/H 数值模式下\"去右下角水印\"要靠猜坐标试错",
+    "2. 【可用性-个性】越界静默收缩：宽高超界时代码自动收缩到边界（:46-48 Math.min）但 UI 不提示\"实际裁切 1880×1040（你填了 2000×1080）\"——用户以为裁了自己要的区域，实际产物比预期小",
+    "3. 【交互-个性】预设与手动档状态脱节：选择比例后用户再改宽/高数字，下拉仍停在原比例档（:66 :value=\"ratio\" 单向绑定）——界面暗示\"当前是 9:16\"而参数早已不是，误导性强",
+    "4. 【功能】无裁切预览：设定参数后只能执行重编码看结果（Clideo 有实时框选预览）；wasm 侧可先在预览 canvas 上画裁切框示意，成本极低",
+    "5. 【功能】重编码不可避免但无告知：crop 无法流复制（:51-56 必然 libx264），却无\"此操作需重编码，耗时较长\"预期文案（快速档裁剪在 trim-video 有，本页没有对应透明度）",
+    "6. 【交互】无微调手柄：比例预设只有\"居中\"一种定位（:26-41），想裁 9:16 但偏左构图只能手改 X——预设+偏移微调的组合路径断裂",
+    "7. 【功能】缺常用比例档：缺 4:3、2.35:1 电影宽幅、3:4（图片版 crop-image.md 扣分 1 已登记同款缺失）",
+    "8. 【可用性-家族】执行按钮流内底部（FfBase.vue:199-206，M-14，共性-根因 4）；无结果预览直接下载（FfBase.vue:135-138）",
+    "9. 【灵魂-家族】25MB 核心下载无进度、无 beforeunload、无量化耗时预期（compress-video.md 扣分 2/4/5）"
+   ],
+   "prescriptions": [
+    "画布框选",
+    "实际参数回显",
+    "预设状态联动",
+    "裁切示意覆盖层",
+    "补比例档",
+    "家族处方 1-2"
+   ],
+   "benchmarks": " - **Clideo**（云）：在视频预览上直接拖拽出裁切框、比例锁、实时看效果。差距：框选交互纯前端可做（预览 video 上叠 canvas 遮罩层，坐标按 videoWidth 换算）——站内图片版 crop-image/blur-region 已有全套画布选区代码可移植。 - **ezgif**：数值裁切+比例锁定，UI 旧但提供 X/Y/W/H 与比例双向联动。差距：至少它数值改了比例档会同步消失/更新，我们连这点联动都没有。 - 借鉴优先级：**画布框选 > 实际裁切参数回显 > 预设档状态联动 > 偏移微调手柄 > 补比例档**。 "
+  },
+  {
+   "file": "flv-to-mp4",
+   "name": "FLV 转 MP4",
+   "slug": "flv-to-mp4",
+   "score": 56,
+   "dims": {
+    "func": 11,
+    "usab": 8,
+    "val": 12,
+    "iact": 9,
+    "ui": 7,
+    "soul": 9,
+    "perf": 4,
+    "mob": 4
+   },
+   "head": [
+    "分类：视频工具｜模式：C（单列堆叠文件流，FfBase 基座）｜组件：`src/tools/video/components/FfmpegConvert.vue`（93 行）＋ 基座 `FfBase.vue`（272 行）｜引擎：`src/lib/ffmpeg.ts`；本 slug 目标预置 mp4、流复制默认关（FfmpegConvert.vue:14-21，正确默认）｜注册：`src/tools/video/registry.ts:21`｜家族共性（进度带/按钮底部/25MB 提示/无耗时预期）参见 `compress-video.md`",
+    "对标标杆：ezgif video converter（轻量在线场景）＋ CloudConvert（云，**架构天花板**）——FLV 是\"多媒体考古\"题材最重的一页"
+   ],
+   "conclusionBlock": [
+    "**交互优化** · P0（疑似功能缺陷\"挡门\"实测定性后整改优先）",
+    "判据：56 分；FLV 容器自 Flash 退役（2020）被浏览器全面移除，若实测确认 loadVideo 挡门（FfBase.vue:167），本页 100% 依赖解码放行的考古场景整体不可用，属 P0 功能缺陷；放行后体验短板（时间戳修复、考古叙事）再按 P1 整改。"
+   ],
+   "conclusion": "**交互优化** · P0（疑似功能缺陷\"挡门\"实测定性后整改优先）",
+   "judge": "判据：56 分；FLV 容器自 Flash 退役（2020）被浏览器全面移除，若实测确认 loadVideo 挡门（FfBase.vue:167），本页 100% 依赖解码放行的考古场景整体不可用，属 P0 功能缺陷；放行后体验短板（时间戳修复、考古叙事）再按 P1 整改。",
+   "deductions": [
+    "1. 【可用性-疑似功能缺陷-硬伤】考古场景疑似整体挡门：FLV 容器已被所有主流浏览器移除支持，loadVideo 几乎必然 onerror（`videoEngine.ts:27-30`）→ 选项/按钮面板不渲染（FfBase.vue:167）——本页存在的唯一理由（救 Flash 遗产）恰是进不了门的文件类型；需实测定性",
+    "2. 【功能】老网络流时间戳异常未处理：FLV 常缺时间戳/时长元数据异常，未提供 `-fflags +genpts` 修复选项，转出 MP4 可能时长错误或播放器拖动失效，失败也无引导",
+    "3. 【灵魂-错失】考古叙事零着墨：Flash 时代（2005-2015 网络视频史）、\"你的老视频本地就能救活\"的正向文案、FLV1 低分辨率解码轻量（本可承诺家族最快一档）——全页只有通用 conv-note，最该做出记忆点的页面最平淡",
+    "4. 【交互】挡门错误文案错位：\"可尝试 ffmpeg 转码类工具\"（`videoEngine.ts:29`）在本工具内自相矛盾",
+    "5. 【可用性-家族】执行按钮流内底部（FfBase.vue:199-206，M-14，共性-根因 4；同 compress-video.md 扣分 1）",
+    "6. 【灵魂-家族】25MB 核心下载无进度、无 beforeunload 警告（同 compress-video.md 扣分 4/5）",
+    "7. 【美观】预览钉 340px（FfBase.vue:215-221，共性-根因 2）",
+    "8. 【功能】批量缺失：考古用户常一次翻出多个 FLV，单文件流（FfBase.vue:38 multiple 默认 false）要逐个重走全流程，ezgif/CloudConvert 均支持批量",
+    "9. 【功能】\"只要音频\"分流缺失：老 FLV 常被用来存音乐/网络广播（站内 video-to-mp3 能力可达），页内无场景分流提示"
+   ],
+   "prescriptions": [
+    "挡门放行",
+    "时间戳修复开关",
+    "考古空态叙事",
+    "家族处方 1-2"
+   ],
+   "benchmarks": " - **ezgif video converter**：FLV→MP4 云端解码不依赖浏览器，页面功能齐但 UI 旧——\"功能覆盖它＋UI 好于它\"在本页不成立（挡门时连入口都没有）。差距：解码架构天花板（**云侧不依赖浏览器容器支持**）。 - **CloudConvert**（云）：FLV 支持成熟。差距：同上＋批量。 - 借鉴优先级：**挡门放行 > genpts 修复开关 > 考古叙事空态 > 错误口径适配**。 "
+  },
+  {
+   "file": "gif-to-mp4",
+   "name": "GIF 转 MP4",
+   "slug": "gif-to-mp4",
+   "score": 55,
+   "dims": {
+    "func": 10,
+    "usab": 8,
+    "val": 13,
+    "iact": 9,
+    "ui": 7,
+    "soul": 8,
+    "perf": 6,
+    "mob": 4
+   },
+   "head": [
+    "分类：视频工具｜模式：C（单列堆叠文件流，FfBase 基座）｜组件：`src/tools/video/components/FfmpegConvert.vue`（93 行，与 convert-video 共用）＋ 基座 `FfBase.vue`（272 行）｜引擎：`src/lib/ffmpeg.ts`（libx264 crf23 重编码，FfmpegConvert.vue:42）｜注册：`registry.ts:31`（needModel）｜家族共性参见 `compress-video.md`；共用组件分析参见 `convert-video.md`/`avi-to-mp4.md`",
+    "对标标杆：ezgif（GIF↔视频全能流量王）＋ CloudConvert（云，**架构天花板**）"
+   ],
+   "conclusionBlock": [
+    "**交互优化** · P0（疑似功能缺陷\"GIF 挡门\"实测定性后整改优先）",
+    "判据：55 分；若实测确认 GIF 无法进门（accept 过滤 + `<video>` 无法解码 GIF 双重门），本页在其存在的唯一理由上不可用——比 avi-to-mp4.md 扣分 1 更结构性：AVI 至少能拖进门，GIF 连选择器都过不去。"
+   ],
+   "conclusion": "**交互优化** · P0（疑似功能缺陷\"GIF 挡门\"实测定性后整改优先）",
+   "judge": "判据：55 分；若实测确认 GIF 无法进门（accept 过滤 + `<video>` 无法解码 GIF 双重门），本页在其存在的唯一理由上不可用——比 avi-to-mp4.md 扣分 1 更结构性：AVI 至少能拖进门，GIF 连选择器都过不去。",
+   "deductions": [
+    "1. 【可用性-疑似功能缺陷-硬伤】GIF 源双重挡门：① FileDrop accept=\"video/*\"（FfBase.vue:159），image/gif 不匹配，文件选择器默认过滤 GIF；② 拖拽无类型校验可进门（FileDrop.vue:34-38），但 loadVideo 以 `<video>` 解析——浏览器 video 元素无法解码 GIF，onerror 必然触发（videoEngine.ts:27-30）→ 选项/按钮面板不渲染（FfBase.vue:167）。需实测定性",
+    "2. 【灵魂-口径】挡门错误文案自相矛盾：\"可尝试 ffmpeg 转码类工具\"（videoEngine.ts:29）——用户此刻就在 ffmpeg 转码工具页内（同 avi-to-mp4.md 扣分 2，本页荒诞度最高）",
+    "3. 【功能-疑似功能缺陷】x264 参数不适配 GIF 源：无 `-pix_fmt yuv420p`（FfmpegConvert.vue:42）——GIF 调色板源直进 x264 可能产 yuv444p，部分播放器绿屏/不兼容；无偶数尺寸处理——GIF 宽高常为奇数（如 499×243），yuv420p 要求偶数会直接编码失败（ezgif 自动 pad）。两项均需实测",
+    "4. 【灵魂-个性】十分之一卖点无验证闭环：onDone 直接下载（FfBase.vue:135-138），\"源 10MB → 输出 1.2MB（省 88%）\"的对比徽章没有——最强卖点用户感知不到",
+    "5. 【功能】无帧率/宽度选项：GIF→MP4 用 12~15fps 即肉眼无损，直通源帧率徒增体积；ezgif 有 fps 与宽度缩放选项（FfmpegConvert.vue:24-30 仅格式+流复制）",
+    "6. 【交互】流复制开关是陷阱项：GIF 无音轨且容器不同，勾选必失败（FfmpegConvert.vue:59-62）——应按源类型隐藏或禁用",
+    "7. 【可用性-家族】执行按钮流内底部（FfBase.vue:199-206，M-14，共性-根因 4）",
+    "8. 【灵魂-家族】25MB 无下载进度、无耗时预期、无 beforeunload（compress-video.md 扣分 2/4/5）——GIF 源小而快，是家族中最该给\"通常很快\"正向承诺的页（同 avi-to-mp4.md 扣分 4）"
+   ],
+   "prescriptions": [
+    "GIF 进门",
+    "编码兜底",
+    "体积对比徽章",
+    "fps 选项",
+    "陷阱项处理",
+    "家族处方 1-2"
+   ],
+   "benchmarks": " - **ezgif**：\"GIF to MP4/WebM\"支持 fps、宽度、静音保障、批量，转换后在线预览并显示前后体积。差距：**源兼容性**（它吃 GIF 我们疑似不吃）+ 参数面 + 体积对比展示。 - **CloudConvert**（云）：GIF→MP4 自动 yuv420p/偶数化，参数全。差距：架构天花板；但 wasm 内 ffmpeg 手动加 `-vf scale=trunc(iw/2)*2:-2,format=yuv420p` 即可追平。 - 借鉴优先级：**GIF 进门放行 > 偶数化/pix_fmt 兜底 > 体积对比徽章 > fps 选项**。 "
+  },
+  {
+   "file": "green-screen-video",
+   "name": "绿幕抠像",
+   "slug": "green-screen-video",
+   "score": 55,
+   "dims": {
+    "func": 10,
+    "usab": 9,
+    "val": 12,
+    "iact": 9,
+    "ui": 7,
+    "soul": 8,
+    "perf": 5,
+    "mob": 5
+   },
+   "head": [
+    "分类：视频工具｜模式：C（单列堆叠文件流，FfBase 基座）｜组件：`src/tools/video/components/FfmpegGreenScreen.vue`（102 行）＋ 基座 `FfBase.vue`（272 行）｜引擎：ffmpeg chromakey 滤镜（:22）；alpha 模式 libvpx-vp9 + yuva420p + auto-alt-ref 0（:26-27）/color 模式 filter_complex 纯色底 overlay（:34-36）｜注册：`registry.ts:43`（needModel）｜家族共性参见 `compress-video.md`",
+    "对标标杆：剪映绿幕（抠像国民标杆，云）＋ unscreen（云 AI，无绿幕自动抠像——架构天花板标注）"
+   ],
+   "conclusionBlock": [
+    "**交互优化 + 需拓展** · P1（desc 口径整改 + Canvas 实时预览两大杠杆）",
+    "判据：55 分：chromakey 选型与 alpha 模式工程正确（yuva420p/auto-alt-ref 0），但 desc 卖\"图片或视频背景\"而实现只有纯色——按 video-color-grading.md LUT 判例属口径失信先整改；抠像工具不给预览等于蒙眼调参，是体验代差的根源。"
+   ],
+   "conclusion": "**交互优化 + 需拓展** · P1（desc 口径整改 + Canvas 实时预览两大杠杆）",
+   "judge": "判据：55 分：chromakey 选型与 alpha 模式工程正确（yuva420p/auto-alt-ref 0），但 desc 卖\"图片或视频背景\"而实现只有纯色——按 video-color-grading.md LUT 判例属口径失信先整改；抠像工具不给预览等于蒙眼调参，是体验代差的根源。",
+   "deductions": [
+    "1. 【口径-个性】desc 承诺\"替换为颜色、图片或视频背景\"（registry.ts:43），实现只有纯色（outExt 二值 :17、filter_complex 只铺 color :34-36）——图片背景（loop+scale+overlay）与视频背景（双输入 filter_complex）都是 ffmpeg.wasm 完全可做的，承诺与实现直接矛盾（video-color-grading.md 判例同款）",
+    "2. 【交互-个性】零预览：similarity/blend 全靠盲调，抠像调参是\"看一眼就知道过头没过头\"的工作——Canvas+getImageData 对 chromakey 做 RGB 距离阈值近似预览（320px 预览分辨率实时无压力），未做；结果直接下载（FfBase.vue:135-138）",
+    "3. 【功能】无 despill：抠像后边缘泛绿/绿色反光是绿幕标准问题，ffmpeg 有 despill 滤镜未用——发丝/半透明边缘必带绿，直接影响合成可用性",
+    "4. 【功能】键色只有绿/蓝固定二选（:52-56）：幕布不标准（偏青/过曝/绿布拍蓝幕）时无路可走——chromakey 本身支持任意 0x 颜色，加一个 color input 即可",
+    "5. 【功能】alpha 模式无棋盘格预览：交付剪辑软件前无法在页内确认边缘质量；透明结果直接落下载目录",
+    "6. 【可用性-家族】执行按钮流内底部（FfBase.vue:199-206，M-14，共性-根因 4）；25MB 无进度（:184-187）；无 beforeunload；VP9 alpha 极慢无耗时预期文案",
+    "7. 【灵魂】绿幕拍摄前置条件（均匀打光/避免穿绿/留边缘）工具页零引导——抠像效果一半取决于拍摄，这是最便宜的提升项"
+   ],
+   "prescriptions": [
+    "desc 兑现或除名",
+    "Canvas 实时预览",
+    "despill 开关",
+    "取色器",
+    "alpha 棋盘格预览",
+    "家族处方 1-2"
+   ],
+   "benchmarks": " - **剪映**：绿幕一键抠像+实时预览+页内直接换背景（图片/视频/纯色库）+智能边缘。差距：预览与背景图上传纯前端可追（预览标注\"近似\"）；一键质量是云算法差距。 - **unscreen（云 AI，天花板）**：无绿幕也能自动抠人像换背景。差距：分割模型架构天花板；纯前端可做的是诚实标注\"需绿幕拍摄\"+给出拍摄建议清单（扣 7）。 - 借鉴优先级：**Canvas 实时预览 > 图片背景兑现（或 desc 除名）> despill > 取色器 > alpha 棋盘格预览**。 "
+  },
+  {
+   "file": "loop-video",
+   "name": "视频循环拼接",
+   "slug": "loop-video",
+   "score": 57,
+   "dims": {
+    "func": 12,
+    "usab": 9,
+    "val": 12,
+    "iact": 9,
+    "ui": 7,
+    "soul": 8,
+    "perf": 3,
+    "mob": 4
+   },
+   "head": [
+    "分类：视频工具｜模式：C（单列堆叠文件流，FfBase 基座）｜组件：`src/tools/video/components/FfmpegLoop.vue`（94 行）＋ 基座 `FfBase.vue`（272 行）｜引擎：`src/lib/ffmpeg.ts`（repeat 档 `-stream_loop -c copy` 流复制；boomerang 档 reverse+concat，FfmpegLoop.vue:15-47）｜注册：`registry.ts:33`（needModel）｜家族共性（按钮底部/进度带/25MB 提示）参见 `compress-video.md`",
+    "对标标杆：Clideo（云，Loop Video 次数+体积预估）＋ ezgif（循环/回弹轻量参照）"
+   ],
+   "conclusionBlock": [
+    "**交互优化** · P1（体积/内存预警是本页生死线）",
+    "判据：57 分；repeat 档工程是家族最轻快的路径，但\"次数×源大小\"的乘法陷阱没有任何守门——用户最常见的失败模式是\"想要 30 次循环，等了十分钟页面崩了\"，预期管理缺失比功能缺失更致命。"
+   ],
+   "conclusion": "**交互优化** · P1（体积/内存预警是本页生死线）",
+   "judge": "判据：57 分；repeat 档工程是家族最轻快的路径，但\"次数×源大小\"的乘法陷阱没有任何守门——用户最常见的失败模式是\"想要 30 次循环，等了十分钟页面崩了\"，预期管理缺失比功能缺失更致命。",
+   "deductions": [
+    "1. 【可用性-个性】体积/内存零预警：`-stream_loop` 产物体积≈源×次数（FfmpegLoop.vue:18），50 次上限（:16）对 200MB 源意味着 10GB 产物——wasm32 内存上限必然中途崩溃；输入侧无\"源 200MB×30 次≈6GB，超出浏览器处理能力\"的拦截估算（compress-video 有码率估算先例可循），崩溃时用户只看到进度条停住",
+    "2. 【功能-个性】与 reverse-video 功能重复：回弹档\"先生成倒放片段再 concat\"（:23-46）与 FfmpegReverse.vue:23-34 的 boomerang 模式几乎同一件事（本页是两步两行命令，reverse 是单条 filter_complex 更优）——同一站两个工具互相内耗，用户无从选择且两边体验不一致",
+    "3. 【功能】无无缝循环：硬切循环在首尾帧跳变（布景/直播背景场景接缝刺眼），缺 1s 交叉淡化（xfade）无缝档——ezgif/Clideo 均有平滑循环选项",
+    "4. 【交互】无输出预估联动：次数输入不联动\"预计输出时长 = 源时长×次数 / 预计体积 ≈ 源大小×次数\"——这两个数都是乘法即可得，全部缺席",
+    "5. 【灵魂-个性】boomerang 档静默改输出名：执行时把 outputName 加 `-boomerang` 后缀（:24-25）但 UI 无提示，输出名输入框值被暗改，后续再执行 repeat 档会带着旧后缀",
+    "6. 【功能】缺\"只循环片段\"：想循环视频中间 10 秒需 trim→loop 两工具串联，无区间选择；boomerang 同理只能全片回弹",
+    "7. 【可用性-家族】执行按钮流内底部（FfBase.vue:199-206，M-14，共性-根因 4）；结果直接下载无预览（FfBase.vue:135-138）",
+    "8. 【灵魂-家族】25MB 核心下载无进度、无 beforeunload（compress-video.md 扣分 4/5）"
+   ],
+   "prescriptions": [
+    "乘法预估与拦截",
+    "无缝循环档",
+    "区间循环",
+    "回弹归属",
+    "输出名透明",
+    "家族处方 1-2"
+   ],
+   "benchmarks": " - **Clideo**（云）：Loop Video 显示预计输出时长、循环次数上限按云端容量动态调整、完成后在线预览。差距：次数→时长/体积的乘法预估纯前端一行代码可做，是本页第一优先补齐项。 - **ezgif**：提供平滑循环（首尾交叉淡化）与倒放循环组合。差距：无缝循环选项。 - 借鉴优先级：**次数×体积预估与拦截 > 无缝循环档 > 回弹功能归属梳理（并入或下线） > 片段循环 > 输出名不被暗改**。 "
+  },
+  {
+   "file": "merge-video",
+   "name": "合并视频",
+   "slug": "merge-video",
+   "score": 55,
+   "dims": {
+    "func": 10,
+    "usab": 10,
+    "val": 13,
+    "iact": 8,
+    "ui": 7,
+    "soul": 7,
+    "perf": 4,
+    "mob": 4
+   },
+   "head": [
+    "分类：视频工具｜模式：C（单列堆叠文件流，FfBase 基座 multiple）｜组件：`src/tools/video/components/FfmpegMerge.vue`（43 行，家族最薄）＋ 基座 `FfBase.vue`（272 行）｜引擎：`src/lib/ffmpeg.ts`（concat demuxer + `-c copy` 流复制，FfmpegMerge.vue:14-19）｜注册：`registry.ts:9`（needModel）｜家族共性（按钮底部/进度带/25MB 提示）参见 `compress-video.md`",
+    "对标标杆：Clideo（云，Merge Video 自动转码归一）＋ Kapwing（云，多轨合并）"
+   ],
+   "conclusionBlock": [
+    "**交互优化 + 需拓展** · P1（desc 口径修正 + 参数预检/归一档拓展）",
+    "判据：55 分；desc\"自动归一\"是全家族最严重的虚假承诺（实现不仅不归一，还明确警告不归一会花屏）；功能面需要补\"预检+归一重编码兜底\"两条腿才能对齐 Clideo。"
+   ],
+   "conclusion": "**交互优化 + 需拓展** · P1（desc 口径修正 + 参数预检/归一档拓展）",
+   "judge": "判据：55 分；desc\"自动归一\"是全家族最严重的虚假承诺（实现不仅不归一，还明确警告不归一会花屏）；功能面需要补\"预检+归一重编码兜底\"两条腿才能对齐 Clideo。",
+   "deductions": [
+    "1. 【口径-硬伤-个性】desc 与实现相反：registry desc 承诺\"不一致的尺寸与格式**自动归一**\"（registry.ts:9），实现是纯 `-c copy` concat（FfmpegMerge.vue:15），warn notice 自认\"参数需要一致……失败或花屏\"（:29-32）——**宣传页说自动搞定、说明页说你自己搞定**，用户按 desc 直接混拼将得到花屏产物",
+    "2. 【功能-个性】无参数预检：连\"读取各文件分辨率/编码器并逐条列出对比\"这一步都没做（元信息只展示第一个文件，FfBase.vue:170-174）——不一致要等花屏/报错才发现，事前 100% 可检测（loadVideo 已拿到各文件 width/height/duration，零成本可用）",
+    "3. 【功能】无归一重编码档：参数不一致时没有\"统一到 720p MP4 重编码合并\"的兜底选项（Clideo 默认即此），用户必须手动去格式转换工具处理每个文件再回来——三步往返且无引导链接",
+    "4. 【可用性-个性】输出容器由运气决定：扩展名跟随第一个文件（FfBase.vue:65），a.mkv+b.mp4 输出 .mkv；且多文件时输出名行隐藏（FfBase.vue:177）不可改名——合并产物常要投平台，MP4 需求与首文件扩展名无关",
+    "5. 【性能】30 文件上限（:24 maxFiles=30）但无总大小检查：concat 前全部写入 wasm 内存，累计超 2GB 级必崩；崩溃发生在写文件阶段而非执行阶段，用户面对的是静默失败",
+    "6. 【交互】无缩略图：段序核对只靠文件名（FileDrop.vue:96-112 仅 ↑↓/删除），\"IMG_0031 在 IMG_0029 前面吗\"这种核对全靠脑补——缩略图是合并类工具第一识别需求",
+    "7. 【功能】缺\"全部反序/按文件名排序\"快捷操作；缺插入间隔/转场（Kapwing 支持）",
+    "8. 【可用性-家族】执行按钮流内底部（FfBase.vue:199-206，M-14，共性-根因 4）；无结果预览直接下载（FfBase.vue:135-138）——拼接顺序错没错只有下载后才知道",
+    "9. 【灵魂-家族】25MB 核心下载无进度、无 beforeunload（compress-video.md 扣分 4/5）"
+   ],
+   "prescriptions": [
+    "desc 修正",
+    "参数预检清单",
+    "归一档",
+    "输出容器",
+    "内存警戒",
+    "家族处方 1-2"
+   ],
+   "benchmarks": " - **Clideo**（云）：上传即自动转码归一参数再拼接，无需用户理解\"编码参数一致\"。差距：归一档纯前端可做（concat 滤镜 + 统一 scale/fps 重编码），是本工具最值得补的能力。 - **Kapwing**（云）：拖拽排序+缩略图识别+可插转场。差距：缩略图（可借 loadVideo 截帧 captureFrame，videoEngine.ts:35-43 现成）与转场。 - 借鉴优先级：**desc 修正 > 参数预检清单 > 归一重编码档 > 输出容器选择 > 缩略图**。 "
+  },
+  {
+   "file": "mkv-to-mp4",
+   "name": "MKV 转 MP4",
+   "slug": "mkv-to-mp4",
+   "score": 59,
+   "dims": {
+    "func": 10,
+    "usab": 11,
+    "val": 13,
+    "iact": 9,
+    "ui": 7,
+    "soul": 9,
+    "perf": 5,
+    "mob": 4
+   },
+   "head": [
+    "分类：视频工具｜模式：C（单列堆叠文件流，FfBase 基座）｜组件：`src/tools/video/components/FfmpegConvert.vue`（93 行）＋ 基座 `FfBase.vue`（272 行）｜引擎：`src/lib/ffmpeg.ts`；本 slug 流复制默认开＋目标预置 mp4（FfmpegConvert.vue:14-21）｜注册：`src/tools/video/registry.ts:17`｜家族共性（进度带/按钮底部/25MB 提示/无耗时预期）参见 `compress-video.md`",
+    "对标标杆：CloudConvert（云，**架构天花板**）＋ HandBrake（本地桌面，轨管理参照）——MKV 用户的核心诉求是\"多轨怎么去留\""
+   ],
+   "conclusionBlock": [
+    "**交互优化** · P1（轨管理是本页与对标的核心差距）",
+    "判据：59 分家族基线下沿；\"换容器\"功能本身达标，但 MKV 作为多轨容器的灵魂特性（多音轨/字幕）既不管理也不披露，对 HandBrake 差距明确。"
+   ],
+   "conclusion": "**交互优化** · P1（轨管理是本页与对标的核心差距）",
+   "judge": "判据：59 分家族基线下沿；\"换容器\"功能本身达标，但 MKV 作为多轨容器的灵魂特性（多音轨/字幕）既不管理也不披露，对 HandBrake 差距明确。",
+   "deductions": [
+    "1. 【功能-硬伤边缘】多音轨静默丢弃：ffmpeg 默认每类型只映射一路最优流，双音轨/导演解说轨 MKV 转后仅剩主音轨——无音轨选择 UI、无\"其余轨道将丢弃\"警告（FfmpegConvert.vue:36-46 命令串无 -map），收藏级 MKV 的核心价值直接蒸发",
+    "2. 【功能】字幕轨零策略：MKV 常见 ASS/PGS 轨，MP4 容器不支持 `-c copy` 携带 → 首跑大概率报错；逃生口藏在复选框文案\"失败请关闭\"（FfmpegConvert.vue:61），也无\"字幕烧录\"选项（站内 add-subtitles-to-video 有此能力，本页零互链引导）",
+    "3. 【交互】失败后无诊断：toast 只说\"处理失败，请调整参数后重试\"（FfBase.vue:142），不指名\"字幕轨导致 copy 失败\"，用户要在报错与复选框小字间自行连线",
+    "4. 【灵魂】轨结构零披露：HandBrake 会列出\"2 视频轨/3 音频轨/1 字幕轨\"，本页元信息条只有分辨率/时长/大小（FfBase.vue:170-174），用户转完才知道丢了什么",
+    "5. 【可用性-家族】执行按钮流内底部（FfBase.vue:199-206，M-14，共性-根因 4；同 compress-video.md 扣分 1）",
+    "6. 【灵魂-家族】无耗时预期、25MB 下载无进度、无 beforeunload 警告（同 compress-video.md 扣分 2/4/5）",
+    "7. 【美观】预览钉 340px（FfBase.vue:215-221，共性-根因 2）",
+    "8. 【交互】Hi10P 类编码无提示：动漫 MKV 常见 10bit H.264（Hi10P），流复制后部分硬解设备（电视/盒子）不兼容，页内无\"MKV 常见编码\"针对性提示",
+    "9. 【功能】封面附件与章节信息零披露：MKV 内嵌封面（cover.jpg）/章节转 MP4 后丢失，无披露无选项"
+   ],
+   "prescriptions": [
+    "音轨选择",
+    "字幕策略",
+    "失败诊断",
+    "家族处方 1-2"
+   ],
+   "benchmarks": " - **HandBrake**（本地）：轨列表全展示，音轨可多选/重编码，字幕可选烧录/封装/关闭。差距：**轨管理代差**——本工具对 MKV 的\"多轨\"属性视而不见。 - **CloudConvert**（云）：转换参数可选字幕处理方式。差距：策略选项。 - 借鉴优先级：**音轨选择 > 字幕策略（丢弃/mov_text 软字幕）> 轨结构披露 > 失败诊断文案**。 "
+  },
+  {
+   "file": "mov-to-mp3",
+   "name": "MOV 转 MP3",
+   "slug": "mov-to-mp3",
+   "score": 57,
+   "dims": {
+    "func": 11,
+    "usab": 10,
+    "val": 12,
+    "iact": 9,
+    "ui": 7,
+    "soul": 8,
+    "perf": 5,
+    "mob": 4
+   },
+   "head": [
+    "分类：视频工具｜模式：C（单列堆叠文件流，FfBase 基座）｜组件：`src/tools/video/components/FfmpegExtractAudio.vue`（63 行，与 video-to-mp3 共用）＋ 基座 `FfBase.vue`（272 行）｜引擎：`src/lib/ffmpeg.ts`（`-vn` + libmp3lame 重编码，FfmpegExtractAudio.vue:20）｜注册：`registry.ts:29`（needModel）｜家族共性参见 `compress-video.md`；共用组件分析参见 `video-to-mp3.md`",
+    "对标标杆：mp3cut.net / 123apps（提取类流量王）＋ CloudConvert（云，**架构天花板**）"
+   ],
+   "conclusionBlock": [
+    "**交互优化** · P1（含 HEVC 挡门实测定性）",
+    "判据：57 分；MOV 源的可用性风险与 mp4-to-mp3 不同级——本页的典型用户（iPhone 摄像）恰好最可能触发 HEVC 挡门，若实测确认则核心场景不可用，须升级 P0 处理。"
+   ],
+   "conclusion": "**交互优化** · P1（含 HEVC 挡门实测定性）",
+   "judge": "判据：57 分；MOV 源的可用性风险与 mp4-to-mp3 不同级——本页的典型用户（iPhone 摄像）恰好最可能触发 HEVC 挡门，若实测确认则核心场景不可用，须升级 P0 处理。",
+   "deductions": [
+    "1. 【可用性-个性-疑似挡门】HEVC MOV 挡门风险：Chrome/Edge 不解码 HEVC，iPhone 默认\"高效格式\"的录像 loadVideo 大概率 onerror（videoEngine.ts:27-30 → FfBase.vue:167 面板不渲染）；而其音轨（AAC）本可直接解码——\"为了提取音频被用户根本不需要的视频轨挡门\"是 loadVideo 只验视频轨的结构性荒诞（videoEngine.ts:13-32），需实测定性",
+    "2. 【灵魂-个性】无高危场景预案：页内无\"加载失败？你的录像可能是 HEVC 编码，试试视频格式转换\"的引导——挡门时的 toast（videoEngine.ts:29）还让用户去\"ffmpeg 转码类工具\"，可他此刻就在转码工具里",
+    "3. 【功能】快路径未用（同 video-to-mp3.md 扣分 1）：MOV+AAC 源 decodeAudioData 在 Safari/Chrome 均可行，却强制 25MB（registry.ts:29 needModel）",
+    "4. 【功能】多音轨不可选：QuickTime 容器可含多条音轨，命令无 `-map`（FfmpegExtractAudio.vue:22）",
+    "5. 【可用性】输出无试听：onDone 直接下载（FfBase.vue:135-138）",
+    "6. 【可用性-家族】执行按钮流内底部（FfBase.vue:199-206，M-14，共性-根因 4）",
+    "7. 【交互-个性】落地页零定制：preset 与默认值相同（FfmpegExtractAudio.vue:9,12），无\"iPhone 录像/采访记录\"场景文案与 steps（registry.ts:29 无 steps）",
+    "8. 【灵魂-家族】无耗时预期、25MB 无下载进度、无 beforeunload（同 compress-video.md 扣分 2/4/5）"
+   ],
+   "prescriptions": [
+    "HEVC 实测与放行",
+    "音频侧门禁",
+    "预案文案",
+    "快路径 + 试听",
+    "家族处方 1-2"
+   ],
+   "benchmarks": " - **mp3cut.net / 123apps**：云端解码不依赖浏览器 codec，HEVC MOV 直接吃。差距：**解码架构天花板**（云端）；但 wasm ffmpeg 本身含 HEVC 解码能力不足（core 版不含 hevc 解码器），可用\"挡门放行+黑屏预览+直接跑音频\"的诚实路径逼近。 - **CloudConvert**（云）：MOV→MP3 成熟稳定。差距：同上，架构天花板。 - 借鉴优先级：**HEVC 挡门放行（音频侧校验）> 预案文案 > 快路径 > 选轨**。 "
+  },
+  {
+   "file": "mov-to-mp4",
+   "name": "MOV 转 MP4",
+   "slug": "mov-to-mp4",
+   "score": 60,
+   "dims": {
+    "func": 11,
+    "usab": 10,
+    "val": 13,
+    "iact": 10,
+    "ui": 7,
+    "soul": 9,
+    "perf": 5,
+    "mob": 4
+   },
+   "head": [
+    "分类：视频工具｜模式：C（单列堆叠文件流，FfBase 基座）｜组件：`src/tools/video/components/FfmpegConvert.vue`（93 行）＋ 基座 `FfBase.vue`（272 行）｜引擎：`src/lib/ffmpeg.ts`；本 slug 流复制默认开＋目标预置 mp4（FfmpegConvert.vue:14-21）｜注册：`src/tools/video/registry.ts:16`｜家族共性（进度带/按钮底部/25MB 提示/无耗时预期）参见 `compress-video.md`",
+    "对标标杆：CloudConvert（云，**架构天花板**）＋ Clideo（云）——真实流量入口是 iPhone 用户\"录像发不出去\"的搜索场景"
+   ],
+   "conclusionBlock": [
+    "**交互优化** · P1（HEVC 门禁实测与编解码感知是本页两个个性杠杆）",
+    "判据：60 分家族基线；H.264 源体验已达家族上限，但 desc 承诺\"兼容所有播放器\"与流复制默认行为对 HEVC 源错配，且 HEVC 源疑似整体被挡门（疑似功能缺陷，需实测定性）。"
+   ],
+   "conclusion": "**交互优化** · P1（HEVC 门禁实测与编解码感知是本页两个个性杠杆）",
+   "judge": "判据：60 分家族基线；H.264 源体验已达家族上限，但 desc 承诺\"兼容所有播放器\"与流复制默认行为对 HEVC 源错配，且 HEVC 源疑似整体被挡门（疑似功能缺陷，需实测定性）。",
+   "deductions": [
+    "1. 【功能-疑似功能缺陷】HEVC 场景可能整体挡门：iPhone\"高效\"模式录 HEVC MOV，在无 HEVC 解码能力的浏览器（未装扩展的 Windows Chrome/Firefox）上 loadVideo 大概率 onerror（`videoEngine.ts:27-30`）→ 面板不渲染（FfBase.vue:167）——把 HEVC 变通用正是本页存在的理由，需实测定性",
+    "2. 【功能】流复制默认开＋零编解码感知：HEVC 源 `-c copy` 产出 HEVC-in-MP4，微信/老安卓设备仍放不出，与 desc\"兼容所有播放器与社交平台\"（registry.ts:16）承诺错配；无\"检测到 HEVC，建议关闭流复制重编码\"提示",
+    "3. 【灵魂】隐私元数据无处理：iPhone MOV 携带 GPS/设备型号，流复制原样保留进输出；站内图片线有 EXIF 清除（图片工具分类），视频线零覆盖",
+    "4. 【交互】子页仍开放 5 目标格式下拉（FfmpegConvert.vue:55-57），\"MOV 转 MP4\"页里改目标为 MKV 属导航噪音，子页应锁定目标",
+    "5. 【可用性-家族】执行按钮流内底部（FfBase.vue:199-206，M-14，共性-根因 4；同 compress-video.md 扣分 1）",
+    "6. 【灵魂-家族】无耗时预期、25MB 下载无进度、无 beforeunload 警告（同 compress-video.md 扣分 2/4/5）",
+    "7. 【美观】预览钉 340px（FfBase.vue:215-221，共性-根因 2）",
+    "8. 【灵魂】无 iPhone 相机设置科普：设置里\"高效\"=HEVC、\"更兼容\"=H.264，一句话即可教用户预判流复制是否安全——本页最贴近用户的科普点缺席（HEVC 检测之外的零成本补救）",
+    "9. 【功能】ProRes 等专业编码支持边界未声明：Final Cut 导出的 ProRes MOV 能否被 wasm 解码页内未说明，专业用户失败后无从归因"
+   ],
+   "prescriptions": [
+    "HEVC 检测提示",
+    "挡门放行",
+    "元数据清除开关",
+    "家族处方 1-2"
+   ],
+   "benchmarks": " - **Clideo/CloudConvert**（云）：上传即自动探测编码并给出\"保持原样/转 H.264\"两档建议，完成在线预览。差距：**编解码感知**——对方把 HEVC 陷阱提前拦截，本工具让用户踩坑后自己排查。 - **HandBrake**（本地）：源面板明确列出编码（HEVC/H.264）与轨结构。差距：源透明度。 - 借鉴优先级：**HEVC 检测提示 > 挡门放行 > 元数据清除开关 > 子页锁定目标**。 "
+  },
+  {
+   "file": "mp4-to-mov",
+   "name": "MP4 转 MOV",
+   "slug": "mp4-to-mov",
+   "score": 61,
+   "dims": {
+    "func": 11,
+    "usab": 11,
+    "val": 12,
+    "iact": 10,
+    "ui": 7,
+    "soul": 10,
+    "perf": 5,
+    "mob": 4
+   },
+   "head": [
+    "分类：视频工具｜模式：C（单列堆叠文件流，FfBase 基座）｜组件：`src/tools/video/components/FfmpegConvert.vue`（93 行）＋ 基座 `FfBase.vue`（272 行）｜引擎：`src/lib/ffmpeg.ts`；本 slug 流复制默认开＋目标预置 mov（FfmpegConvert.vue:14-21）｜注册：`src/tools/video/registry.ts:23`｜家族共性（进度带/按钮底部/25MB 提示/无耗时预期）参见 `compress-video.md`",
+    "对标标杆：CloudConvert（云，**架构天花板**）＋ HandBrake（本地桌面，时间码/轨处理参照）——本页用户画像偏专业（导剪辑软件）"
+   ],
+   "conclusionBlock": [
+    "**交互优化** · P2（家族处方覆盖为主，专业向导锦上添花）",
+    "判据：61 分家族上游；主路径（H.264 copy）已达架构内最优，个性问题集中在 HEVC 源边缘场景与专业细节披露，均属 P2 锦上添花。"
+   ],
+   "conclusion": "**交互优化** · P2（家族处方覆盖为主，专业向导锦上添花）",
+   "judge": "判据：61 分家族上游；主路径（H.264 copy）已达架构内最优，个性问题集中在 HEVC 源边缘场景与专业细节披露，均属 P2 锦上添花。",
+   "deductions": [
+    "1. 【功能】HEVC 源边缘陷阱：iPhone\"高效\"模式导出的 HEVC MP4 源，流复制进 MOV 后 FCP/Premiere 旧版兼容性差，页内无编解码感知提示（与 mov-to-mp4 扣分 2 同源问题）",
+    "2. 【灵魂】desc 点名\"导入剪辑软件\"（registry.ts:23）却零向导：FCP/达芬奇/Premiere 的导入注意点（如\"保持默认即可\"\"HEVC 源建议先转 H.264\"）一句话即可做出\"懂行\"感，现完全空白",
+    "3. 【功能】时间码/元数据保持未披露：剪辑软件对 timecode 轨敏感，copy 是否保留源时间码无说明（HandBrake/专业工具显式处理 timecode）——专业用户敢不敢用取决于这类披露",
+    "4. 【交互】子页仍开放 5 目标格式下拉（FfmpegConvert.vue:55-57），\"MP4 转 MOV\"页里改目标为 AVI 属导航噪音",
+    "5. 【可用性-家族】执行按钮流内底部（FfBase.vue:199-206，M-14，共性-根因 4；同 compress-video.md 扣分 1）",
+    "6. 【灵魂-家族】重编码路径无耗时预期、25MB 下载无进度、无 beforeunload 警告（同 compress-video.md 扣分 2/4/5）",
+    "7. 【美观】预览钉 340px（FfBase.vue:215-221，共性-根因 2）",
+    "8. 【灵魂】\"你可能不需要转换\"的披露缺席：H.264 下 MOV 与 MP4 近乎同构，主流剪辑软件（Premiere/达芬奇）本可直接收 MP4——帮用户省一次转换是最懂行的服务，页内未提",
+    "9. 【灵魂】镜像页零衔接叙事：与 mov-to-mp4 构成\"苹果生态互转\"两页，方向选反时无引导（相关工具卡片兜底但无文案衔接）"
+   ],
+   "prescriptions": [
+    "剪辑软件向导",
+    "时间码披露",
+    "子页锁定目标",
+    "家族处方 1-2"
+   ],
+   "benchmarks": " - **HandBrake**（本地）：源面板披露轨/时间码结构，preset 按目标设备（含专业工作流）组织。差距：**专业透明度**——时间码保持、轨披露。 - **CloudConvert**（云）：MP4→MOV 一键＋参数可选。差距：云侧速度是天花板，交互面本页不输。 - 借鉴优先级：**剪辑软件向导文案 > HEVC 检测提示 > 时间码披露 > 子页锁定目标**。 "
+  },
+  {
+   "file": "mp4-to-mp3",
+   "name": "MP4 转 MP3",
+   "slug": "mp4-to-mp3",
+   "score": 59,
+   "dims": {
+    "func": 11,
+    "usab": 11,
+    "val": 12,
+    "iact": 9,
+    "ui": 7,
+    "soul": 9,
+    "perf": 5,
+    "mob": 4
+   },
+   "head": [
+    "分类：视频工具｜模式：C（单列堆叠文件流，FfBase 基座）｜组件：`src/tools/video/components/FfmpegExtractAudio.vue`（63 行，与 video-to-mp3 共用）＋ 基座 `FfBase.vue`（272 行）｜引擎：`src/lib/ffmpeg.ts`（`-vn` + libmp3lame 重编码，FfmpegExtractAudio.vue:20）｜注册：`registry.ts:28`（needModel）｜家族共性参见 `compress-video.md`；共用组件分析参见 `video-to-mp3.md`",
+    "对标标杆：mp3cut.net / 123apps（提取类流量王）＋ CloudConvert（云，**架构天花板**）"
+   ],
+   "conclusionBlock": [
+    "**交互优化** · P1（快路径 + 页面场景化定制 + 试听）",
+    "判据：59 分；功能与门禁都稳，但作为独立落地页它对 video-to-mp3 无任何差异化——预置值等于默认值（FfmpegExtractAudio.vue:9,12），体验与叙事都不配\"独立页面\"之名，先补 MP4 场景定制再谈快路径。"
+   ],
+   "conclusion": "**交互优化** · P1（快路径 + 页面场景化定制 + 试听）",
+   "judge": "判据：59 分；功能与门禁都稳，但作为独立落地页它对 video-to-mp3 无任何差异化——预置值等于默认值（FfmpegExtractAudio.vue:9,12），体验与叙事都不配\"独立页面\"之名，先补 MP4 场景定制再谈快路径。",
+   "deductions": [
+    "1. 【交互-个性】落地页定制为零：`PRESETS['mp4-to-mp3']='mp3'`（FfmpegExtractAudio.vue:12）而默认本就是 mp3（:9）——预置不改变任何行为，页面无\"提取 BGM/人声/会议录音\"等 MP4 场景文案",
+    "2. 【实用-个性】与 video-to-mp3 完全同能力（组件注释自认\"多个注册 slug 复用\"，:2），用户搜\"mp4 to mp3\"与\"视频提取音频\"得到同一工具的两张皮；页内无差异叙事亦无互相引流",
+    "3. 【功能】快路径未用：MP4 是 decodeAudioData 可行性最高的源（audioEngine.ts:20），站内 wav-to-mp3 已证明免 25MB 路线可行（audio/registry.ts:11），本页却 needModel——5MB MP4 提音频要先下 25MB（registry.ts:28）",
+    "4. 【功能】多音轨不可选：MP4 常带多音轨（原声/配音/解说），命令无 `-map` 显式选轨（FfmpegExtractAudio.vue:22），用户要哪条轨道无从指定",
+    "5. 【可用性】输出无试听：onDone 直接下载（FfBase.vue:135-138），提取的是不是目标音轨只能下载后验证",
+    "6. 【可用性-家族】执行按钮流内底部（FfBase.vue:199-206，M-14，共性-根因 4）",
+    "7. 【灵魂-家族】无耗时预期、25MB 无下载进度、无 beforeunload（同 compress-video.md 扣分 2/4/5）",
+    "8. 【功能-边界】HEVC MP4（iPhone\"高效格式\"导出）在 Chrome 的 loadVideo 行为需实测——若视频轨致 onerror 挡门（videoEngine.ts:27-30），则\"为了提取 AAC 音轨被不需要的视频轨挡在门外\"是家族结构性荒诞的 MP4 版"
+   ],
+   "prescriptions": [
+    "快路径",
+    "场景化落地页",
+    "试听",
+    "多音轨",
+    "家族处方 1-2"
+   ],
+   "benchmarks": " - **mp3cut.net / 123apps**：波形选段、音量归一、试听、选轨。差距：本页连\"哪条音轨\"都选不了，只能全凭默认。 - **CloudConvert**（云）：mp4→mp3 参数矩阵（CBR/VBR/码率/采样率）。差距：架构天花板；快路径与选轨纯前端可追。 - 借鉴优先级：**快路径免 25MB > 多音轨选择 > 试听 > MP4 场景文案**。 "
+  },
+  {
+   "file": "mp4-to-wav",
+   "name": "MP4 转 WAV",
+   "slug": "mp4-to-wav",
+   "score": 58,
+   "dims": {
+    "func": 11,
+    "usab": 11,
+    "val": 12,
+    "iact": 9,
+    "ui": 7,
+    "soul": 8,
+    "perf": 4,
+    "mob": 3
+   },
+   "head": [
+    "分类：视频工具｜模式：C（单列堆叠文件流，FfBase 基座）｜组件：`src/tools/video/components/FfmpegExtractAudio.vue`（63 行，与 video-to-mp3 共用）＋ 基座 `FfBase.vue`（272 行）｜引擎：`src/lib/ffmpeg.ts`（`-vn` + pcm_s16le 重编码，FfmpegExtractAudio.vue:20）｜注册：`registry.ts:30`（needModel）｜家族共性参见 `compress-video.md`；共用组件分析参见 `video-to-mp3.md`",
+    "对标标杆：CloudConvert（云，**架构天花板**）＋ Audacity（桌面剪辑链路的 WAV 输入参照）"
+   ],
+   "conclusionBlock": [
+    "**交互优化** · P1（口径修正 + 体积预估 + 快路径）",
+    "判据：58 分；功能正确，但 desc 的\"无损\"承诺在绝大多数场景是假命题（源是有损 AAC），且 WAV 的体积代价完全未管理——两处都属\"诚实性\"缺口，先修口径再做体验。"
+   ],
+   "conclusion": "**交互优化** · P1（口径修正 + 体积预估 + 快路径）",
+   "judge": "判据：58 分；功能正确，但 desc 的\"无损\"承诺在绝大多数场景是假命题（源是有损 AAC），且 WAV 的体积代价完全未管理——两处都属\"诚实性\"缺口，先修口径再做体验。",
+   "deductions": [
+    "1. 【灵魂-口径】\"提取无损 WAV 音轨\"（registry.ts:30）误导：MP4 音轨几乎必为有损编码，解码→pcm_s16le 只是换封装（且量化到 16bit），**不能还原编码时已丢失的信息**；ext-note（FfmpegExtractAudio.vue:38）只说\"WAV 适合剪辑与语音识别\"，未说明\"无损指的是容器，音质上限=源 AAC\"——用户带着\"无损=音质提升\"的期待来，带着误解走",
+    "2. 【可用性-个性】无输出体积预估：WAV≈10.3MB/分钟（48kHz/16bit/立体声），载入 1 小时讲座即 ~620MB，页内无\"预计输出 X MB\"提示（FfmpegExtractAudio.vue:22 无任何体积逻辑；对照 compress-video 有目标体积控制）",
+    "3. 【功能】快路径未用且本页最有资格免下载：WAV 编码是四格式中最轻的（PCM 封装），站内 encodeWav 已被音频分类 wav-to-mp3/mp3-to-wav 证明免 25MB 可行（audio/registry.ts:11-12、AudioConvert.vue:13），本页却 needModel（registry.ts:30）",
+    "4. 【功能】16bit 硬编码：pcm_s16le 写死（FfmpegExtractAudio.vue:20），无 24bit/32bit float 选项——专业剪辑链路（Audacity/达芬奇）会挑位深，源音轨信息也无处查看",
+    "5. 【附加-性能】输出全内存驻留：ffRun 在虚拟 FS 写入+readFile（ffmpeg.ts:44-58）无流式路径，数百 MB WAV 可能直接把 wasm 堆打爆，失败时只报\"未生成输出文件\"（FfBase.vue:130）——用户无法理解是内存上限",
+    "6. 【可用性】输出无试听：onDone 直接下载（FfBase.vue:135-138）",
+    "7. 【可用性-家族】执行按钮流内底部（FfBase.vue:199-206，M-14，共性-根因 4）",
+    "8. 【灵魂-家族】无耗时预期、25MB 无下载进度、无 beforeunload（同 compress-video.md 扣分 2/4/5）"
+   ],
+   "prescriptions": [
+    "口径修正",
+    "体积预估",
+    "快路径",
+    "位深选项",
+    "家族处方 1-2"
+   ],
+   "benchmarks": " - **CloudConvert**（云）：mp4→wav 含采样率/位深/声道参数矩阵。差距：架构天花板；参数面纯前端可追。 - **Audacity / 剪辑软件**：导入即显示位深/采样率/声道，导出可选 16/24/32f。差距：**参数透明度**——本页连源音轨是什么编码都不展示。 - 借鉴优先级：**口径修正 > 输出体积预估 > 快路径 > 位深/采样率选项**。 "
+  },
+  {
+   "file": "mp4-to-webm",
+   "name": "MP4 转 WebM",
+   "slug": "mp4-to-webm",
+   "score": 57,
+   "dims": {
+    "func": 11,
+    "usab": 11,
+    "val": 12,
+    "iact": 8,
+    "ui": 7,
+    "soul": 8,
+    "perf": 3,
+    "mob": 4
+   },
+   "head": [
+    "分类：视频工具｜模式：C（单列堆叠文件流，FfBase 基座）｜组件：`src/tools/video/components/FfmpegConvert.vue`（93 行）＋ 基座 `FfBase.vue`（272 行）｜引擎：`src/lib/ffmpeg.ts`；本 slug 走 libvpx-vp9 `-b:v 0 -crf 32`＋libopus（FfmpegConvert.vue:39-40，未设 -deadline/-cpu-used）｜注册：`src/tools/video/registry.ts:22`｜家族共性（进度带/按钮底部/25MB 提示/无耗时预期）参见 `compress-video.md`",
+    "对标标杆：CloudConvert（云，**架构天花板**——云端多线程 VP9）＋ ezgif（轻量在线场景）"
+   ],
+   "conclusionBlock": [
+    "**交互优化** · P1（VP9 预期管理是本页第一杠杆，先于一切功能拓展）",
+    "判据：57 分；质量默认合理、源无挡门，但本页承载全家族最重的编码负载却没有一行预期文案——用户等 10 分钟看到 4% 必然判定卡死刷新（进度带再完善也救不回预期缺失），属\"可用性硬伤边缘\"。"
+   ],
+   "conclusion": "**交互优化** · P1（VP9 预期管理是本页第一杠杆，先于一切功能拓展）",
+   "judge": "判据：57 分；质量默认合理、源无挡门，但本页承载全家族最重的编码负载却没有一行预期文案——用户等 10 分钟看到 4% 必然判定卡死刷新（进度带再完善也救不回预期缺失），属\"可用性硬伤边缘\"。",
+   "deductions": [
+    "1. 【交互-硬伤边缘】全家族最慢路径零预警：`libvpx-vp9 -b:v 0 -crf 32` 未设 `-deadline/-cpu-used`（FfmpegConvert.vue:40），wasm 单线程 VP9 编码速度常为 x264 veryfast 的 1/5~1/10；页内零个性提示——compress-video.md 扣分 2 的家族缺口在本页被放大到极致",
+    "2. 【功能】无速度/质量取舍：`-cpu-used 4`（good deadline）可提速数倍而画质损失可控，参数串未提供；用户被锁死在最慢档（:39-40 固定参数）",
+    "3. 【灵魂】镜像页落差无解释：同为 MP4 源，mp4-to-mov 流复制秒转、本页可能数十分钟，站内两页断崖无文案管理——用户无法理解\"为什么这个转换这么慢\"",
+    "4. 【灵魂-家族】无 beforeunload 警告（compress-video.md 扣分 4）——本页等待最长，误关损失最大",
+    "5. 【可用性-家族】执行按钮流内底部（FfBase.vue:199-206，M-14，共性-根因 4；同 compress-video.md 扣分 1）",
+    "6. 【美观】进度带虽完善（FfBase.vue:189-197）但无\"VP9 编码较慢属正常\"陪伴文案，3% 状态易误判卡死",
+    "7. 【功能】缺场景分流：目标选 webm 时不提示\"若非网页内嵌场景建议 MP4 输出\"（H.264 快且兼容面更广）",
+    "8. 【功能】批量缺失：站长批量内嵌场景一次多个 MP4，单文件流（FfBase.vue:38 multiple 默认 false）叠加本页最慢编码，逐个转体验雪上加霜",
+    "9. 【灵魂】无输出体积方向提示：低码率 MP4 源转 VP9 CRF32 后体积反而可能变大——反直觉结果零预告，用户对\"转完更大\"毫无准备"
+   ],
+   "prescriptions": [
+    "VP9 预期管理",
+    "快速档",
+    "beforeunload",
+    "家族处方 1-2"
+   ],
+   "benchmarks": " - **CloudConvert**（云）：云端多线程 VP9 分钟级出片，可调分辨率/码率。差距：**算力架构天花板**——wasm 无法追平；但\"速度档＋预期文案\"是纯前端最佳实践（参照 compress-video.md 行业对标节）。 - **ezgif**：WebM 输出页明示\"VP9 编码较慢\"，且提供输出尺寸选项。差距：至少有速度预期管理。 - 借鉴优先级：**VP9 预期文案 > cpu-used 快速档 > 场景分流提示 > beforeunload**。 "
+  },
+  {
+   "file": "mute-video",
+   "name": "视频消音",
+   "slug": "mute-video",
+   "score": 61,
+   "dims": {
+    "func": 10,
+    "usab": 11,
+    "val": 13,
+    "iact": 10,
+    "ui": 7,
+    "soul": 10,
+    "perf": 7,
+    "mob": 4
+   },
+   "head": [
+    "分类：视频工具｜模式：C（单列堆叠文件流，FfBase 基座）｜组件：`src/tools/video/components/FfmpegMute.vue`（23 行）＋ 基座 `FfBase.vue`（272 行）｜引擎：`src/lib/ffmpeg.ts`（`-an -c:v copy` 真流复制，FfmpegMute.vue:11）｜注册：`registry.ts:13`（needModel）｜家族共性（按钮底部/进度带/25MB 提示）参见 `compress-video.md`",
+    "对标标杆：Clideo（云，Mute Video 含区间消音，**架构天花板**）＋ ezgif（mute video 免登录轻量参照）"
+   ],
+   "conclusionBlock": [
+    "**交互优化** · P1（家族处方 + 首用成本减负）",
+    "判据：61 分；实现与文案是家族样板（秒转+诚实预期+desc 无虚假承诺），扣分集中在家族共性与\"25MB 下载比处理本身慢百倍\"的成本错位——按家族处方微调即可上 70 分线。"
+   ],
+   "conclusion": "**交互优化** · P1（家族处方 + 首用成本减负）",
+   "judge": "判据：61 分；实现与文案是家族样板（秒转+诚实预期+desc 无虚假承诺），扣分集中在家族共性与\"25MB 下载比处理本身慢百倍\"的成本错位——按家族处方微调即可上 70 分线。",
+   "deductions": [
+    "1. 【功能-个性】首用成本与任务重量错位：去音轨本质是容器手术（remux），却 needModel 强制下 25MB 核心（registry.ts:13、FfBase.vue:184-187）——纯 JS remux（mp4box.js 级）或复用已加载核心可免下载；下载耗时往往是消音本身的百倍，这层\"首用会慢\"的预期无管理",
+    "2. 【功能】无区间消音：Clideo 支持只消 0:10~0:20（片段静音），本页 `-an` 是全片一刀切（FfmpegMute.vue:11）——\"中间一段说话要保留画面但去声\"的高频变体需求被拒之门外",
+    "3. 【功能】无\"替换为静音轨\"选项：部分平台/播放器对无音轨视频显示时长异常或转码报错，静音 AAC 轨是常见替代方案（ezgif 两者都提供），本页只有删轨一条路",
+    "4. 【功能】输出 MP4 未加 `-movflags +faststart`（FfmpegMute.vue:11）：消音产物多用于社交平台/网页播放，moov 在尾影响流式起播——同家族转码系都加了（FfmpegConvert.vue:44），本页反而漏",
+    "5. 【可用性】无结果预览：onDone 直接下载（FfBase.vue:135-138），消音后是否真的无声、画面是否完好，blob 本可回放验证却放弃",
+    "6. 【可用性-家族】执行按钮流内底部（FfBase.vue:199-206，M-14，共性-根因 4）——秒级任务里\"下滑找按钮\"的成本占比反而更刺眼",
+    "7. 【可用性-边界】loadVideo 门禁：MP4/MOV/WebM 可进门，MKV 部分浏览器可解析，AVI/WMV 挡门（videoEngine.ts:27-30）；且 MKV 源输出跟随源容器（FfBase.vue:65），投社交平台还要再转 MP4，无输出容器选项",
+    "8. 【灵魂-家族】25MB 无下载进度、处理中无 beforeunload（compress-video.md 扣分 4/5；耗时预期本页已自愈，不重报）"
+   ],
+   "prescriptions": [
+    "faststart 补齐",
+    "结果预览",
+    "区间消音",
+    "静音轨替换",
+    "家族处方 1-2"
+   ],
+   "benchmarks": " - **Clideo**（云）：Mute Video 支持区间消音、完成后在线预览。差距：区间消音与在线预览纯前端完全可做（ffmpeg `-af silenceremove`/分段 copy 或 WebAudio 检测）。 - **ezgif**：mute 提供\"删音轨/替换静音轨\"两路径且免登录即用。差距：路径覆盖 + **零首用成本**（它无需下 25MB——这是我们自己的架构选择，可由 remux 路线逼近）。 - 借鉴优先级：**区间消音 > 在线预览 > faststart 补齐 > 静音轨替换**。 "
+  },
+  {
+   "file": "remove-background-noise-from-video",
+   "name": "视频降噪",
+   "slug": "remove-background-noise-from-video",
+   "score": 60,
+   "dims": {
+    "func": 11,
+    "usab": 10,
+    "val": 13,
+    "iact": 9,
+    "ui": 7,
+    "soul": 10,
+    "perf": 6,
+    "mob": 5
+   },
+   "head": [
+    "分类：视频工具｜模式：C（单列堆叠文件流，FfBase 基座）｜组件：`src/tools/video/components/FfmpegDenoise.vue`（60 行）＋ 基座 `FfBase.vue`（272 行）｜引擎：`src/lib/ffmpeg.ts`（afftdn FFT 降噪 + loudnorm 响度标准化，FfmpegDenoise.vue:15-16）｜注册：`registry.ts:40`（needModel，aud 处理模式：只动音频轨 `-c:v copy` :18）｜家族共性参见 `compress-video.md`",
+    "对标标杆：Adobe Podcast Enhance（云，人声增强天花板——架构天花板标注）＋ Audacity（桌面，噪声样本降噪参照）；**站内关系**：音频分类 remove-noise-from-audio（谱减法，audioEngine.ts:327-328）与本页为两条算法路线"
+   ],
+   "conclusionBlock": [
+    "**交互优化** · P1（AB 试听回路是唯一大杠杆）",
+    "判据：60 分：afftdn+loudnorm 选型正确、desc 口径诚实（\"画面不重编码\"属实）、画面流复制在本页是正确前提（区别于 remove-silence-from-video 的失步疑缺陷）；缺\"听一下再决定\"的验证闭环，WebM 边界失败按疑似边界缺陷登记整改。"
+   ],
+   "conclusion": "**交互优化** · P1（AB 试听回路是唯一大杠杆）",
+   "judge": "判据：60 分：afftdn+loudnorm 选型正确、desc 口径诚实（\"画面不重编码\"属实）、画面流复制在本页是正确前提（区别于 remove-silence-from-video 的失步疑缺陷）；缺\"听一下再决定\"的验证闭环，WebM 边界失败按疑似边界缺陷登记整改。",
+   "deductions": [
+    "1. 【交互-个性】无降噪前后 AB 试听：音频处理的核心验证动作是\"听一下\"，现结果直接下载（FfBase.vue:135-138）——音频分类 DenoiseAudio.vue 有 playBuffer 试听（:9），同为降噪、本页反而不给听",
+    "2. 【功能-个性】与站内音频降噪零联动：remove-noise-from-audio 用谱减法自动估计底噪逐帧相减（audioEngine.ts:327-328，DenoiseAudio.vue:89 自述\"水声伪影\"），本页 afftdn 是盲降噪——两条技术路线无说明、无\"只需处理音频？去音频降噪更快且可试听\"分流指引（video-to-mp3 → 音频降噪 → add-music-to-video 本可成管线）",
+    "3. 【功能】无噪声样本学习档：Audacity/Audition 支持\"选取纯噪声段→学习噪声轮廓→按样本降噪\"，比盲降噪效果好一档；afftdn 盲跑对间歇性噪音基本无效（note :35 也自认）",
+    "4. 【可用性-边界疑似缺陷】WebM 源直接失败：输出名跟随源扩展名（FfBase.vue:65 → .webm），却强制 `-c:a aac`（FfmpegDenoise.vue:18）——webm 容器不接受 AAC，ffmpeg 必报错走通用提示（FfBase.vue:142），提示语不会告诉用户\"换 MP4 源就行\"（对照 split-video.md 扣 2 判例）",
+    "5. 【可用性-边界】无音轨视频无前置检测：`-af` 遇无音轨源直接失败走通用错误（remove-silence-from-video.md 扣 6 同款）",
+    "6. 【家族】执行按钮流内底部（FfBase.vue:199-206，M-14，共性-根因 4）；25MB 核心下载无进度（:184-187）；无 beforeunload；结果直接下载无预览"
+   ],
+   "prescriptions": [
+    "AB 试听",
+    "WebM 改道",
+    "无音轨检测",
+    "场景预设 chips",
+    "家族处方 1-2"
+   ],
+   "benchmarks": " - **Adobe Podcast Enhance（云，天花板）**：深度学习人声提取级增强，\"电话音\"都能救。差距：架构天花板，afftdn 盲降噪达不到；纯前端最佳实践是诚实标注\"适合持续性底噪（风扇/嘶声），人声级增强需云端 AI\"。 - **Audacity（桌面，免费）**：噪声轮廓学习→按样本降噪、全程可监听试听。差距：噪声样本档与试听回路纯前端可做（采样段 FFT 估本底 + 双播放器对比）。 - 借鉴优先级：**AB 试听 > WebM/无音轨前置拦截 > 场景预设 > 噪声样本档 > 站内降噪互链**。 "
+  },
+  {
+   "file": "remove-silence-from-video",
+   "name": "视频去静音",
+   "slug": "remove-silence-from-video",
+   "score": 53,
+   "dims": {
+    "func": 9,
+    "usab": 8,
+    "val": 12,
+    "iact": 8,
+    "ui": 7,
+    "soul": 9,
+    "perf": 6,
+    "mob": 5
+   },
+   "head": [
+    "分类：视频工具｜模式：C（单列堆叠文件流，FfBase 基座）｜组件：`src/tools/video/components/FfmpegRemoveSilence.vue`（60 行）＋ 基座 `FfBase.vue`（272 行）｜引擎：`src/lib/ffmpeg.ts`（silenceremove+areverse 技巧，中间压缩 stop_periods=-1，FfmpegRemoveSilence.vue:15-22）｜注册：`registry.ts:39`（needModel）｜家族共性参见 `compress-video.md`",
+    "对标标杆：Descript（云，静音/填充词删除天花板）＋ Gling（gling.ai，云，口播自动剪辑）"
+   ],
+   "conclusionBlock": [
+    "**交互优化** · **P0（疑似功能缺陷：音画失步，须先定性整改）**",
+    "判据：53 分；silenceremove 压缩音频时间轴而画面流复制保持原时间轴（FfmpegRemoveSilence.vue:20），掐头 N 秒=全片口型提前 N 秒、中间每剪一处累计漂移——输出正确性优先于一切体验项，比照 split-video.md 截断疑缺陷同级处理。"
+   ],
+   "conclusion": "**交互优化** · **P0（疑似功能缺陷：音画失步，须先定性整改）**",
+   "judge": "判据：53 分；silenceremove 压缩音频时间轴而画面流复制保持原时间轴（FfmpegRemoveSilence.vue:20），掐头 N 秒=全片口型提前 N 秒、中间每剪一处累计漂移——输出正确性优先于一切体验项，比照 split-video.md 截断疑缺陷同级处理。",
+   "deductions": [
+    "1. 【可用性-疑似功能缺陷】音画失步：音频经 silenceremove 后时间轴压缩（剪除的样本被丢弃、后续样本前移），画面 `-c:v copy` 保持原时间轴（:19-22）——两轨时长不再相等：掐头 3s 的口播口型从头错 3 秒；开中间压缩则漂移逐段累计、片尾画面比声音长。正确做法是视频随音频同步剪（分段 concat 或重编码对齐）；\"画面流复制不重编码\"（:37）在纯音频工具里是优点，在本页是错误前提",
+    "2. 【功能】无检测预演：不能先\"分析\"出\"检测到 14 处停顿共 42 秒，预计成片 3:18\"让用户确认再剪——Descript/Gling 都先给剪点列表；silencedetect 滤镜干跑即可实现",
+    "3. 【功能】中间停顿只有\"全剪\"一档：stop_duration=0.4 硬编码（:17），不能\"把停顿压到 0.3s 保留\"（行业常规是压缩不是删除）——全剪产出机关枪语速，note 只能劝\"对话类慎用\"（:36-37）而非给参数",
+    "4. 【可用性】黑盒作业：无波形图、无剪点标记、无\"剪掉几处/几秒\"结果报告——做了什么、剪得对不对全靠用户下载后人工对比",
+    "5. 【交互】阈值无辅助判定：-45dB 默认对手机拍摄合理，但底噪大的素材该调多少无引导（无实时电平表/建议值）",
+    "6. 【可用性-边界】无音轨视频直接失败走通用错误（FfBase.vue:142），无前置检测提示",
+    "7. 【可用性-家族】执行按钮流内底部（FfBase.vue:199-206，M-14，共性-根因 4）；结果直接下载无预览（FfBase.vue:135-138）；25MB 无进度、无 beforeunload（compress-video.md 扣分 4/5）"
+   ],
+   "prescriptions": [
+    "同步剪整改",
+    "检测预演",
+    "停顿压缩档",
+    "结果报告",
+    "家族处方 1-2"
+   ],
+   "benchmarks": " - **Descript**：转写文稿驱动剪辑，静音/填充词一键删且**画面同步剪**，剪点可逐个恢复。差距：画面同步剪是正确性差距（本页疑缺陷）；剪点列表是能力差距。 - **Gling**：AI 分析口播后给\"保留/剪除\"逐段预览、可调保留比例。差距：检测预演+逐段确认纯前端可做（silencedetect+波形渲染）。 - 借鉴优先级：**画面同步剪（疑缺陷整改）> 检测预演报告 > 停顿压缩档 > 剪点可视化**。 "
+  },
+  {
+   "file": "resize-video",
+   "name": "视频尺寸调整",
+   "slug": "resize-video",
+   "score": 60,
+   "dims": {
+    "func": 13,
+    "usab": 10,
+    "val": 14,
+    "iact": 9,
+    "ui": 7,
+    "soul": 7,
+    "perf": 5,
+    "mob": 4
+   },
+   "head": [
+    "分类：视频工具｜模式：C（单列堆叠文件流，FfBase 基座）｜组件：`src/tools/video/components/FfmpegResize.vue`（103 行）＋ 基座 `FfBase.vue`（272 行）｜引擎：`src/lib/ffmpeg.ts`（scale+pad/crop 三画幅模式，FfmpegResize.vue:34-39）｜注册：`registry.ts:25`（needModel）｜家族共性（按钮底部/进度带/25MB 提示/预览钉 340px）参见 `compress-video.md`",
+    "对标标杆：Clideo（云，Resize Video 平台预设+实时预览画幅）＋ ezgif（Video Resizer 轻量参照）"
+   ],
+   "conclusionBlock": [
+    "**交互优化** · P1（画幅效果可视化是核心补全）",
+    "判据：60 分；功能预设面已对齐 Clideo 主干，但\"适配/裁满/拉伸\"三种模式的结果只能执行后才知道——补一张模式示意图或输出预览即可显著抬升；工程实现（force_original_aspect_ratio 用法 :34-39）正确。"
+   ],
+   "conclusion": "**交互优化** · P1（画幅效果可视化是核心补全）",
+   "judge": "判据：60 分；功能预设面已对齐 Clideo 主干，但\"适配/裁满/拉伸\"三种模式的结果只能执行后才知道——补一张模式示意图或输出预览即可显著抬升；工程实现（force_original_aspect_ratio 用法 :34-39）正确。",
+   "deductions": [
+    "1. 【可用性-个性】三画幅模式零可视化：pad（黑边）/cover（裁切）/stretch（变形）的差异只有一行下拉文案+一段说明文字（FfmpegResize.vue:66-71,:74-77），无示意图或输出预览——用户第一次只能\"选一个试一次\"，错一次等一次重编码",
+    "2. 【交互-个性】自定义默认 1080×1920 竖屏（:8-9）：横屏源用户切到自定义档看到的是反向预设，且自定义两框无\"锁定源比例\"联动（改宽不动高）——图片分类 crop-image.md 的比例锁教训在此重现",
+    "3. 【功能】无百分比缩放档：\"缩小一半/缩到 50%\"是压体积场景的常用表达，本页只能换算成具体像素填自定义",
+    "4. 【功能】无质量控制/体积预估：480p 与 1080p 产物体积差数倍，但选任何档都无预估与码率控制（compress-video 的目标体积思路在此完全缺席）",
+    "5. 【灵魂】无源尺寸→预设智能提示：载入 1920×1080 源后预设仍从 1080p 横屏开始（默认值 :7），meta 条里有源尺寸（FfBase.vue:170-174）却不用来推荐\"源已是 1080p，无需调整\"或\"转竖屏建议 1080×1920 裁满\"",
+    "6. 【功能】拉伸模式无防误触：stretch 可能产生严重变形却与另两档并列无警示标记（Clideo 默认隐藏拉伸档）；误选后要等完整重编码才发现变形",
+    "7. 【可用性-家族】执行按钮流内底部（FfBase.vue:199-206，M-14，共性-根因 4）；结果直接下载无预览（FfBase.vue:135-138）——画幅对不对要下载后播放验证",
+    "8. 【灵魂-家族】25MB 核心下载无进度、无 beforeunload、无量化耗时预期（compress-video.md 扣分 2/4/5）"
+   ],
+   "prescriptions": [
+    "模式示意图",
+    "模糊填充档",
+    "源比例锁",
+    "智能推荐",
+    "压前预估",
+    "家族处方 1-2"
+   ],
+   "benchmarks": " - **Clideo**（云）：预设带平台图标（Instagram/TikTok/YouTube）、画幅效果实时预览、留边颜色可选（黑/白/模糊填充）。差距：**模糊填充黑边**（pad 用源画面放大虚化当背景，短视频行业标准做法）纯前端 ffmpeg 可做（split+scale+boxblur+overlay），是当下黑边方案的直接升级。 - **ezgif**：宽度输入+按比例联动、免登录。差距：极简路径与零成本预期。 - 借鉴优先级：**模式示意图 > 模糊填充黑边档 > 源比例锁 > 百分比缩放 > 压前体积预估**。 "
+  },
+  {
+   "file": "reverse-video",
+   "name": "视频倒放",
+   "slug": "reverse-video",
+   "score": 58,
+   "dims": {
+    "func": 12,
+    "usab": 10,
+    "val": 12,
+    "iact": 9,
+    "ui": 7,
+    "soul": 8,
+    "perf": 3,
+    "mob": 3
+   },
+   "head": [
+    "分类：视频工具｜模式：C（单列堆叠文件流，FfBase 基座）｜组件：`src/tools/video/components/FfmpegReverse.vue`（78 行）＋ 基座 `FfBase.vue`（272 行）｜引擎：`src/lib/ffmpeg.ts`（reverse/areverse + split+concat filter_complex 单次成型，FfmpegReverse.vue:13-34）｜注册：`registry.ts:34`（needModel）｜家族共性（按钮底部/进度带/25MB 提示）参见 `compress-video.md`",
+    "对标标杆：ezgif（Reverse Video 倒放流量王，轻量标杆）＋ Clideo（云，云端内存无此约束，**架构天花板**）"
+   ],
+   "conclusionBlock": [
+    "**交互优化** · P1（内存量化预警+崩溃兜底是第一杠杆）",
+    "判据：58 分；工程实现（单条 filter_complex 三模式）与\"先裁 30 秒\"引导已是正确的方向，但预警停留在定性层面——本页的本质约束是 wasm 内存天花板，把\"多长会崩\"量化出来、把崩溃兜住，体验即可上台阶。"
+   ],
+   "conclusion": "**交互优化** · P1（内存量化预警+崩溃兜底是第一杠杆）",
+   "judge": "判据：58 分；工程实现（单条 filter_complex 三模式）与\"先裁 30 秒\"引导已是正确的方向，但预警停留在定性层面——本页的本质约束是 wasm 内存天花板，把\"多长会崩\"量化出来、把崩溃兜住，体验即可上台阶。",
+   "deductions": [
+    "1. 【可用性-个性】预警定性不定量：\"建议先用裁剪视频截取 30 秒内的片段\"（FfmpegReverse.vue:50-52）——但 720p/30fps/30s 的 YUV 帧缓冲≈1.2GB 已贴 wasm 上限（1080p 30s≈2.8GB 必崩），**按建议执行仍可能崩**；无\"分辨率×时长安全表\"（如 480p≤90s / 720p≤30s / 1080p≤15s），用户无从自查",
+    "2. 【可用性-个性】OOM 无兜底：内存超限时 Chrome 直接崩溃标签页（ffmpeg.wasm abort），FfBase 错误处理（FfBase.vue:141-143 toast）覆盖不到——进度条停住→页面白屏，用户损失全部等待且不知道\"是视频太长\"；至少应在执行前按 meta.width/height×duration 估算缓冲体积并拦截",
+    "3. 【功能-个性】x2 模式工程错配：\"循环 2 次\"用 filter_complex split+concat 全片重编码（:26,:29-31），而 loop-video 的 repeat 档 `-stream_loop -c copy` 秒级零损失完成同一件事（FfmpegLoop.vue:18）——本页选 x2 的用户白等一整次重编码还损画质",
+    "4. 【功能】无区间倒放：只想倒放中间 10 秒需 trim→reverse→（拼回）三工具串联，每步一次重编码；Clideo/ezgif 支持起止区间",
+    "5. 【功能】回弹模式强制反转音频：boomerang 的 split[a2]areverse 路径（:25）让音频正反来回——梗视频通常要静音或保留正放音轨，无\"回弹静音\"开关",
+    "6. 【交互】无效果预览：倒放是\"看效果\"型操作，却只能等全片重编码完下载后验证——输出 blob 本可直接回放（FfBase.vue:135-138 默认直接下载放弃了确认环节）",
+    "7. 【功能】与 loop-video 回弹模式重复：两页各自实现 boomerang（本页单条 filter_complex 更优 vs FfmpegLoop.vue:23-46 两步法），实现不共享、体验不一致",
+    "8. 【可用性-家族】执行按钮流内底部（FfBase.vue:199-206，M-14，共性-根因 4）",
+    "9. 【灵魂-家族】25MB 核心下载无进度、无 beforeunload（compress-video.md 扣分 4/5）；倒放是重编码大户，最需要 beforeunload 的页恰恰没有"
+   ],
+   "prescriptions": [
+    "内存量化拦截",
+    "安全时长表",
+    "区间倒放",
+    "回弹静音",
+    "结果预览",
+    "x2 纠偏",
+    "家族处方 1-2"
+   ],
+   "benchmarks": " - **ezgif**：Reverse video 支持区间倒放、静音倒放、倒放后直接在线预览，且**无内存焦虑**（服务端处理）。差距：区间/静音/预览三项纯前端可做；内存天花板是架构约束（标注天花板），但量化预警+拦截是我们能给出的最佳实践。 - **Clideo**（云）：上传即倒放、云端渲染无时长限制、在线预览。差距：**架构天花板**——wasm 无法追平；预期管理（安全时长表）是纯前端能逼近的唯一正确姿态。 - 借鉴优先级：**内存量化拦截（P1）> 区间倒放 > 回弹静音 > 结果预览 > x2 模式改流复制或移除**。 "
+  },
+  {
+   "file": "rotate-video",
+   "name": "旋转视频",
+   "slug": "rotate-video",
+   "score": 57,
+   "dims": {
+    "func": 11,
+    "usab": 10,
+    "val": 12,
+    "iact": 9,
+    "ui": 7,
+    "soul": 8,
+    "perf": 5,
+    "mob": 4
+   },
+   "head": [
+    "分类：视频工具｜模式：C（单列堆叠文件流，FfBase 基座）｜组件：`src/tools/video/components/FfmpegRotate.vue`（81 行）＋ 基座 `FfBase.vue`（272 行）｜引擎：`src/lib/ffmpeg.ts`（transpose 滤镜 + libx264 crf23 **全量重编码**，FfmpegRotate.vue:25-27）｜注册：`registry.ts:14`（needModel）｜家族共性参见 `compress-video.md`",
+    "对标标杆：Clideo（云，Rotate Video 一键+在线预览，**架构天花板**）＋ ezgif（rotate/flip 全能参照）"
+   ],
+   "conclusionBlock": [
+    "**交互优化** · P1（desc 口径修正 + 元数据快路径 + 音频 copy 三杠杆）",
+    "判据：57 分；实现本身正确，但\"入口承诺元数据、页内实际重编码\"的口径矛盾是诚信级缺陷（registry.ts:14 vs FfmpegRotate.vue:25-27），且专业做法（display matrix 秒转）已被页内文案承认存在（:53）却不在本页提供。"
+   ],
+   "conclusion": "**交互优化** · P1（desc 口径修正 + 元数据快路径 + 音频 copy 三杠杆）",
+   "judge": "判据：57 分；实现本身正确，但\"入口承诺元数据、页内实际重编码\"的口径矛盾是诚信级缺陷（registry.ts:14 vs FfmpegRotate.vue:25-27），且专业做法（display matrix 秒转）已被页内文案承认存在（:53）却不在本页提供。",
+   "deductions": [
+    "1. 【灵魂-口径硬伤】desc 与实现相反：desc\"90/180/270° 旋转**写入元数据**，全设备正常播放\"（registry.ts:14），实现是 transpose 滤镜+libx264 全量像素重编码（FfmpegRotate.vue:25-27）——用户带着\"秒转无损\"预期进来，面对的是 wasm 慢速重编码；页内 note（:52-55）诚实承认重编码，但入口文案的虚假承诺已先行伤害预期",
+    "2. 【功能-个性】元数据快路径缺位：旋转 90° 的专业做法是改 display matrix（秒级、零质量损失、不重编码），组件自己承认此路径存在（:53\"只想改播放方向标记……可使用视频编辑器\"）却不在本页提供开关——用户必须跳工具；需验证 wasm 构建是否支持 `-display_rotation`（ffmpeg 6.0+），不支持则可用纯 JS remux 改 rotation box",
+    "3. 【功能】音频无谓重编码：`-c:a aac -b:a 128k`（:27）——旋转与音轨无关，却每次解码再编码 AAC（音质损失+耗时），`-c:a copy` 应为默认",
+    "4. 【功能】质量/速度档缺位：crf23+veryfast 固定（:26），家族 compress-video 至少有三档质量；旋转素材若要二次剪辑，高码率档无处可寻",
+    "5. 【功能-疑似缺陷】竖拍源方向存疑：手机竖拍 MP4 带旋转标记，ffmpeg 输入端 autorotate（wasm 构建是否启用）决定 transpose 后是\"转正\"还是\"叠加旋转\"出 270° 结果——需用带旋转标记的夹具实测定性",
+    "6. 【灵魂-个性】无耗时预期：重编码耗时与 mute-video 的秒转差三个量级，页内却无任何\"旋转需重新编码，耗时与视频时长相关\"文案（对比 FfmpegMute.vue:20 的诚实示范）",
+    "7. 【可用性】无旋转后预览与方向预演：onDone 直接下载（FfBase.vue:135-138）；90 与 270 认知错位高发（\"顺时针 270°=逆时针 90°\"的文案自救，:12），选错只能下载后播放发现再重来",
+    "8. 【可用性-家族】执行按钮流内底部（FfBase.vue:199-206，M-14，共性-根因 4）；25MB 无下载进度、无 beforeunload（compress-video.md 扣分 4/5）"
+   ],
+   "prescriptions": [
+    "desc 口径修正",
+    "元数据旋转选项",
+    "音频 copy",
+    "方向预演",
+    "竖拍夹具实测",
+    "家族处方 1-2"
+   ],
+   "benchmarks": " - **Clideo**（云）：Rotate 一键 + 在线预览旋转效果 + 输出格式可选。差距：**预览联动**（选角度即看效果）纯前端完全可做（canvas transform 预演）。 - **ezgif**：rotate 提供 90/180/270/flip 且\"transpose（无损快速）\"与重编码路径区分标注。差距：路径透明度——它告诉你哪个快哪个慢，我们入口承诺快实际慢。 - **FFmpeg 命令行**（同源参照）：`-display_rotation`（6.0+）秒转元数据；`-c:a copy` 常规操作。差距：我们没把同源引擎的专业选项暴露出来。 - 借鉴优先级：**desc 口径修正 > 元数据快路径 > 音频 copy > 预览联动 > 质量档**。 "
+  },
+  {
+   "file": "side-by-side-video",
+   "name": "双视频拼接",
+   "slug": "side-by-side-video",
+   "score": 55,
+   "dims": {
+    "func": 10,
+    "usab": 9,
+    "val": 12,
+    "iact": 8,
+    "ui": 7,
+    "soul": 9,
+    "perf": 5,
+    "mob": 5
+   },
+   "head": [
+    "分类：视频工具｜模式：C（单列堆叠文件流，FfBase 基座，双文件扩展）｜组件：`src/tools/video/components/FfmpegSideBySide.vue`（153 行）＋ 基座 `FfBase.vue`（272 行）｜引擎：`src/lib/ffmpeg.ts`（scale 对齐+hstack/vstack+amix，FfmpegSideBySide.vue:47-62）｜注册：`registry.ts:46`（needModel）｜家族共性参见 `compress-video.md`",
+    "对标标杆：Kapwing（云，Side-by-Side 布局模板）＋ Clideo（云，Split Screen 可视化）"
+   ],
+   "conclusionBlock": [
+    "**交互优化 + 需拓展** · P1（合成预览 + 音轨矩阵两大杠杆）",
+    "判据：55 分；对齐与披露是家族内的诚实样板，但\"拼接\"工具不给拼合预览等于盲拼；反应/对比场景的音频矩阵（仅 A/仅 B/混合+配比）是标配能力缺口。"
+   ],
+   "conclusion": "**交互优化 + 需拓展** · P1（合成预览 + 音轨矩阵两大杠杆）",
+   "judge": "判据：55 分；对齐与披露是家族内的诚实样板，但\"拼接\"工具不给拼合预览等于盲拼；反应/对比场景的音频矩阵（仅 A/仅 B/混合+配比）是标配能力缺口。",
+   "deductions": [
+    "1. 【可用性-个性】无合成预览：方向/素材就绪后无任何拼合示意（哪怕两个等比缩略图按所选方向排一下）——竖屏+横屏拼出来多宽、上下堆叠有多高，全靠编码后惊喜；对照图片拼图 photo-collage 的实时画布，布局类工具\"所见即所得\"是及格线",
+    "2. 【功能-个性】音频矩阵残缺：只有\"混合两路/仅第一路\"（:104-107,:53,:59）——反应视频要\"仅第二路\"（保留被反应方声音）无入口；混合时 amix 默认归一化两路各减半且无配比滑杆",
+    "3. 【功能】无交换左右：第一路永远在左/上（:53 顺序固定），换序要重新按正确顺序选文件",
+    "4. 【功能】无起点对齐/裁选：两路各从 0s 硬拼（无 per-file trim/offset），\"对齐各自的精彩段\"要先去 trim-video 各自剪好再回来——跨工具动线断裂",
+    "5. 【功能】无边框/间距/补底：对比测评常要中缝分隔或不同画幅 letterbox 补底，本页只有硬贴",
+    "6. 【交互-个性】时长不一致策略不可选：短路定格到最长路结束（:111 已披露行为），但\"裁齐到最短/循环补齐\"无选项——反应视频里\"定格画面+持续语音\"恰是常态，用户不能选",
+    "7. 【可用性-边界】音轨前置检测缺失：任一路无音轨时混合模式直接失败走通用错误（FfBase.vue:142），note 提示了要求（:112）但工具不帮忙检测",
+    "8. 【可用性-家族】执行按钮流内底部（FfBase.vue:199-206，M-14，共性-根因 4）；结果直接下载无预览（FfBase.vue:135-138）；25MB 无进度、无 beforeunload（compress-video.md 扣分 4/5）"
+   ],
+   "prescriptions": [
+    "拼合示意",
+    "音轨三选",
+    "交换按钮",
+    "时长策略",
+    "amix 修正",
+    "家族处方 1-2"
+   ],
+   "benchmarks": " - **Kapwing**：拼合画布实时预览、每路独立裁剪/静音/缩放、布局模板（含画中画）。差距：实时预览与 per-file 参数纯前端可追；画中画是本工具未覆盖的第二形态。 - **Clideo**：拖拽调整两格比例、完成后在线预览。差距：比例可调（55/45 分割）没有。 - 借鉴优先级：**拼合预览 > 音轨矩阵（含配比）> 交换与裁齐策略 > 画中画 > 边框间距**。 "
+  },
+  {
+   "file": "split-video",
+   "name": "视频分段",
+   "slug": "split-video",
+   "score": 57,
+   "dims": {
+    "func": 11,
+    "usab": 9,
+    "val": 13,
+    "iact": 9,
+    "ui": 7,
+    "soul": 8,
+    "perf": 5,
+    "mob": 4
+   },
+   "head": [
+    "分类：视频工具｜模式：C（单列堆叠文件流，FfBase 基座）｜组件：`src/tools/video/components/FfmpegSplit.vue`（99 行）＋ 基座 `FfBase.vue`（272 行）｜引擎：`src/lib/ffmpeg.ts`（逐段 `-ss/-to -c copy` 流复制 + saveMany 打包 ZIP，FfmpegSplit.vue:33-44）｜注册：`registry.ts:24`（needModel）｜家族共性（按钮底部/进度带/25MB 提示）参见 `compress-video.md`",
+    "对标标杆：Clideo（云，Split Video 可视化切点）＋ ezgif（Video Cutter 轻量参照）"
+   ],
+   "conclusionBlock": [
+    "**交互优化** · P0（疑似功能缺陷：截断静默丢尾段，须定性整改）",
+    "判据：57 分；\"60 段封顶但超出部分静默丢弃\"是数据丢失级缺陷（用户以为全部分完，实际视频后半蒸发且无任何提示），须先按疑似功能缺陷整改再谈体验。"
+   ],
+   "conclusion": "**交互优化** · P0（疑似功能缺陷：截断静默丢尾段，须定性整改）",
+   "judge": "判据：57 分；\"60 段封顶但超出部分静默丢弃\"是数据丢失级缺陷（用户以为全部分完，实际视频后半蒸发且无任何提示），须先按疑似功能缺陷整改再谈体验。",
+   "deductions": [
+    "1. 【可用性-疑似功能缺陷】60 段硬截断且静默：`n = Math.min(60, Math.ceil(dur / segLen))`（FfmpegSplit.vue:25）——10 分钟视频按 30 秒/段需 20 段正常；但 2 小时视频按 1 分钟/段需 120 段时只切前 60 分钟，**后 60 分钟无声蒸发**，note 仅说\"超出请增大每段时长\"（:71）而无 toast 警告、无截断确认",
+    "2. 【功能-边界】输出段名硬编码 `.mp4`（:31）：WebM/FLV 源流复制进 MP4 容器（VP9/VP6→MP4）部分会直接失败或产物不可播——merge/trim 均跟随源容器（FfBase.vue:65），本页是家族中唯一强制改容器的",
+    "3. 【交互-个性】每段时长以分钟为单位（:62）却让用户填 0.9 这种小数分钟——直接以秒为单位或提供\"60 秒上限预设\"按钮更符合直觉；微信提示很好但把它做成一键预设才是闭环",
+    "4. 【功能】无自定义切点模式：等分/定长两模式都不支持\"在 1:23、3:45 处各切一刀\"的自由列表（Clideo/ezgif 均支持标切点）；长视频里想切出精彩片段的用户被挡",
+    "5. 【可用性】无切点可视化：预览上没有任何分段标记，切完之前用户不知道每段从哪开始；关键帧对齐偏差（:71）会让各段边界与预期不一致且无法预览验证",
+    "6. 【性能】逐段执行时源文件被反复写入 wasm 虚拟 FS（FfBase.vue:115 默认分支 + ffmpeg.ts:78-96 doRun 写入/删除循环），段数越多 IO 浪费越重；总耗时无预估",
+    "7. 【可用性-家族】执行按钮流内底部（FfBase.vue:199-206，M-14，共性-根因 4）；结果无预览直接 ZIP 下载（:42-44），无法先抽查某段是否切准",
+    "8. 【灵魂-家族】25MB 核心下载无进度、无 beforeunload（compress-video.md 扣分 4/5）；多段耗时与段数成正比的预期无文案"
+   ],
+   "prescriptions": [
+    "截断警告",
+    "单位改秒",
+    "容器跟随",
+    "平台预设 chips",
+    "总进度",
+    "家族处方 1-2"
+   ],
+   "benchmarks": " - **Clideo**（云）：时间轴上可视化标切点、逐段预览、可任选保留哪些段。差距：切点可视化与选段保留纯前端可做（预览 video+切点数组即可）。 - **ezgif**：Video Cutter 支持按起止/按大小多种切法，免登录即用。差距：按大小切分（为传 telegram/微信 25MB 限制）是我们缺的第三模式。 - 借鉴优先级：**截断警告（疑缺陷整改）> 自定义切点列表 > 平台 60 秒一键预设 > 按大小切分 > 逐段预览**。 "
+  },
+  {
+   "file": "stabilize-video",
+   "name": "视频防抖",
+   "slug": "stabilize-video",
+   "score": 56,
+   "dims": {
+    "func": 10,
+    "usab": 10,
+    "val": 11,
+    "iact": 9,
+    "ui": 7,
+    "soul": 9,
+    "perf": 5,
+    "mob": 5
+   },
+   "head": [
+    "分类：视频工具｜模式：C（单列堆叠文件流，FfBase 基座）｜组件：`src/tools/video/components/FfmpegStabilize.vue`（62 行）＋ 基座 `FfBase.vue`（272 行）｜引擎：ffmpeg **deshake 单趟**滤波（rx=ry 运动估计，FfmpegStabilize.vue:14）+ 可选 6% 裁边（:15）+ libx264 veryfast crf22 全片重编码（:16-21）｜注册：`registry.ts:42`（needModel）｜家族共性参见 `compress-video.md`",
+    "对标标杆：剪映（防抖国民标杆，云+端——算法代差标注）＋ FFmpeg vidstab 两阶段（同源能力上限参照）"
+   ],
+   "conclusionBlock": [
+    "**交互优化** · P1（前后对比 + 强度档用户语言）",
+    "判据：56 分：deshake 路线对轻微抖动可用且 note 诚实，但作为\"效果类工具\"既无对比验证、又用算法参数代替用户心智，且选用同源较弱的单趟方案；desc 措辞需与能力边界对齐，WebM 边界失败按疑似边界缺陷登记。"
+   ],
+   "conclusion": "**交互优化** · P1（前后对比 + 强度档用户语言）",
+   "judge": "判据：56 分：deshake 路线对轻微抖动可用且 note 诚实，但作为\"效果类工具\"既无对比验证、又用算法参数代替用户心智，且选用同源较弱的单趟方案；desc 措辞需与能力边界对齐，WebM 边界失败按疑似边界缺陷登记。",
+   "deductions": [
+    "1. 【功能-个性】用 deshake 而非 vidstab：ffmpeg 同源的 vidstabdetect+vidstabtransform 两阶段方案质量明显更好（轨迹分析+平滑+缩放补偿），ffmpeg.wasm 可承载——现把全部能力压进 deshake 的 rx=ry 一个数字（:14）；升级 vidstab 须同步做\"分析+应用两遍、耗时约 2 倍\"的预期管理文案",
+    "2. 【交互-个性】无前后对比：结果直接下载（FfBase.vue:135-138），预览 video（:169）不能作处理前参照——\"原片 | 防抖后\"双 video 同步播放纯前端可做（blob 渲染+currentTime 同步）",
+    "3. 【功能】裁边比例硬编码 6%（crop=trunc(iw*0.94/2)*2，:15）——抖动大时 6% 不够（仍露边）、轻微抖动时白丢分辨率；剪映按强度自动适配裁切",
+    "4. 【功能】无强度档：单一\"检测范围（像素）\"（:30）是算法语言，\"轻微/明显/严重抖动\"三档预设才是用户心智，且档位应联动裁边建议",
+    "5. 【口径-个性】desc\"适合行走拍摄素材\"（registry.ts:42）与 note\"大幅跑动镜头效果有限\"（:37）张力明显——行走步态恰是平移+旋转复合运动，是 deshake 最弱场景，desc 超前承诺（对照 trim-video.md desc 判例）",
+    "6. 【可用性-边界疑似缺陷】WebM 源直接失败：强制 libx264（:18）而输出名跟随源扩展名（FfBase.vue:65 → .webm）——h264 进不了 webm 容器，报错走通用提示（FfBase.vue:142）",
+    "7. 【家族】执行按钮流内底部（FfBase.vue:199-206，M-14，共性-根因 4）；25MB 核心下载无进度（:184-187）；无 beforeunload；全片重编码无耗时预期"
+   ],
+   "prescriptions": [
+    "前后对比",
+    "强度档",
+    "裁边可调",
+    "WebM 改道",
+    "vidstab 升级评估",
+    "家族处方 1-2"
+   ],
+   "benchmarks": " - **剪映**：防抖一开即用、1~4 档强度、云算法对大幅晃动也能稳、自动适配裁切。差距：算法代差（云，架构天花板）；但\"强度档+裁边可调+前后对比\"纯前端可追。 - **FFmpeg vidstab（同源上限参照）**：detect→transform 两阶段，smoothing/zoom 可调。差距：本页未用；wasm 下两遍解码耗时翻倍，需\"约 2×\"文案预告。 - 借鉴优先级：**前后对比 > 强度档用户语言 > WebM 拦截 > vidstab 升级评估 > desc 措辞对齐**。 "
+  },
+  {
+   "file": "subtitle-converter",
+   "name": "字幕格式转换",
+   "slug": "subtitle-converter",
+   "score": 59,
+   "dims": {
+    "func": 11,
+    "usab": 8,
+    "val": 13,
+    "iact": 12,
+    "ui": 7,
+    "soul": 8,
+    "perf": 6,
+    "mob": 6
+   },
+   "head": [
+    "分类：视频工具｜模式：自建单列（输入 pane＋选项盒＋ResultBox 输出，非 FfBase/ffmpeg 路线）｜组件：`src/tools/video/components/SubtitleConverter.vue`（178 行）｜引擎：`src/lib/subtitles.ts`（parseSubs/serializeSubs/shift/rescale/split/merge）｜注册：`registry.ts:37`（**无 needModel，零下载秒开**）｜共性病灶：ResultBox 钉高（共性-根因 2）",
+    "对标标杆：Subtitle Edit（nikse.dk 在线版，字幕转换全能）＋ Aegisub（字幕专业天花板）"
+   ],
+   "conclusionBlock": [
+    "**交互优化 + 需拓展** · P1",
+    "判据：59 分；转换质量与自动执行是加分面，但\"字幕格式转换\"不认 ASS 等于缺席专业格式（Subtitle Edit 支持 200+ 字幕格式），且 180px 小窗处理长字幕违背可用性基线。"
+   ],
+   "conclusion": "**交互优化 + 需拓展** · P1",
+   "judge": "判据：59 分；转换质量与自动执行是加分面，但\"字幕格式转换\"不认 ASS 等于缺席专业格式（Subtitle Edit 支持 200+ 字幕格式），且 180px 小窗处理长字幕违背可用性基线。",
+   "deductions": [
+    "1. 【功能-个性】无 ASS：desc 主打\"SRT/WebVTT/SBV 互转\"（registry.ts:37）未撒谎，但站内唯一免下载的转换器缺 ASS 互转，Aegisub 调轴→烧录的专业链路断头；stripCueStyling 已会剥 {\\...} ASS 标签（subtitles.ts:133），说明引擎考虑过 ASS 却未实现解析/序列化",
+    "2. 【可用性】输出 ResultBox 钉死 180px（ResultBox.vue:69，调用方未传高），输入 textarea 全局 180px（base.css:164-168）——90 分钟电影字幕约 1500 条/100KB，同屏只见十几条",
+    "3. 【可用性-个性】解析失败静默：catch 后 cues=[]（:23-30），输出空白、下载灰掉，用户分不清格式坏了还是操作错了",
+    "4. 【功能-个性】平移钳制静默产生退化字幕：shiftCues 把 start 钳到 0、end 钳到 0.1（subtitles.ts:115-116）——整体前移超出片头的条目全挤在 0:00 附近互相重叠，无警告无剔除",
+    "5. 【功能-个性】拆分按字符硬切（subtitles.ts:171 plain.slice）会把英文单词切断；合并给中文行间插空格（subtitles.ts:144）——中文两条合并出\"你好 世界\"式空格",
+    "6. 【交互】无拖放：仅 label 包 input 的点击上传（:66-69），与站内文件工具 FileDrop 范式不一致",
+    "7. 【交互】帧率选项钉死五档（:112-129），无 60fps、无自定义输入；25↔23.976 这类真实修轴只能近似选档",
+    "8. 【功能】无逐条编辑：转换前想顺手改一条错字/时轴必须回 Aegisub，\"转换\"与\"校对\"割裂",
+    "9. 【灵魂】去样式默认勾选（doStrip=true :18）：SRT→SRT 原样往返也悄悄丢 <i> 斜体，默认值替用户做了主张且无提示"
+   ],
+   "prescriptions": [
+    "输出区弹性高度",
+    "解析报错+格式回显",
+    "ASS 互转",
+    "钳制警告",
+    "中文合并无空格"
+   ],
+   "benchmarks": " - **Subtitle Edit（在线版）**：200+ 格式互转、逐条列表编辑、错误检查（时间重叠/字幕过速）、字幕 OCR。差距：格式覆盖数量级差距；重叠/过速健康检查纯前端完全可做。 - **Aegisub**：音波对轴+全量 ASS 样式。差距：专业校对天花板，站内无需复刻但应打通 ASS 进出口。 - 借鉴优先级：**ASS 进出 > 解析失败报错 > 健康检查（重叠/速率）> 逐条编辑 > 拖放**。 "
+  },
+  {
+   "file": "trim-video",
+   "name": "裁剪视频",
+   "slug": "trim-video",
+   "score": 62,
+   "dims": {
+    "func": 12,
+    "usab": 11,
+    "val": 13,
+    "iact": 9,
+    "ui": 7,
+    "soul": 10,
+    "perf": 7,
+    "mob": 4
+   },
+   "head": [
+    "分类：视频工具｜模式：C（单列堆叠文件流，FfBase 基座）｜组件：`src/tools/video/components/FfmpegTrim.vue`（97 行）＋ 基座 `FfBase.vue`（272 行）｜引擎：`src/lib/ffmpeg.ts`（快速档 `-c copy` 流复制 / 精确档 libx264 重编码，FfmpegTrim.vue:25-40）｜注册：`registry.ts:7`（needModel）｜家族共性（按钮底部/进度带/25MB 提示/预览钉 340px）参见 `compress-video.md`",
+    "对标标杆：Clideo（云，Cut Video 拖杆选区间）＋ Clipchamp（云，**时间轴交互天花板**）"
+   ],
+   "conclusionBlock": [
+    "**交互优化** · P1（时间轴拖选区间是本工具的灵魂补全）",
+    "判据：62 分；功能与文案已是家族上游，但\"裁剪\"这一动作的行业标准交互是时间轴拖杆（Clipchamp/Clideo/剪映无一例外），手填秒数构成代差；desc 与实现不符（扣分 1）需一并修正。"
+   ],
+   "conclusion": "**交互优化** · P1（时间轴拖选区间是本工具的灵魂补全）",
+   "judge": "判据：62 分；功能与文案已是家族上游，但\"裁剪\"这一动作的行业标准交互是时间轴拖杆（Clipchamp/Clideo/剪映无一例外），手填秒数构成代差；desc 与实现不符（扣分 1）需一并修正。",
+   "deductions": [
+    "1. 【口径-个性】注册表 desc\"**双滑杆**选择起止时间\"（registry.ts:7）与实现不符——实际是两个数字输入框+设为当前按钮（FfmpegTrim.vue:48-55），全页无任何滑杆；desc 超前承诺与 merge-video 的\"自动归一\"同款口径问题，SEO 进来的用户带着错误预期",
+    "2. 【交互-个性】无时间轴拖选：起止区间不能在预览下方以滑杆/进度条形式拖拽设定（Clipchamp 天花板、Clideo、mp3cut.net 波形拖选均为标配），\"设为当前\"两步操作一次拖杆即可完成",
+    "3. 【灵魂-个性】无选区试播：设定起止后只能点执行等输出，无法先循环播放\"选中段\"确认切点是否准确（mp3cut.net 选段试播是核心卖点）；剪错一次=重编码一次白等",
+    "4. 【可用性】当前时间只读展示（:61），点击无法回填开始/结束框；精确模式 `-to` 用绝对时长（:34）而快速档用相对时长（:28），用户手填时无需感知差异（实现已兜住），但两处语义无 UI 说明",
+    "5. 【功能】快速档从关键帧切开且关键帧位置不可见——用户无法预判偏差方向，只能输出后验证；可在进度条上标注关键帧刻度（ezgif 无此能力，属纯前端可做的加分项）",
+    "6. 【功能】仅支持单段裁剪：想\"去掉中间 10 秒\"需裁两次再 merge-video 拼回，无多段保留列表（mp3cut.net 支持保留多段一键导出）",
+    "7. 【可用性-家族】执行按钮流内底部（FfBase.vue:199-206，M-14，共性-根因 4）",
+    "8. 【灵魂-家族】25MB 核心下载无进度、处理中无 beforeunload、结果直接下载无预览（compress-video.md 扣分 4/5/8）"
+   ],
+   "prescriptions": [
+    "desc 修正",
+    "双把手拖杆",
+    "选区试播",
+    "时长回显",
+    "当前时间可回填",
+    "家族处方 1-2"
+   ],
+   "benchmarks": " - **Clipchamp（云，天花板）**：多轨时间轴、拖拽手柄、帧级缩放、关键帧吸附。差距：交互代差，但\"单轨拖杆+区间高亮+试播\"纯前端完全可做（现成预览 video 已有 currentTime 事件源）。 - **Clideo**：拖杆双把手选区间+实时显示选中时长。差距：本页连\"选中时长 X 秒\"的回显都没有，用户要自己减法算。 - 借鉴优先级：**拖杆选区间 > 选区试播 > 选中时长回显 > 关键帧刻度 > 多段裁剪**。 "
+  },
+  {
+   "file": "video-color-grading",
+   "name": "视频调色",
+   "slug": "video-color-grading",
+   "score": 55,
+   "dims": {
+    "func": 10,
+    "usab": 9,
+    "val": 13,
+    "iact": 8,
+    "ui": 7,
+    "soul": 8,
+    "perf": 5,
+    "mob": 5
+   },
+   "head": [
+    "分类：视频工具｜模式：C（单列堆叠文件流，FfBase 基座）｜组件：`src/tools/video/components/FfmpegGrading.vue`（108 行）＋ 基座 `FfBase.vue`（272 行）｜引擎：`src/lib/ffmpeg.ts`（eq/colorbalance/hue 滤镜，FfmpegGrading.vue:18-42）｜注册：`registry.ts:41`（needModel）｜家族共性参见 `compress-video.md`",
+    "对标标杆：剪映（滤镜/调色国民标杆，云）＋ DaVinci Resolve（专业调色天花板，桌面——能力上限参照）"
+   ],
+   "conclusionBlock": [
+    "**交互优化 + 需拓展** · P1（LUT 口径兑现 + CSS 实时预览两大杠杆）",
+    "判据：55 分；注册页当门面卖\".cube LUT\"（registry.ts:41）而组件里没有半行 LUT 代码——按 blur-video.md 三方矛盾判例属口径失信；且\"调色\"工具不给调色预览等于让用户蒙眼调色。"
+   ],
+   "conclusion": "**交互优化 + 需拓展** · P1（LUT 口径兑现 + CSS 实时预览两大杠杆）",
+   "judge": "判据：55 分；注册页当门面卖\".cube LUT\"（registry.ts:41）而组件里没有半行 LUT 代码——按 blur-video.md 三方矛盾判例属口径失信；且\"调色\"工具不给调色预览等于让用户蒙眼调色。",
+   "deductions": [
+    "1. 【口径-个性】desc 承诺\"支持亮度对比度与 .cube LUT\"（registry.ts:41），FfmpegGrading.vue 全文无 LUT 文件入口、无 lut3d 滤镜——.cube 文本解析+写入 wasm FS 是纯前端完全可做，承诺与实现直接矛盾（blur-video.md 判例同款）",
+    "2. 【交互-个性】零调色预览：eq 的 brightness/contrast/saturation 与 CSS `filter: brightness()/contrast()/saturate()` 一一对应、mono 对应 grayscale()，预览 video（FfBase.vue:169）绑一个 style 即可实时看效果（暖/冷调 colorbalance 无精确 CSS 对应，可标注\"预览为近似\"）——现在只能\"编码→下载→播放\"盲迭代",
+    "3. 【交互】空调色守卫缺失：预设\"不调色\"+手动全默认时 vf() 返回空串（:39-41），点执行仍全片重编码一遍原样视频——白烧几分钟还白付一次二转画质损失",
+    "4. 【功能】预设无强度：cinema=contrast1.1:saturation0.9（:19）钉死一档，\"电影感淡一点/浓一点\"无处调——剪映每个滤镜都有强度滑杆；pickPreset 切换还会丢弃已调滑杆（:44-47）",
+    "5. 【功能】无色温滑杆：暖/冷只有固定 ±0.12 colorbalance（:20-21），手动四滑杆缺色温/色调——调色四件套（亮度/对比/饱和/色温）缺一件",
+    "6. 【功能】无前后对比：调色价值判断全在\"比原来好多少\"，无分屏/擦除对比（图片类 photo-filters 已有对比范式可移植）",
+    "7. 【可用性-家族】执行按钮流内底部（FfBase.vue:199-206，M-14，共性-根因 4）；结果直接下载无预览（FfBase.vue:135-138）；25MB 无进度、无 beforeunload（compress-video.md 扣分 4/5）"
+   ],
+   "prescriptions": [
+    "CSS 实时预览",
+    "LUT 兑现或除名",
+    "空调色守卫",
+    "预设强度",
+    "色温滑杆",
+    "家族处方 1-2"
+   ],
+   "benchmarks": " - **剪映**：滤镜几十款分类陈列、每款强度滑杆、实时预览、HSL/曲线/色温参数面板。差距：**实时预览与强度滑杆纯前端可追**；滤镜数量是内容运营差距。 - **DaVinci Resolve**（桌面）：节点式调色/示波器/LUT 管理天花板。差距：架构天花板，站内对齐目标应是\"LUT 导入+参数实时预览+直方图简化版\"。 - 借鉴优先级：**CSS 实时预览 > LUT 兑现 > 预设强度 > 空调色守卫 > 前后对比**。 "
+  },
+  {
+   "file": "video-editor",
+   "name": "视频编辑器",
+   "slug": "video-editor",
+   "score": 52,
+   "dims": {
+    "func": 10,
+    "usab": 11,
+    "val": 7,
+    "iact": 9,
+    "ui": 7,
+    "soul": 8,
+    "perf": 5,
+    "mob": 5
+   },
+   "head": [
+    "分类：视频工具｜模式：E（两栏工作台 320px/1fr，播放器 max-height 52vh——VideoStudio.vue:344-349、:402-407）｜组件：`src/tools/editors/components/VideoStudio.vue`（460 行）｜**注册重复**：`src/tools/video/registry.ts:15`（本 slug，studio:true）与 `src/tools/editors/registry.ts:6`（video-studio）指向**同一组件**｜引擎：ffmpeg 逐段处理（裁剪/静音/音量）+ concat 流复制导出（VideoStudio.vue:125-188）｜家族共性参见 `compress-video.md`；双注册判例 `photo-editor.md`",
+    "对标标杆：CapCut Web/剪映（时间线剪辑国民标杆，云）＋ Clipchamp（视频工作台）",
+    "**评估口径**：沿用 photo-editor.md——本 slug 能力与 video-studio 完全一致（同组件），聚焦\"视频分类为何存在第二入口\"+组件个性缺陷（编辑器工作室分类尚未产出 video-studio.md，组件级证据在本档案留底，产出后其结论应与本档案互认）"
+   ],
+   "conclusionBlock": [
+    "**交互优化 + 阉割（本入口并入 video-studio）** · P0（疑似功能缺陷：混合素材导出损坏风险，须定性整改）",
+    "判据：52 分；按 photo-editor.md 判例双注册入口的答案是 301 合并而非双头维护；合并后按本档案组件级处方整改工作台本体（修一处两入口同受益）。输出正确性疑缺陷（扣 3）+desc 变速失信（扣 2）按 split-video/remove-silence 的 P0 同级处理。"
+   ],
+   "conclusion": "**交互优化 + 阉割（本入口并入 video-studio）** · P0（疑似功能缺陷：混合素材导出损坏风险，须定性整改）",
+   "judge": "判据：52 分；按 photo-editor.md 判例双注册入口的答案是 301 合并而非双头维护；合并后按本档案组件级处方整改工作台本体（修一处两入口同受益）。输出正确性疑缺陷（扣 3）+desc 变速失信（扣 2）按 split-video/remove-silence 的 P0 同级处理。",
+   "deductions": [
+    "1. 【实用价值-硬伤】100% 重复登记：video/registry.ts:15 与 editors/registry.ts:6 同指 VideoStudio.vue 且都 studio:true——/t/video-editor 与 /t/video-studio 同内容双 URL：SEO 重复稀释权重、站内搜索/分类页出两张同卡、转化统计永久分裂（photo-editor.md 扣 1 判例同款）",
+    "2. 【口径-个性】desc 承诺\"变速\"无实现：两处 desc 均列\"多段拼接、裁剪、**变速**、静音与导出\"，VideoStudio.vue 全文无任何 setpts/speed 代码——用户带着变速预期进来空手而归（blur-video/grading 判例同款，双入口使失信面翻倍）",
+    "3. 【实用价值-疑似功能缺陷】混合素材导出损坏风险：普通段 `-c copy`（:157）保留原编码、段文件统一命名 seg_N.mp4（:143）——WebM 源即 VP8/VP9+Opus 复制进 MP4 容器（部分环境产物不可播）；多段编码/分辨率不一致时 concat -c copy（:166-170）违反 concat demuxer 同参要求，产出损坏文件或失败——站内 merge-video 明确\"不一致自动归一\"（registry.ts:9），本工作台无归一步骤",
+    "4. 【可用性】导出无百分比进度：逐段+拼接的长流程只有状态文字（:140,165），FfBase 家族的百分比进度条（FfBase.vue:189-197，M-14 实测全站最完善）未复用——N 段大素材对\"还要多久\"零感知",
+    "5. 【交互】裁剪纯数字输入（:231-257）：连 trim-video 的\"设为当前时间\"都没有——播放器与时间线就在旁边却不能拖块调剪点，\"工作台\"交互名不副实",
+    "6. 【灵魂-硬伤边缘】无撤销/重做：remove（:84-93）直接 splice+revokeObjectURL 不可恢复，误删素材全部重来——剪辑场景的操作安全底线（photo-studio 同病，那里好歹有 resetAll）",
+    "7. 【交互】排序靠箭头（:95-102）：两段换序要点多次箭头，对标产品全部拖拽重排",
+    "8. 【可用性】导出流程无 beforeunload 警告；25MB 核心下载只有状态文字（:131）无进度",
+    "9. 【SEO/品牌】双入口 keywords/steps 分裂维护：\"editor\" vs \"工作室\"（registry.ts:15 vs editors:6）各自圈流量、落地同页，归因失真（photo-editor.md 扣 8 判例同款）"
+   ],
+   "prescriptions": [
+    "入口合一",
+    "归一导出整改",
+    "WebM 段修复",
+    "变速兑现或除名",
+    "导出进度百分比",
+    "拖拽+撤销"
+   ],
+   "benchmarks": " - **CapCut Web/剪映**：拖拽时间线、分割/变速/转场/文字、实时预览成片、草稿自动保存。差距：整体交互代差（云+端）；但\"拖拽重排+拖杆剪点+撤销栈+归一导出\"纯前端完全可做。 - **Clipchamp**：多轨时间轴+项目持久化。差距：localStorage 草稿持久化纯前端可做，属中期项。 - **photo-editor.md 判例**：同组件双注册的存在意义答案是否定的——301 合并，组件级体验处方随唯一入口一并生效。 - 借鉴优先级：**双入口合一（301）> 归一导出整改 > 变速兑现或 desc 除名 > 导出百分比进度 > 拖拽+撤销**。 "
+  },
+  {
+   "file": "video-thumbnail",
+   "name": "视频截帧",
+   "slug": "video-thumbnail",
+   "score": 61,
+   "dims": {
+    "func": 10,
+    "usab": 12,
+    "val": 13,
+    "iact": 9,
+    "ui": 7,
+    "soul": 10,
+    "perf": 5,
+    "mob": 5
+   },
+   "head": [
+    "分类：视频工具｜模式：C（单列堆叠文件流，自研非 FfBase）｜组件：`src/tools/video/components/VideoThumbnail.vue`（248 行）｜引擎：`src/lib/videoEngine.ts`（loadVideo/seekTo/captureFrame/exportFrames 纯浏览器解码）｜注册：`registry.ts:12`（**无 needModel，免 25MB**）｜家族共性（按钮底部/340px 预览）参见 `compress-video.md`",
+    "对标标杆：ezgif（视频转帧/封面截取流量王）＋ Clideo（云轻量，**架构天花板**）"
+   ],
+   "conclusionBlock": [
+    "**交互优化** · P1（多帧候选条 + 解耦预览/下载）",
+    "判据：61 分；单帧闭环（预览+设为当前）已达家族上游，但\"选封面\"的人类流程是\"看几个候选挑最好\"，本页把试错成本全压给用户反复播放拖动；且每次截取强制落盘下载，选优过程刷屏下载记录。"
+   ],
+   "conclusion": "**交互优化** · P1（多帧候选条 + 解耦预览/下载）",
+   "judge": "判据：61 分；单帧闭环（预览+设为当前）已达家族上游，但\"选封面\"的人类流程是\"看几个候选挑最好\"，本页把试错成本全压给用户反复播放拖动；且每次截取强制落盘下载，选优过程刷屏下载记录。",
+   "deductions": [
+    "1. 【功能-个性】无多帧候选条：ezgif/Clideo 类工具会给均布候选帧（如每 10% 时长一张）供一键挑选，本页只有单一时间点输入（VideoThumbnail.vue:128）——找最佳封面=反复\"播放拖动→设为当前→截取\"循环，试错成本高",
+    "2. 【交互-个性】截取即下载耦合：每按一次\"截取当前帧\"直接 saveBlob（:56），预览（:146-148）与下载无解耦——没有\"只预览，满意才保存\"的阶段，选优时浏览器下载列表被同名词文件刷屏",
+    "3. 【交互-个性】无精细步进：时刻选择靠原生 controls 拖动（粒度粗）+ 数字输入 0.1s 步进（:128），无 ←/→ 逐帧快捷键、无拖动滑杆——想精确命中眨眼瞬间/球的触点基本靠运气",
+    "4. 【功能】批量模式无预览：直接 exportFrames→zip（:66-95），间隔默认 5s（:17）合不合适只有解压后才知道；单帧的预览待遇（:54）批量用户享受不到",
+    "5. 【功能】无输出尺寸/比例控制：封面常需 16:9 裁切或指定宽度，captureFrame 仅支持 scale（videoEngine.ts:35-43）且 UI 未暴露，导出恒为源分辨率",
+    "6. 【可用性-家族】执行按钮流内底部（:158-169，共性-根因 4 结构）",
+    "7. 【灵魂】单帧\"已截取并下载\"toast（:57）无帧号/时刻回显，连续截多张后分不清哪张是哪个时刻（下载文件同名靠浏览器加序号）",
+    "8. 【可用性-边界】loadVideo 门禁对源生效（AVI/WMV/FLV 挡门，videoEngine.ts:27-30）；输出侧（JPG/PNG）无此问题"
+   ],
+   "prescriptions": [
+    "候选帧条",
+    "预览/下载解耦",
+    "逐帧步进",
+    "快捷帧",
+    "家族处方 1"
+   ],
+   "benchmarks": " - **ezgif**：视频转帧支持时间范围、每 N 秒、全部帧，输出在线画廊逐张保存；截封面场景常配合\"首帧/中间帧/末帧\"快捷点。差距：**候选机制**（画廊/快捷帧）与**保存解耦**是标配，本页缺位。 - **Clideo**（云）：封面截取带帧级滑杆微调与预设比例裁切。差距：架构天花板；帧步进与比例裁切纯前端可追（seekTo 已支持任意时刻，只差 UI）。 - 借鉴优先级：**候选帧条 > 预览/下载解耦 > 逐帧步进 > 比例裁切**。 "
+  },
+  {
+   "file": "video-to-gif",
+   "name": "视频转 GIF",
+   "slug": "video-to-gif",
+   "score": 63,
+   "dims": {
+    "func": 12,
+    "usab": 11,
+    "val": 14,
+    "iact": 10,
+    "ui": 7,
+    "soul": 9,
+    "perf": 5,
+    "mob": 5
+   },
+   "head": [
+    "分类：视频工具｜模式：C（单列堆叠文件流，FfBase 基座）｜组件：`src/tools/video/components/FfmpegToGif.vue`（78 行）＋ 基座 `FfBase.vue`（272 行）｜引擎：`src/lib/ffmpeg.ts`（fps+scale lanczos+split 单命令 palettegen/paletteuse 两阶段调色板，FfmpegToGif.vue:24）｜注册：`registry.ts:10`（needModel）｜家族共性（按钮底部/进度带/25MB 提示）参见 `compress-video.md`",
+    "对标标杆：ezgif（video-to-gif 流量王，功能全 UI 旧）＋ Clideo（云，GIF Maker——架构天花板标注）"
+   ],
+   "conclusionBlock": [
+    "**交互优化** · P1（结果报告 + 可视化选段两大杠杆）",
+    "判据：63 分为家族最高档（与 trim-video 并列）：palettegen 质量关键已做对、desc 口径诚实（\"从视频采样调色板\"属实）；短板集中在\"盲选段 + 无结果反馈\"，无正确性缺陷，是家族中离 ezgif 最近、也最该追平的一个。"
+   ],
+   "conclusion": "**交互优化** · P1（结果报告 + 可视化选段两大杠杆）",
+   "judge": "判据：63 分为家族最高档（与 trim-video 并列）：palettegen 质量关键已做对、desc 口径诚实（\"从视频采样调色板\"属实）；短板集中在\"盲选段 + 无结果反馈\"，无正确性缺陷，是家族中离 ezgif 最近、也最该追平的一个。",
+   "deductions": [
+    "1. 【交互-个性】无可视化选段：开始/时长是两个数字框（FfmpegToGif.vue:37,41），做表情包的典型操作\"看着画面掐时间\"只能拖播放器读秒后手抄——trim-video（registry.ts:7）已解决过选段问题，本页作为同家族明星工具反而退回数字时代",
+    "2. 【灵魂-个性】体积对比缺失：GIF 工具的灵魂反馈是「源 MP4 X MB → GIF Y MB（省 Z%）」，现 meta-bar 只显示源大小（FfBase.vue:173）、生成后仅 toast\"已开始下载\"（FfBase.vue:138）——ezgif 结果页直接列出输出尺寸/体积/帧数",
+    "3. 【可用性】生成完直接下载（FfBase.vue:135-138），无 GIF 预览与\"不满意调参重来\"回路；img 标签渲染 blob 即可预览，白白放弃",
+    "4. 【功能-边界】30 秒硬上限（:41 max=30，watch :16 同步钳制）且无原因说明——ezgif 支持整段转换（长 GIF 应由体积警告兜底而非静默上限）；fps 8~15 封顶（:47）挡住游戏/运动类高流畅需求",
+    "5. 【功能-边界】start 超出视频时长无校验：d = Math.min(Math.max(0.2, dur), duration - start)（:23）可为负值直接传 `-t`，ffmpeg 报错走通用 toast（FfBase.vue:142），用户不知是\"开始时间填大了\"",
+    "6. 【功能】无 dither/调色板选项：paletteuse 默认 dither 在渐变画面易色带，ezgif 提供 dither 开关与算法选择——palettegen 管线已就位，加参数即可",
+    "7. 【家族】执行按钮流内底部（FfBase.vue:199-206，M-14，共性-根因 4）；25MB 核心下载无进度（FfBase.vue:184-187）；无 beforeunload"
+   ],
+   "prescriptions": [
+    "结果报告+预览",
+    "可视化选段",
+    "前置校验",
+    "dither 选项",
+    "家族处方 1-2"
+   ],
+   "benchmarks": " - **ezgif**：除本页 4 参数外还有 crop、变速、倒放回弹、dither/调色板控制、逐帧编辑、结果页体积/帧数报告。差距：\"功能追平 ezgif + UI 好于它\"是站内合理愿景——调色板质量已追平（同 palettegen 法），差距在参数面与结果反馈，而 UI 赢面明显。 - **Clideo（云，天花板）**：拖滑杆选段+即时预览。差距：选段可视化纯前端可做（预览 video currentTime 事件源现成）。 - 借鉴优先级：**生成后体积/尺寸报告+GIF 预览 > 可视化选段 > dither 选项 > start 前置校验 > 放宽上限**。 "
+  },
+  {
+   "file": "video-to-images",
+   "name": "视频导出图片",
+   "slug": "video-to-images",
+   "score": 62,
+   "dims": {
+    "func": 11,
+    "usab": 12,
+    "val": 13,
+    "iact": 10,
+    "ui": 7,
+    "soul": 9,
+    "perf": 4,
+    "mob": 4
+   },
+   "head": [
+    "分类：视频工具｜模式：C（单列堆叠文件流，自研非 FfBase）｜组件：`src/tools/video/components/VideoToImages.vue`（185 行）｜引擎：`src/lib/videoEngine.ts`（loadVideo/seekTo/exportFrames 纯浏览器解码）+ `imageEngine.ts` canvasToBlob｜注册：`registry.ts:32`（**无 needModel，免 25MB**）｜家族共性（按钮底部/进度带样式）参见 `compress-video.md`",
+    "对标标杆：ezgif（video-to-frame 抽帧流量王）＋ Clideo（云轻量，**架构天花板**）"
+   ],
+   "conclusionBlock": [
+    "**交互优化** · P1（预估口径修正 + 时间段导出 + 结果预览廊）",
+    "判据：62 分；无下载负担、进度与上限设计都是家族上游水平，但\"预估 1800 帧实交 600 帧\"的口径 bug 触碰诚实红线，时间段导出是引擎已备好只差 UI 的低成本高收益项。"
+   ],
+   "conclusion": "**交互优化** · P1（预估口径修正 + 时间段导出 + 结果预览廊）",
+   "judge": "判据：62 分；无下载负担、进度与上限设计都是家族上游水平，但\"预估 1800 帧实交 600 帧\"的口径 bug 触碰诚实红线，时间段导出是引擎已备好只差 UI 的低成本高收益项。",
+   "deductions": [
+    "1. 【功能-疑似口径缺陷】\"尽量全部帧\"名不副实且预估自相矛盾：预估行按固定 30fps 计算（VideoToImages.vue:25），实际 effFps=min(30, 600/时长)（:46）——超 20 秒视频显示\"预计 1800 帧\"却只导出 600 帧（10fps），预估与交付不符且无任何披露；:48-51 的超限警告在 all 模式下因公式恒 ≤600 而永不可达",
+    "2. 【功能-个性】引擎能力未被 UI 用满：exportFrames 本支持 start/end/scale（videoEngine.ts:62-64），UI 无时间段（起点/终点）导出、无输出缩放——做素材的用户被迫全片导出再手工筛删",
+    "3. 【可用性-个性】结果无预览廊：600 帧直接 saveMany 打 zip（:64），连 contact sheet 九宫格都没有——ezgif 抽帧后在线浏览逐张挑选保存，本页用户只能解压后翻文件夹",
+    "4. 【可用性-家族】执行按钮流内底部（:119-125，非 FfBase 但同共性-根因 4 结构），叠加选项盒后小屏需滚动",
+    "5. 【功能】无 JPG 质量选项：0.92 写死（:60），序列帧转素材/数据集的用户可能要 100% 或更低体积档",
+    "6. 【美观】结果区缺位使页面结构失衡：进度条之上无任何输出形态预告（几张图、多大、什么命名规则只有导出后才知道）",
+    "7. 【可用性-边界】loadVideo 门禁对源生效（AVI/WMV/FLV 挡门，videoEngine.ts:27-30 → 面板不渲染 ：83）；输出侧（canvas→zip）无此问题——门禁面比 ffmpeg 家族窄但同构存在"
+   ],
+   "prescriptions": [
+    "预估口径修正",
+    "时间段导出",
+    "预览廊",
+    "质量档",
+    "家族处方 1"
+   ],
+   "benchmarks": " - **ezgif**：video-to-frame 支持\"全部帧/每秒 N 帧/时间范围\"，输出在线九宫格可逐张另存，另有\"仅关键帧\"模式。差距：**时间范围与结果浏览**是抽帧工具的标配，本页两个都缺。 - **Clideo**（云）：帧序列导出带预设 fps 档与在线画廊。差距：架构天花板（云端渲染）；时间段与画廊纯前端可追。 - 借鉴优先级：**时间段导出 > 预览廊（先预览后打包）> 预估口径修正 > 质量档**。 "
+  },
+  {
+   "file": "video-to-mp3",
+   "name": "视频提取音频",
+   "slug": "video-to-mp3",
+   "score": 60,
+   "dims": {
+    "func": 11,
+    "usab": 11,
+    "val": 13,
+    "iact": 9,
+    "ui": 7,
+    "soul": 9,
+    "perf": 5,
+    "mob": 4
+   },
+   "head": [
+    "分类：视频工具｜模式：C（单列堆叠文件流，FfBase 基座）｜组件：`src/tools/video/components/FfmpegExtractAudio.vue`（63 行）＋ 基座 `FfBase.vue`（272 行）｜引擎：`src/lib/ffmpeg.ts`（`-vn` 后重编码 libmp3lame，FfmpegExtractAudio.vue:20）｜注册：`registry.ts:8`（needModel，**未走 audioEngine 快路径**）｜家族共性（按钮底部/进度带/25MB 提示/无耗时预期）参见 `compress-video.md`",
+    "对标标杆：mp3cut.net / 123apps（在线音频提取流量王）＋ CloudConvert（云，**架构天花板**）"
+   ],
+   "conclusionBlock": [
+    "**交互优化** · P1（快路径改造 + 试听闭环两大杠杆）",
+    "判据：60 分；功能达标，但站内音频分类已有免 25MB 的 encodeWav/encodeMp3 快路径（`src/tools/audio/registry.ts:11-12` wav-to-mp3/mp3-to-wav 无 needModel、`AudioConvert.vue:13`），同类任务\"一个要下 25MB 一个不用\"的全站不一致是第一杠杆。"
+   ],
+   "conclusion": "**交互优化** · P1（快路径改造 + 试听闭环两大杠杆）",
+   "judge": "判据：60 分；功能达标，但站内音频分类已有免 25MB 的 encodeWav/encodeMp3 快路径（`src/tools/audio/registry.ts:11-12` wav-to-mp3/mp3-to-wav 无 needModel、`AudioConvert.vue:13`），同类任务\"一个要下 25MB 一个不用\"的全站不一致是第一杠杆。",
+   "deductions": [
+    "1. 【功能-个性】未走 audioEngine 快路径：MP4/MOV（H.264+AAC）浏览器本可直接 decodeAudioData（`videoEngine.ts:154-182` extractAudioBuffer 已具备此能力），却强制 needModel 下 25MB 核心（registry.ts:8、FfBase.vue:184-187）——5 秒短视频提音频也要等 25MB",
+    "2. 【可用性-个性】输出无试听：onDone 直接 saveBlob 自动下载（FfBase.vue:135-138），blob URL 本可渲染 `<audio>` 先听后存；声道/码率对不对只能下载后自己发现",
+    "3. 【可用性-家族】执行按钮流内底部（FfBase.vue:199-206，M-14，共性-根因 4）",
+    "4. 【功能】无码率/采样率选项：`-q:a 3` 写死（FfmpegExtractAudio.vue:20），要 320kbps 音乐档或 64kbps 语音档的用户无处可调（mp3cut.net 全可调）",
+    "5. 【功能】无片段提取：desc 场景是讲座访谈（动辄 1-2 小时），只想转其中 10 分钟必须先绕道 trim-video；页内无联动引导",
+    "6. 【灵魂-个性】340px 视频预览（FfBase.vue:215-221）对音频任务无信息增量，反而把选项与按钮推出首屏；元信息条（:170-174）有宽×高却无源音轨信息（编码/声道/码率）",
+    "7. 【灵魂-家族】无耗时预期、25MB 无下载进度、处理中无 beforeunload（同 compress-video.md 扣分 2/4/5）",
+    "8. 【交互】与 convert-audio 的边界无叙事：三格式下拉（:31-36）已与音频分类重叠，完成页无\"还想剪辑？去音频裁剪\"的场景化互链（相关工具卡片兜底但非流程叙事）"
+   ],
+   "prescriptions": [
+    "快路径",
+    "试听闭环",
+    "预览降权",
+    "码率选项",
+    "家族处方 1-2"
+   ],
+   "benchmarks": " - **mp3cut.net / 123apps**：波形可视化选段、淡入淡出、ID3 标签、试听后下载。差距：**选段与试听**是提取类工具的体验标配，本工具是\"全轨提取→盲下\"。 - **CloudConvert**（云）：视频→音频矩阵 + 码率参数齐全。差距：架构天花板；但快路径与参数面纯前端可追。 - 借鉴优先级：**快路径免 25MB > 试听预览 > 片段提取 > 码率选项**。 "
+  },
+  {
+   "file": "video-watermark",
+   "name": "视频加水印",
+   "slug": "video-watermark",
+   "score": 59,
+   "dims": {
+    "func": 12,
+    "usab": 9,
+    "val": 13,
+    "iact": 9,
+    "ui": 7,
+    "soul": 9,
+    "perf": 5,
+    "mob": 5
+   },
+   "head": [
+    "分类：视频工具｜模式：C（单列堆叠文件流，FfBase 基座）｜组件：`src/tools/video/components/FfmpegWatermark.vue`（114 行）＋ 基座 `FfBase.vue`（272 行）｜引擎：`src/lib/ffmpeg.ts`（overlay+colorchannelmixer+scale filter_complex，FfmpegWatermark.vue:43）｜注册：`registry.ts:35`（needModel）｜家族共性参见 `compress-video.md`；站内对照 `图片工具/add-watermark.md`（文字版\"斜排钉死-30°\"教训）",
+    "对标标杆：Clideo（云，水印拖拽定位）＋ imgonline（平铺防盗标杆，见 add-watermark.md 对标）"
+   ],
+   "conclusionBlock": [
+    "**交互优化 + 需拓展** · P1（位置示意预览 + 平铺两大杠杆）",
+    "判据：59 分；desc 与实现一致、无口径矛盾，是本批最\"表里如一\"的一页；但\"水印\"的核心体验是**一眼看到落在哪**——现在只有全片重编码一条验证路径，防盗用的平铺是功能代差。"
+   ],
+   "conclusion": "**交互优化 + 需拓展** · P1（位置示意预览 + 平铺两大杠杆）",
+   "judge": "判据：59 分；desc 与实现一致、无口径矛盾，是本批最\"表里如一\"的一页；但\"水印\"的核心体验是**一眼看到落在哪**——现在只有全片重编码一条验证路径，防盗用的平铺是功能代差。",
+   "deductions": [
+    "1. 【交互-个性】位置盲区：九宫位+边距的合成效果在预览（FfBase.vue:169）上无任何示意——对照图片版 add-watermark 的 100ms 实时所见即所得，视频版是\"盲开盲落\"；至少应有截帧叠水印的静态示意",
+    "2. 【功能-个性】无平铺：防盗水印主流形态是整版重复（imgonline 标杆、add-watermark.md 扣分 1 同源教训），单枚 overlay 只防君子；filter_complex 级联 tile 即可补",
+    "3. 【功能】无时段水印：\"只给前 5 秒打 logo\"需全片恒显替代（Clideo 支持时段）——enable='between(t,…)' 一行参数，blur-video.vue:33 已有同款工程实践可抄",
+    "4. 【功能】无文字水印：视频版只吃图片（:60-72），与图片版（只支持文字）恰好互补不相通，两版控件命名还不一致（图片版九宫格方块 vs 本页 select 下拉）",
+    "5. 【交互-个性】缩放基准反直觉：`scale=iw*X:-1`（:43）按水印图原始宽度缩放，1000px 宽 logo 缩 10% 仍占 100px——以\"视频宽度百分比\"为基准才能跨素材稳定",
+    "6. 【可用性-个性】越界无警告：logo 大于画面或边距把它推出画面时 overlay 静默裁掉，保护范围缩水用户不知情",
+    "7. 【性能】音频无谓转码 aac 128k（:49）：水印不动音轨，`-c:a copy` 省时保质（FfmpegGrading.vue:57 已是正确示范）",
+    "8. 【可用性-家族】执行按钮流内底部（FfBase.vue:199-206，M-14，共性-根因 4）；完成直接下载无预览（FfBase.vue:135-138）；25MB 无进度、无 beforeunload（compress-video.md 扣分 4/5）"
+   ],
+   "prescriptions": [
+    "示意预览",
+    "平铺模式",
+    "时段水印",
+    "缩放基准",
+    "音频直拷",
+    "家族处方 1-2"
+   ],
+   "benchmarks": " - **Clideo（云）**：水印在预览上拖拽定位、缩放手柄直调、文字+图片双模式、完成后在线预览。差距：截帧拖拽定位纯前端可做，交互代差明显。 - **imgonline**：平铺密度/间距全可调的整版水印。差距：防盗形态缺失（add-watermark.md 已登记同款）。 - 借鉴优先级：**截帧叠水印预览 > 平铺 > 时段水印 > 缩放基准改视频宽 > 音频直拷**。 "
+  },
+  {
+   "file": "webm-to-mp4",
+   "name": "WebM 转 MP4",
+   "slug": "webm-to-mp4",
+   "score": 60,
+   "dims": {
+    "func": 11,
+    "usab": 11,
+    "val": 13,
+    "iact": 9,
+    "ui": 7,
+    "soul": 9,
+    "perf": 5,
+    "mob": 4
+   },
+   "head": [
+    "分类：视频工具｜模式：C（单列堆叠文件流，FfBase 基座）｜组件：`src/tools/video/components/FfmpegConvert.vue`（93 行）＋ 基座 `FfBase.vue`（272 行）｜引擎：`src/lib/ffmpeg.ts`；本 slug 目标预置 mp4、流复制默认关（FfmpegConvert.vue:14-21，正确默认）｜注册：`src/tools/video/registry.ts:19`｜家族共性（进度带/按钮底部/25MB 提示/无耗时预期）参见 `compress-video.md`",
+    "对标标杆：CloudConvert（云，**架构天花板**）＋ ezgif video converter（轻量在线场景）"
+   ],
+   "conclusionBlock": [
+    "**交互优化** · P1（耗时预警个性版＋快速档）",
+    "判据：60 分家族基线；源加载无障碍、默认值全部正确，扣分集中在\"下载站 1080p VP9 源是本页主力却是最慢组合\"的预期管理缺位。"
+   ],
+   "conclusion": "**交互优化** · P1（耗时预警个性版＋快速档）",
+   "judge": "判据：60 分家族基线；源加载无障碍、默认值全部正确，扣分集中在\"下载站 1080p VP9 源是本页主力却是最慢组合\"的预期管理缺位。",
+   "deductions": [
+    "1. 【交互】双重成本零预警：WebM 主力源是 VP9（wasm 软解比 H.264 慢 2~3 倍），再叠 x264 编码——家族\"无耗时预期\"缺口（compress-video.md 扣分 2）在本页被双重新增成本放大，页内无个性提示",
+    "2. 【灵魂】主力场景无引导：下载站源常为 1080p+VP9（正是最慢组合），无\"建议先降 720p 提速\"的分档建议（FfmpegConvert.vue:24-30 仅格式下拉，无分辨率档）",
+    "3. 【灵魂-口径】Alpha 通道静默丢失：WebM(VP9) 透明视频转 H.264 后 alpha 变黑底/白底，无提示无选项——站长转嵌场景会撞且难以自诊",
+    "4. 【可用性-家族】执行按钮流内底部（FfBase.vue:199-206，M-14，共性-根因 4；同 compress-video.md 扣分 1）",
+    "5. 【灵魂-家族】无耗时预期总文案、25MB 下载无进度、无 beforeunload 警告（同 compress-video.md 扣分 2/4/5）",
+    "6. 【美观】预览钉 340px（FfBase.vue:215-221，共性-根因 2）",
+    "7. 【功能】批量缺失：下载站用户常一次拿到多集 WebM，本页单文件流（FfBase.vue:38 multiple 默认 false）要逐个重走全流程，ezgif/CloudConvert 均支持批量",
+    "8. 【功能】AV1-WebM 能力边界未声明：新下载站常见 AV1 编码 WebM，wasm 构建能否解码页内未说明，失败无从归因"
+   ],
+   "prescriptions": [
+    "个性耗时预警",
+    "720p 快速档",
+    "Alpha 提示",
+    "家族处方 1-2",
+    "批量队列"
+   ],
+   "benchmarks": " - **ezgif video converter**：WebM→MP4 免注册即转，可选输出尺寸与无声档，页面明示\"大文件转换较慢\"。差距：**至少有速度预期**；且云侧解码不受浏览器软解限制（**架构天花板**）。 - **CloudConvert**（云）：批量＋参数矩阵。差距：批量与参数面。 - 借鉴优先级：**VP9 耗时预警 > 720p 快速档 > Alpha 检测提示 > 批量**。 "
+  },
+  {
+   "file": "wmv-to-mp4",
+   "name": "WMV 转 MP4",
+   "slug": "wmv-to-mp4",
+   "score": 57,
+   "dims": {
+    "func": 11,
+    "usab": 8,
+    "val": 13,
+    "iact": 9,
+    "ui": 7,
+    "soul": 9,
+    "perf": 4,
+    "mob": 4
+   },
+   "head": [
+    "分类：视频工具｜模式：C（单列堆叠文件流，FfBase 基座）｜组件：`src/tools/video/components/FfmpegConvert.vue`（93 行）＋ 基座 `FfBase.vue`（272 行）｜引擎：`src/lib/ffmpeg.ts`；本 slug 目标预置 mp4、流复制默认关（FfmpegConvert.vue:14-21，正确默认）｜注册：`src/tools/video/registry.ts:20`｜家族共性（进度带/按钮底部/25MB 提示/无耗时预期）参见 `compress-video.md`",
+    "对标标杆：CloudConvert（云，**架构天花板**）＋ HandBrake（本地桌面，VC-1/WMV3 解码参照）"
+   ],
+   "conclusionBlock": [
+    "**交互优化** · P0（疑似功能缺陷\"挡门\"实测定性后整改优先）",
+    "判据：57 分家族基线下沿；WMV 是浏览器支持矩阵里最彻底的\"零支持\"容器，若实测确认 loadVideo 挡门（FfBase.vue:167），本页核心场景整体不可用，属 P0 功能缺陷——实测定性是本页第一优先级。"
+   ],
+   "conclusion": "**交互优化** · P0（疑似功能缺陷\"挡门\"实测定性后整改优先）",
+   "judge": "判据：57 分家族基线下沿；WMV 是浏览器支持矩阵里最彻底的\"零支持\"容器，若实测确认 loadVideo 挡门（FfBase.vue:167），本页核心场景整体不可用，属 P0 功能缺陷——实测定性是本页第一优先级。",
+   "deductions": [
+    "1. 【可用性-疑似功能缺陷-硬伤】挡门风险全家族最高：主流浏览器（Chrome/Firefox/Safari/Edge）均不支持 ASF/WMV 容器（MDN 媒体支持矩阵），loadVideo 几乎必然 onerror（`videoEngine.ts:27-30`）→ 选项/按钮面板不渲染（FfBase.vue:167）——desc 承诺\"摆脱系统限制\"（registry.ts:20），而挡门的正是浏览器这道新系统限制；需实测定性",
+    "2. 【功能】变体能力边界零声明：wmv1/wmv2/wmv3（VC-1）/MSS2（屏幕录制）哪些能转哪些必失败，页内只字未提；失败 toast（FfBase.vue:142）不引导\"可能是编码变体不支持\"——用户无从判断是文件坏了还是工具不行",
+    "3. 【交互】挡门错误文案错位：\"可尝试 ffmpeg 转码类工具\"（`videoEngine.ts:29`）在 ffmpeg 转码工具内自相矛盾",
+    "4. 【性能/灵魂】长课件组合零预期管理：WMV 老课件常 30~60 分钟，VC-1 软解＋x264 编码可能数小时；无\"建议分段处理\"指引（split-video 同站可用但零互链）",
+    "5. 【可用性-家族】执行按钮流内底部（FfBase.vue:199-206，M-14，共性-根因 4；同 compress-video.md 扣分 1）",
+    "6. 【灵魂-家族】25MB 核心下载无进度、无 beforeunload 警告（同 compress-video.md 扣分 4/5）",
+    "7. 【美观】预览钉 340px（FfBase.vue:215-221，共性-根因 2）",
+    "8. 【功能】DRM 保护文件必然失败未声明：Windows 媒体 DRM 的 WMV 无法被任何本地解码器转换，页内未声明、失败文案也不指向该可能——用户手里\"最转不动\"的正是这类文件",
+    "9. 【灵魂】\"只要音频\"分流缺失：不少 WMV 老课件用户实际只要声音（站内 video-to-mp3 可达），页内无场景分流提示"
+   ],
+   "prescriptions": [
+    "挡门放行",
+    "变体边界声明",
+    "长视频分段建议",
+    "家族处方 1-2"
+   ],
+   "benchmarks": " - **HandBrake**（本地）：WMV/VC-1 全吃（桌面解码不受浏览器限制），源面板显示实际编码变体。差距：**解码架构天花板**（云端/桌面可解，wasm 依赖 @ffmpeg/core 构建所含解码器）——但\"声明变体边界\"纯前端可做，是诚实标注能力边界的典型案例。 - **CloudConvert**（云）：WMV 支持成熟、批量。差距：同上架构天花板＋批量。 - 借鉴优先级：**挡门放行/降级路径 > 变体边界声明 > 长视频分段建议 > 失败诊断文案**。 "
+  }
+ ]
+}

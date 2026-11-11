@@ -1,0 +1,3552 @@
+[
+ {
+  "file": "base32-converter",
+  "score": 56,
+  "name": "Base32 编解码",
+  "slug": "base32-converter",
+  "mode": "A",
+  "benchmark": "CyberChef（基准库，Base32 系配方）＋ emn178/online-tools（经 WebSearch 核实）",
+  "dims": {
+   "func": 10,
+   "usab": 10,
+   "val": 11,
+   "iact": 11,
+   "ui": 7,
+   "soul": 7
+  },
+  "perf": 7,
+  "mob": 6,
+  "conclusion": "**交互优化** · P2",
+  "deductions": [
+   "1. 【灵魂-疑似功能缺陷】解码不校验残余位：输入长度非 8 倍数时尾部不足 8 位的位被静默丢弃（`textEngine.ts:250-254`），也不校验 `=` 填充长度合法性（:241 直接剔除）——粘贴被截断的密文会得到\"看似成功\"的错误结果，无任何告警；RFC 4648 要求长度必须是 8 的倍数",
+   "2. 【功能】无变体字母表：base32hex（0-9A-V）、Crockford（去 I/L/U，OCR 友好）、z-base-32 均不支持；Crockford 在 human-readable ID 场景（如散片 ID）已有事实生态，CyberChef/emn178 均提供",
+   "3. 【可用性-硬伤】180px 钉高（家族共性-根因 2；硬伤属 textDef 家族级，P0 挂整改样板 `pinyin-converter.md`）：Base32 输出膨胀系数 1.6，是全站编码类里最\"撑窗\"的，固定小窗矛盾最尖锐",
+   "4. 【灵魂】解码 TextDecoder 对非法 UTF-8 字节静默替换为 U+FFFD（:255 默认容错模式）：密钥错一位得到满屏 � 而不是报错",
+   "5. 【交互】与 totp-generator 零互跳：Base32 最主场景就是 TOTP 密钥（otpauth:// 的 secret 参数），编码完想验证只能回搜索；totp-generator 的密钥框粘贴 Base32 也未反向链接本工具",
+   "6. 【功能】无填充开关（有的系统要求无 `=` 的裸 Base32）与输出 8 字符分组视图（人工抄写/电话核对场景）",
+   "7. 【交互】编码结果无\"复制为小写\"选项（部分系统实现收小写），只能复制后手改",
+   "8. 【功能】无文件入口：二进制文件转 Base32（emn178 支持）因 TextTool 壳无文件上传能力全站无路径，textDef 壳只吃纯文本（`TextTool.vue:108-113`）"
+  ],
+  "deduction1": "1. 【灵魂-疑似功能缺陷】解码不校验残余位：输入长度非 8 倍数时尾部不足 8 位的位被静默丢弃（`textEngine.ts:250-254`），也不校验 `=` 填充长度合法性（:241 直接剔除）——粘贴被截断的密文会得到\"看似成功\"的错误结果，无任何告警；RFC 4648 要求长度必须是 8 的倍数",
+  "prescriptions": [
+   "完整性告警",
+   "变体字母表",
+   "TOTP 互跳",
+   "分组视图",
+   "家族钉高修复"
+  ],
+  "hard": true,
+  "priority": "P2"
+ },
+ {
+  "file": "base64-encoder",
+  "score": 58,
+  "name": "Base64 编解码",
+  "slug": "base64-encoder",
+  "mode": "A",
+  "benchmark": "CyberChef（基准库）＋ base64.guru（经 WebSearch 核实）",
+  "dims": {
+   "func": 10,
+   "usab": 10,
+   "val": 13,
+   "iact": 11,
+   "ui": 7,
+   "soul": 7
+  },
+  "perf": 6,
+  "mob": 6,
+  "conclusion": "**交互优化 + 需拓展** · P1",
+  "deductions": [
+   "1. 【功能-疑似功能缺陷】简介承诺\"也可编码文件\"（`registry.ts:15`），但 textDef 走 TextTool 壳，**全组件无任何文件输入**（`TextTool.vue` 全文无 input[type=file]/FileDrop）——用户按文案找文件入口会落空。图片有 image-to-base64（`src/tools/image/registry.ts:54`）与 base64-to-image（`src/tools/developer/registry.ts:132`）兜底，但**任意文件（PDF/zip/字体）转 Base64 全站无路径**",
+   "2. 【功能】无 URL-safe Base64：`atob` 遇 `-`/`_` 直接抛错（`textEngine.ts:213` 仅剔空白），JWT 的 payload 段正是 URL-safe 编码，开发者最常撞的场景反而不支持",
+   "3. 【功能】无输出换行选项：超长 Base64 单行输出，粘进配置/邮件需手工折行；76 字符 MIME 折行是 base64.guru 标配",
+   "4. 【功能】无 data URI 模式（`data:text/plain;base64,` 前缀一键拼接），与 base64-to-image 的输入格式形成\"能解不能造\"的不对称",
+   "5. 【可用性-硬伤】180px 钉高（家族共性-根因 2；硬伤属 textDef 家族级，P0 挂整改样板 `pinyin-converter.md`）：Base64 输出通常比输入长 33%，长文本场景输出窗溢出感比一般 textDef 更重",
+   "6. 【灵魂】无\"解码失败时检测是否为 URL-safe/Hex 字符并提示\"的纠偏引导——`包含无效的 Base64 字符`（`textEngine.ts:215`）报错后用户不知往哪个方向试",
+   "7. 【交互】方向选错了（贴着密文却选编码）不报错也不提示，输出一串更长的密文，用户需自己察觉；双向工具缺\"输入疑似已是 Base64\"的智能提示",
+   "8. 【交互】超长结果无法下载存档：TextTool 壳仅有复制按钮（`TextTool.vue:130-133`），MB 级 Base64（如内嵌文件）靠剪贴板搬运易截断，base64.guru 与站内 ResultBox（`ResultBox.vue:49-62`）均支持下载"
+  ],
+  "deduction1": "1. 【功能-疑似功能缺陷】简介承诺\"也可编码文件\"（`registry.ts:15`），但 textDef 走 TextTool 壳，**全组件无任何文件输入**（`TextTool.vue` 全文无 input[type=file]/FileDrop）——用户按文案找文件入口会落空。图片有 image-to-base64（`src/tools/image/registry.ts:54`）与 base64-to-image（`src/tools/developer/registry.ts:132`）兜底，但**任意文件（PDF/zip/字体）转 Base64 全站无路径**",
+  "prescriptions": [
+   "兑现或修正文件承诺",
+   "URL-safe 变体",
+   "换行宽度",
+   "失败纠偏",
+   "家族钉高修复"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "base64-to-image",
+  "score": 62,
+  "name": "Base64 转图片",
+  "slug": "base64-to-image",
+  "mode": "C",
+  "benchmark": "base64-image.de（Base64⇄图片双向标杆）＋ 站内图片分类 image-to-base64.md（64 分，姊妹工具，本档案为其反向闭环）",
+  "dims": {
+   "func": 12,
+   "usab": 11,
+   "val": 13,
+   "iact": 10,
+   "ui": 8,
+   "soul": 8
+  },
+  "perf": 5,
+  "mob": 7,
+  "conclusion": "**交互优化** · P1",
+  "deductions": [
+   "1. 【可用性-疑似功能问题】URL-safe Base64 触发未捕获异常：纯 base64 判定正则允许 `-`/`_`（`Base64ToImage.vue:21`）但 `atob` 不接受 URL-safe 字符且该行**无 try/catch**（:22）——粘贴含 `-_` 的输入直接抛 InvalidCharacterError，错误提示条完全不出现，用户以为工具坏了",
+   "2. 【功能】URL 编码型 data URI（`data:image/svg+xml,%3Csvg…`）被强制改写为 `;base64,`（:18-19 分支不区分 base64 标记语义），SVG 明文被当 base64 解码后报\"不是有效的图片数据\"，提示误导排查方向",
+   "3. 【交互】一切靠手点\"加载预览\"（:90）：无 paste 事件监听，与姊妹工具 image-to-base64 的\"拖入即编码\"形成双向体验不对称",
+   "4. 【功能】复制只有原始 Data URI 一种形态（:77-81）：姊妹工具有 dataURI/img 标签/CSS background 三模板 Tab（ImageToBase64.vue:75-79）——闭环不对称，反向用户拿到 URI 后最常见的用途恰恰是贴进代码",
+   "5. 【可用性-轻】预览 img max-height 320px（:122-126）且不可点击放大：800×2000 长图只能看顶部一条",
+   "6. 【性能】MB 级字符串 fetch(dataURI) 下载内存翻倍（:67-73），超长输入无任何提示或截断策略",
+   "7. 【灵魂】无 1×1 像素示例 data URI 一键填充（成本为零的空态引导）；错误两段式文案（:37/:53）本就是灵魂分却没被空态利用",
+   "8. 【家族】与 image-to-base64（64 分）零互链：双向工具互相找不到对方，用户只能靠站内搜索猜 slug"
+  ],
+  "deduction1": "1. 【可用性-疑似功能问题】URL-safe Base64 触发未捕获异常：纯 base64 判定正则允许 `-`/`_`（`Base64ToImage.vue:21`）但 `atob` 不接受 URL-safe 字符且该行**无 try/catch**（:22）——粘贴含 `-_` 的输入直接抛 InvalidCharacterError，错误提示条完全不出现，用户以为工具坏了",
+  "prescriptions": [
+   "修复 URL-safe 崩溃",
+   "粘贴即解码",
+   "模板对称",
+   "预览点击放大",
+   "双向互链"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "bcrypt-hash",
+  "score": 66,
+  "name": "Bcrypt 哈希生成验证",
+  "slug": "bcrypt-hash",
+  "mode": "D",
+  "benchmark": "bcrypt.online（生成+校验双模）＋ Devglan Bcrypt Generator（多版本 $2a$/$2b$/$2y$，经 WebSearch 核实）",
+  "dims": {
+   "func": 12,
+   "usab": 11,
+   "val": 13,
+   "iact": 11,
+   "ui": 8,
+   "soul": 11
+  },
+  "perf": 5,
+  "mob": 7,
+  "conclusion": "**交互优化** · P2",
+  "deductions": [
+   "1. 【可用性】高轮次冻结：bcryptjs 主线程同步运算（:38 await 仅为 API 形态，实际 CPU 阻塞），13–15 轮数十秒内按钮/spinner 停摆、无进度无取消——预警文案（:73）在点击前，点击后零反馈",
+   "2. 【交互】双模不闭环：生成哈希后想\"自证\"需手动复制再粘到右栏哈希框（:100-108 与 :116-123 无联动），无\"用此哈希验证\"回填",
+   "3. 【功能】无哈希结构分解：$2b$ / cost / 22 位盐 / 31 位摘要四段不标注，新手不知道第 2 段\"10\"是什么（bcrypt.online 对格式有逐段说明）",
+   "4. 【功能】无版本选择：bcryptjs 3.0.3 固定输出 $2b$（`bcryptjs/index.js:96`），校验旧系统 $2a$/$2y$ 依赖 compare 兼容（可过 :67 错误文案也提及），但\"生成指定版本\"做不到（Devglan 可选版本）",
+   "5. 【交互】密码框 type=password 无显隐切换（:85,:118），本地工具里\"看一眼输对了没\"是合理诉求",
+   "6. 【功能】无推荐轮次口径：OWASP 建议随算力上调 cost（10 为常见基线，每 +1 轮耗时翻倍），工具无此口径，\"该选几轮\"无指导",
+   "7. 【灵魂】无\"同一密码每次生成的哈希都不同（盐随机）但都能验证通过\"科普——新手最常见困惑点零覆盖"
+  ],
+  "deduction1": "1. 【可用性】高轮次冻结：bcryptjs 主线程同步运算（:38 await 仅为 API 形态，实际 CPU 阻塞），13–15 轮数十秒内按钮/spinner 停摆、无进度无取消——预警文案（:73）在点击前，点击后零反馈",
+  "prescriptions": [
+   "一键回填验证",
+   "运行时反馈",
+   "哈希分段标注",
+   "轮次口径",
+   "版本选择",
+   "盐随机科普"
+  ],
+  "hard": true,
+  "priority": "P2"
+ },
+ {
+  "file": "bitwise-calculator",
+  "score": 62,
+  "name": "位运算计算器",
+  "slug": "bitwise-calculator",
+  "mode": "C",
+  "benchmark": "binaryhexconverter.com 的 Bitwise 计算器（经 WebSearch 核实）＋站内 number-base-converter.md（67 分，\"位级工作台\"候选搭档）",
+  "dims": {
+   "func": 11,
+   "usab": 13,
+   "val": 12,
+   "iact": 10,
+   "ui": 8,
+   "soul": 8
+  },
+  "perf": 9,
+  "mob": 7,
+  "conclusion": "**交互优化** · P1（NOT 缺失属\"注册文案与实现不符\"，按疑似功能缺陷登记交用户决定）",
+  "deductions": [
+   "1. 【功能-疑似缺陷】注册描述承诺 NOT（`registry.ts:182` desc\"AND/OR/XOR/NOT 与左右移位\"）但 OPS 仅 5 项无 NOT（`BitwiseCalculator.vue:36-42`）——按位取反是位运算四则之一，实现缺口且文案失实",
+   "2. 【功能】位宽固定 32 位：十六进制 padStart(8,'0')、二进制 padStart(32,'0') 写死（:53-57），无 8/16/32/64 档——8 位寄存器/64 位协议字段只能脑内补零（number-base-converter.md 扣分 3 同款缺口，家族共性）",
+   "3. 【交互】result 单值 ref（:10,:49），点新操作覆盖旧结果，对比 `A&B` 与 `A^B` 需来回点且复制前值丢失",
+   "4. 【交互】改 A/B 后旧 R 与 R 位板不重算不失效（:21-34 仅 AV/BV 失效），旧结果与新输入并排展示易误读",
+   "5. 【灵魂】位板纯展示不可点击翻转位——对标站点核心交互即\"点第 5 位看值变多少\"，本工具位板与输入单向只读",
+   "6. 【功能】无符号口径未声明：值先 `>>> 0` 归一无符号（:18）后 `>>` 与 `>>>` 等价，但 UI 只说\"按 32 位无符号整数运算\"（:108），未讲清右移语义对补码场景的影响",
+   "7. 【交互】无\"复制位板\"、无与 number-base-converter 互跳（对方档案已把\"组成位级工作台\"列入远期，本侧零呼应）",
+   "8. 【功能-疑似缺陷】32 位溢出静默回绕：parseInt32 对超范围十进制输入 parseInt 后 `>>> 0` 静默取模（`BitwiseCalculator.vue:18`），输入 4294967296 得 0——warn notice 文案宣称范围\"0 ~ 4294967295\"（:88）但越界值不报错反而给错值"
+  ],
+  "deduction1": "1. 【功能-疑似缺陷】注册描述承诺 NOT（`registry.ts:182` desc\"AND/OR/XOR/NOT 与左右移位\"）但 OPS 仅 5 项无 NOT（`BitwiseCalculator.vue:36-42`）——按位取反是位运算四则之一，实现缺口且文案失实",
+  "prescriptions": [
+   "补 NOT/>>> 并实时重算",
+   "位宽选择",
+   "多操作并排",
+   "位板点击翻转",
+   "互链"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "border-radius-generator",
+  "score": 55,
+  "name": "圆角生成器",
+  "slug": "border-radius-generator",
+  "mode": "D",
+  "benchmark": "9elements fancy border-radius（八值 blob 形状标杆）",
+  "dims": {
+   "func": 9,
+   "usab": 13,
+   "val": 11,
+   "iact": 9,
+   "ui": 7,
+   "soul": 6
+  },
+  "perf": 8,
+  "mob": 7,
+  "conclusion": "**需拓展 + 交互优化** · P1",
+  "deductions": [
+   "1. 【功能】无八值模式：CSS `border-radius` 支持斜杠语法分别控制水平/垂直半径，这是椭圆角/叶形/blob 的唯一入口，本工具只输出四值（`BorderRadius.vue:21`）——9elements 的灵魂形状全部无法实现",
+   "2. 【交互-家族共性】无角点拖拽手柄：行业标杆直接在预览盒四角拖手柄改半径，本工具是右侧四行滑杆逐一拖（:66-69）",
+   "3. 【功能】无 blob 随机生成器：随机八值一键出有机形状是 9elements 最强传播点，且纯前端零成本可实现",
+   "4. 【功能】仅 px 单位：无百分比（`border-radius: 50%` 的圆形/自适应胶囊必须用 %，滑杆上限 150px 在大盒上出不了圆）",
+   "5. 【交互】联动切换无过渡：取消联动后需手动逐角调，无\"从当前值解锁\"提示；预设仅 3 个且无形状语义（叶形/梭形/水滴缺位）",
+   "6. 【灵魂】smart 单值输出（:22-23）是好细节但无说明；预览盒固定 170×130，不能自定义尺寸比例",
+   "7. 【交互】无快捷键与数值手输：四滑杆 px 值同为只读 `<b>`（:66-69），想精确到 18px 只能拖",
+   "8. 【功能】无参数分享：形状参数不能入 URL，好的 blob 无法发给同事复现"
+  ],
+  "deduction1": "1. 【功能】无八值模式：CSS `border-radius` 支持斜杠语法分别控制水平/垂直半径，这是椭圆角/叶形/blob 的唯一入口，本工具只输出四值（`BorderRadius.vue:21`）——9elements 的灵魂形状全部无法实现",
+  "prescriptions": [
+   "八值模式",
+   "角点拖拽手柄",
+   "blob 随机",
+   "百分比单位",
+   "预设扩充",
+   "参数入 URL"
+  ],
+  "hard": false,
+  "priority": "P1"
+ },
+ {
+  "file": "box-shadow-generator",
+  "score": 58,
+  "name": "阴影生成器",
+  "slug": "box-shadow-generator",
+  "mode": "D",
+  "benchmark": "shadows.brumm.af（多层阴影可视化标杆）＋ cssgenerator.online shadow（预设库）",
+  "dims": {
+   "func": 9,
+   "usab": 13,
+   "val": 12,
+   "iact": 10,
+   "ui": 7,
+   "soul": 7
+  },
+  "perf": 8,
+  "mob": 7,
+  "conclusion": "**需拓展 + 交互优化** · P1",
+  "deductions": [
+   "1. 【功能】无多层阴影：brumm 支持任意层叠加并逐层调参，`box-shadow: A, B, C;` 才是现代精致 UI 的标配手法，本工具 CSS 拼接只支持一段（`BoxShadow.vue:25`）",
+   "2. 【功能】无预设库：Material Design elevation 6 级、brumm 柔和 5 级这类开箱阴影全缺席，新手连\"好看阴影长什么样\"都要自己摸索",
+   "3. 【交互-家族共性】预览盒不支持拖拽改 x/y 偏移——行业 top（brumm/shadow.page etc.）均为直接拖动盒子",
+   "4. 【可用性】预览台背景硬编码 `#f8fafc`（`BoxShadow.vue:98`）：暗色主题下突兀，且深色界面阴影（更依赖黑色分层）无法预览",
+   "5. 【交互】数值只读不能手输：四个滑杆的 px 值是 `<b>` 标签（:55-58），无法精确键入（如 y=63px）；blur 滑杆上限 100px（:57）无输入框突破",
+   "6. 【灵魂】演示盒底色固定纯白（:107），无法在品牌色/图片底上试阴影",
+   "7. 【功能】无 alpha 分离输出选项（如输出 `--shadow-color` CSS 变量方案，方便主题化）",
+   "8. 【灵魂】无常用阴影色快捷片：黑色 10%/20%/30% 三档 alpha 一键选（:59-66 要拖两次滑杆），brumm 用色相/明度滑杆一步到位"
+  ],
+  "deduction1": "1. 【功能】无多层阴影：brumm 支持任意层叠加并逐层调参，`box-shadow: A, B, C;` 才是现代精致 UI 的标配手法，本工具 CSS 拼接只支持一段（`BoxShadow.vue:25`）",
+  "prescriptions": [
+   "多层阴影",
+   "预设库",
+   "拖拽偏移",
+   "预览底色切换",
+   "数值手输"
+  ],
+  "hard": false,
+  "priority": "P1"
+ },
+ {
+  "file": "case-style-converter",
+  "score": 56,
+  "name": "变量命名风格转换",
+  "slug": "case-style-converter",
+  "mode": "A",
+  "benchmark": "convertcase.net（一页平铺全风格，含开发者风格区）＋ textmechanic.com（行级批量口径，均已在库经 case-converter.md 引用）",
+  "dims": {
+   "func": 9,
+   "usab": 9,
+   "val": 11,
+   "iact": 10,
+   "ui": 7,
+   "soul": 10
+  },
+  "perf": 7,
+  "mob": 6,
+  "conclusion": "**交互优化** · P2",
+  "deductions": [
+   "1. 【功能】无全风格一览：一次只见一种目标（convertcase.net 一页平铺五风格结果即点即换），对比选择成本高",
+   "2. 【实用-分工】与 case-converter（`src/tools/utility/registry.ts:380-399`）五模式重叠：本工具逐行+标识符口径、对方整段+11 模式，但两页无互链无分工文案（相关工具仅分类级 `ToolPage.vue:44`），用户需试错才知道用哪个",
+   "3. 【功能】不保留命名前缀：`m_userName` 按分隔符拆尚可，但 `strName`/`bValid` 匈牙利前缀被并进单词（→str_name），重构旧代码场景需要\"保留首段缩写\"选项",
+   "4. 【交互】目标风格不记忆：刷新回 camel 默认（registry.ts:398 default，TextTool initOpts :19-24 无持久化），高频用户每次重选",
+   "5. 【灵魂】无源风格检测提示：混合风格批量输入时不告知\"检测到 snake×3/camel×2\"，归一结果不可预览（textmechanic 行级口径参照）",
+   "6. 【功能】拆分口径无文档化：`user2Name` 拆为 user/2/name（`devExt.ts:494` 数字独立成词）口径正确但无说明，用户遇到意外拆分无处查证",
+   "7. 【交互】无逐行对照模式：批量改名时\"原↔新\"两列对照缺失，只能上下窗肉眼对齐（长列表易错位）",
+   "8. 【可用性-家族】首控件在 266px 装饰层下（共性-根因 1）+输出窗约 1.5 屏外（M-06 同构）"
+  ],
+  "deduction1": "1. 【功能】无全风格一览：一次只见一种目标（convertcase.net 一页平铺五风格结果即点即换），对比选择成本高",
+  "prescriptions": [
+   "五风格一览",
+   "风格记忆",
+   "双工具互链",
+   "源风格摘要",
+   "前缀保留"
+  ],
+  "hard": true,
+  "priority": "P2"
+ },
+ {
+  "file": "chmod-calculator",
+  "score": 65,
+  "name": "Chmod 权限计算",
+  "slug": "chmod-calculator",
+  "mode": "C",
+  "benchmark": "chmodcalculator.com ＋ permissions-calculator（九宫格形态标杆）",
+  "dims": {
+   "func": 12,
+   "usab": 14,
+   "val": 13,
+   "iact": 11,
+   "ui": 8,
+   "soul": 7
+  },
+  "perf": 9,
+  "mob": 8,
+  "conclusion": "**交互优化** · P1",
+  "deductions": [
+   "1. 【功能】符号式→八进制方向缺席：引擎 `chmodFromSymbol`（`jsEngine.ts:819-831`）已实现且注册表已 import（`registry.ts:4`）但组件只引 chmodToSymbol（`ChmodCalculator.vue:4`）——粘贴 `rwxr-x---` 反解场景只能人肉算",
+   "2. 【功能】无常用权限预设：755/644/600/700/777 一键 chips 是 chmodcalculator.com 标配，高频值每次要逐格点 9 次",
+   "3. 【功能】无递归场景支持：命令恒为 `chmod NNN 文件名`（:24,:101），无 -R 开关也无\"目录递归时 x 位语义\"提示——对目录批量授权是 chmod 最危险的场景",
+   "4. 【灵魂】特殊位只有名称没有解释：SetUID(4)/SetGID(2)/Sticky(1) 下拉（:75-80）无旁注（如 sticky 用于 /tmp 的作用），新手不敢勾",
+   "5. 【交互】复制按钮图标全用 Lock（:92,:97,:102）与\"复制\"动作无视觉关联",
+   "6. 【交互】无\"复制全部三行\"，命令模板文件名写死占位，想贴成 `chmod 644 index.php` 需复制后手改",
+   "7. 【功能-轻】八进制反向输入只取末 3 位（:35 `slice(-3)`）：粘贴 `4755` 会静默丢弃特殊位 4，而不是联动特殊位下拉或提示",
+   "8. 【功能-疑似缺陷】符号表示不含特殊位形态：symbol 用 3 位 octal 计算（:23），勾选 SetUID 后符号行仍显示 `rwxr-xr-x` 而非 `rwsr-xr-x`——4755 的符号式丢了 s 标记，与八进制行（4755）自相矛盾",
+   "9. 【交互】双向行为不对称：勾选方向实时更新（computed）而反向输入要 Enter/按钮（:84-85），输入中途两区数值不一致无提示"
+  ],
+  "deduction1": "1. 【功能】符号式→八进制方向缺席：引擎 `chmodFromSymbol`（`jsEngine.ts:819-831`）已实现且注册表已 import（`registry.ts:4`）但组件只引 chmodToSymbol（`ChmodCalculator.vue:4`）——粘贴 `rwxr-x---` 反解场景只能人肉算",
+  "prescriptions": [
+   "符号式反解",
+   "预设 chips",
+   "递归开关",
+   "特殊位解释",
+   "复制全部"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "code-minifier",
+  "score": 57,
+  "name": "JS/CSS 压缩混淆",
+  "slug": "code-minifier",
+  "mode": "A",
+  "benchmark": "javascript-minifier.com / css-minifier.com（BeautifyTools 系列）＋ terser CLI 口径",
+  "dims": {
+   "func": 13,
+   "usab": 8,
+   "val": 13,
+   "iact": 9,
+   "ui": 6,
+   "soul": 8
+  },
+  "perf": 4,
+  "mob": 6,
+  "conclusion": "**交互优化** · P1",
+  "deductions": [
+   "1. 【可用性-硬伤】textDef 双窗钉 180px（`base.css:164-168`；M-06 实测几何）；压缩产物是数 KB 超长单行，180px 高窗内横向阅读几乎不可行",
+   "2. 【性能-硬伤】TextTool `watch([input, opts], run)` 无防抖（`TextTool.vue:47-48`）× terser 同步压缩（`registry.ts:298-300`）：编辑已粘贴代码时每键触发完整 minify，大文件输入框冻结",
+   "3. 【功能-疑似问题】产物被统计注释污染：`\\n\\n/* 压缩统计…*/` 直接拼进输出（`registry.ts:308`），用户整段复制即把注释带上（JS 版还抵消压缩收益），统计应放输出区外",
+   "4. 【功能】\"混淆\"名实差距：terser mangle 仅重命名变量/参数（`registry.ts:299`），无字符串加密/控制流扁平化/反调试——对\"混淆\"期待是轻度防读，UI 无能力边界说明",
+   "5. 【功能】语言自动识别为正则计数启发式（`registry.ts:289-291`）：CSS 变量密集的 JS 或含内联样式的模板字符串可能误判，且误判无提示",
+   "6. 【功能】无 mangle 配置（toplevel/reservedNames）、无 compress 档位、不支持 HTML/JSON",
+   "7. 【交互】无文件拖放入口；首用动态加载 terser/csso 期间输出区静默（TextTool pending 态不渲染，家族共性，`TextTool.vue:15`）",
+   "8. 【美观】180px 双窗与全站 300px 级工具高度不一致（共性-根因 2 高度清单随机取值的又一例）"
+  ],
+  "deduction1": "1. 【可用性-硬伤】textDef 双窗钉 180px（`base.css:164-168`；M-06 实测几何）；压缩产物是数 KB 超长单行，180px 高窗内横向阅读几乎不可行",
+  "prescriptions": [
+   "防抖+加载反馈",
+   "统计外置",
+   "180px 弹性化",
+   "mangle 档位",
+   "混淆边界文案"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "code-playground",
+  "score": 59,
+  "name": "在线代码运行器",
+  "slug": "code-playground",
+  "mode": "",
+  "benchmark": "playcode.io（在线运行器天花板，云）＋ jsfiddle.net（纯 iframe 四栏经典，纯前端可及线）",
+  "dims": {
+   "func": 11,
+   "usab": 11,
+   "val": 12,
+   "iact": 9,
+   "ui": 7,
+   "soul": 9
+  },
+  "perf": 8,
+  "mob": 5,
+  "conclusion": "**交互优化 + 需拓展** · P1",
+  "deductions": [
+   "1. 【可用性】预览区与控制台各钉死 240px（`CodePlayground.vue:162,169`），无弹性高度、无全屏切换——调一个 600px 高的页面布局只能在 240px 小窗里滚（共性-根因 2 在\"预览即主结果\"工具上的最痛实例）",
+   "2. 【可用性】三编辑器 min-height 150px（:99-107）且三栏各 ~286px 宽，无\"左右分栏/上下堆叠\"布局模式切换；jsFiddle 四栏可调是基本功",
+   "3. 【交互】无 Ctrl+Enter 运行、无自动运行开关（:47-59），playcode.io 输入即跑，本工具每次试验都要把视线挪回顶部按钮",
+   "4. 【可用性】报错行号是拼合 srcdoc 文档行号而非 JS 编辑器行号：`window.onerror` 的行参数（:37）包含 HTML 行数＋桥接脚本偏移，用户 JS 第 1 行报错会显示\"第 20+ 行\"，直接误导排障",
+   "5. 【功能】无 CDN 库快捷引入：想跑 Vue/jQuery 要自己手敲完整 `<script src>` 到 HTML 栏，jsFiddle 的 Libraries 面板一勾即用",
+   "6. 【功能】无模板/示例库：初始仅一份 Hello 示例（:8-10），无 Canvas/DOM 事件/fetch 示例一键载入，空态引导弱",
+   "7. 【交互】草稿仅单槽且手动（:70-84）：无自动保存、无多片段管理、无\"导出 .html\"（buildSrcdoc :45 现成可下载却没做）",
+   "8. 【灵魂】沙盒能力边界未文档化：opaque origin 下 localStorage 会抛 SecurityError、跨域 fetch 受 origin null 限制，notice（:125）只有一句\"不访问本站数据\"，用户撞错后无解释",
+   "9. 【UI-轻】控制台无时间戳、无条数徽章，200 条截断静默（:65）"
+  ],
+  "deduction1": "1. 【可用性】预览区与控制台各钉死 240px（`CodePlayground.vue:162,169`），无弹性高度、无全屏切换——调一个 600px 高的页面布局只能在 240px 小窗里滚（共性-根因 2 在\"预览即主结果\"工具上的最痛实例）",
+  "prescriptions": [
+   "预览/控制台弹性高度",
+   "快捷运行",
+   "CDN 快捷引入",
+   "行号映射",
+   "模板库",
+   "导出 .html"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "code-screenshot",
+  "score": 63,
+  "name": "代码截图美化",
+  "slug": "code-screenshot",
+  "mode": "C",
+  "benchmark": "ray.so（一键美化标杆）＋ carbon.now.sh（多语言/多主题天花板）",
+  "dims": {
+   "func": 11,
+   "usab": 13,
+   "val": 12,
+   "iact": 11,
+   "ui": 8,
+   "soul": 8
+  },
+  "perf": 6,
+  "mob": 6,
+  "conclusion": "**交互优化** · P2（九份 CSS/视觉家族中底子最好的一个，补齐 ray.so 参数面即可上 70）",
+  "deductions": [
+   "1. 【交互】导出文件名不继承窗口条 filename：导出固定 `代码截图-${Date.now()}.png`（`CodeScreenshot.vue:91`），用户填的 `index.js` 只出现在图里不在文件名里——连下两次导出文件名仅时间戳不同，难归档",
+   "2. 【功能】圆角与阴影不可调：窗口卡圆角固定 10px、投影固定 `0 24px 60px rgba(0,0,0,.35)`（:154），ray.so 两者均可调且阴影可关（做白底文档插图时投影必须能去掉）",
+   "3. 【功能】无复制到剪贴板：只有下载 PNG（:85-98），微信/语聊工具里\"粘贴即发\"是 ray.so 高频路径",
+   "4. 【功能】无宽高比预设：ray.so 支持 auto/4:3/16:9/1:1，做封面图时定比例刚需",
+   "5. 【功能】主题仅 4 个、背景仅 5 个（:19-32）：ray.so 10+ 主题、carbon 十数主题+自定义背景取色器",
+   "6. 【功能】无行号/指定行高亮：教学截图场景（强调第 3 行）做不到",
+   "7. 【性能】导出在主线程 toPng（:89），长代码无进度反馈，仅按钮 spinner（:96）",
+   "8. 【交互】无\"再来一张\"连续工作流：导出后代码/主题保留但无历史卡片，对比两个主题的成图要来回切换（ray.so 有历史缩略）"
+  ],
+  "deduction1": "1. 【交互】导出文件名不继承窗口条 filename：导出固定 `代码截图-${Date.now()}.png`（`CodeScreenshot.vue:91`），用户填的 `index.js` 只出现在图里不在文件名里——连下两次导出文件名仅时间戳不同，难归档",
+  "prescriptions": [
+   "导出名继承",
+   "复制到剪贴板",
+   "圆角与阴影可调",
+   "宽高比预设",
+   "主题扩充"
+  ],
+  "hard": true,
+  "priority": "P2"
+ },
+ {
+  "file": "color-contrast-checker",
+  "score": 67,
+  "name": "对比度检查器",
+  "slug": "color-contrast-checker",
+  "mode": "B",
+  "benchmark": "WebAIM Contrast Checker（判定+原因陈述标杆）＋ coolors.co contrast checker",
+  "dims": {
+   "func": 12,
+   "usab": 13,
+   "val": 13,
+   "iact": 12,
+   "ui": 8,
+   "soul": 9
+  },
+  "perf": 9,
+  "mob": 8,
+  "conclusion": "**交互优化** · P1",
+  "deductions": [
+   "1. 【可用性-疑似缺陷】非法色值静默变黑：`hexToRgb` 对非十六进制输入 `parseInt` 得 NaN 后返回 [0,0,0]（`ContrastChecker.vue:14-15`），输入 \"#zzz\" 比值照常出数，无错误提示——WebAIM 会明确报错",
+   "2. 【功能】缺 WCAG 1.4.11 非文本对比判定：图标/输入框边框/UI 组件 3:1 是设计走查高频项，WebAIM 页面同页给出，本工具只有文字四档",
+   "3. 【功能】缺 APCA（APG 新版感知对比度）：对深色主题低透明度文字，WCAG 2.x 判定已知失真；至少应标注\"WCAG 2.x 口径\"",
+   "4. 【灵魂】建议色只给 #1a1a2e/#ffffff 两个极端（:57），把品牌色 #6366f1 直接换成黑/白——正确做法是在原色相上二分调整亮度直到达标（保持色相）",
+   "5. 【可用性】大字号判定行无阈值注释：AA 大字号 ≥3.0 的适用条件（≥18pt/24px 或 ≥14pt bold/18.66px）未陈述，预览卡仅标注\"18pt+\"（:95），初学者无法对号入座",
+   "6. 【交互】无 URL 快照（?fg=&bg=），把检查结果发给同事只能靠复制文本",
+   "7. 【功能】无批量模式：整组设计 token（10 对 fg/bg）需一对对手工换",
+   "8. 【灵魂】无历史记录：上一轮检查过的色对无法回看对比（localStorage 存最近 10 对即够）"
+  ],
+  "deduction1": "1. 【可用性-疑似缺陷】非法色值静默变黑：`hexToRgb` 对非十六进制输入 `parseInt` 得 NaN 后返回 [0,0,0]（`ContrastChecker.vue:14-15`），输入 \"#zzz\" 比值照常出数，无错误提示——WebAIM 会明确报错",
+  "prescriptions": [
+   "非法输入提示",
+   "UI 组件判定行",
+   "大字号阈值注释",
+   "同色相建议色",
+   "URL 快照"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "color-converter",
+  "score": 64,
+  "name": "颜色转换器",
+  "slug": "color-converter",
+  "mode": "B",
+  "benchmark": "csscolorpicker.com（转换+取色标杆）＋ Coolors.co（配色方案生成标杆）",
+  "dims": {
+   "func": 11,
+   "usab": 13,
+   "val": 13,
+   "iact": 11,
+   "ui": 8,
+   "soul": 8
+  },
+  "perf": 8,
+  "mob": 7,
+  "conclusion": "**交互优化 + 需拓展** · P1",
+  "deductions": [
+   "1. 【功能】无调色板联想：对比度最高的衍生能力（互补/类似/三角和谐色、明暗 9 阶色卡）完全缺位——Coolors 的立身之本、csscolorpicker 转换结果区的标准配置",
+   "2. 【功能】无取色器：连 `input[type=color]` 都没有（同站 ContrastChecker.vue:78 有），用户无法\"看着挑色\"",
+   "3. 【功能-疑似缺陷】透明度静默丢失：`hexOf` 只拼 rgb 三通道（`ColorConverter.vue:112`），HEX/RGB/HSL/OKLCH 四行输出均丢弃输入的 alpha（:139-142），仅 RGBA 行保留（:144）——输入 #11223344 得到 HEX #112233，无任何提示",
+   "4. 【功能】无批量转换：多行混合格式颜色无法逐行转换与整表复制",
+   "5. 【交互】无透明度滑杆：alpha 只能靠输入格式携带，不能独立调节",
+   "6. 【灵魂】无最近使用色历史条（localStorage 即可实现），反复对比两个色时要来回粘贴",
+   "7. 【可用性】预览色卡 44×34px 过小（:182-188），难以肉眼确认\"转换前后是否同色\"",
+   "8. 【交互】无 HEX 大小写输出切换与 CSS 短写法（#abc）输出选项：前端工程两种口味都要手动改（:112 固定大写 6 位）"
+  ],
+  "deduction1": "1. 【功能】无调色板联想：对比度最高的衍生能力（互补/类似/三角和谐色、明暗 9 阶色卡）完全缺位——Coolors 的立身之本、csscolorpicker 转换结果区的标准配置",
+  "prescriptions": [
+   "alpha 全格式保留",
+   "取色器+透明度滑杆",
+   "调色板联想行",
+   "批量转换",
+   "历史条"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "cookie-parser",
+  "score": 57,
+  "name": "Cookie 解析构建",
+  "slug": "cookie-parser",
+  "mode": "A",
+  "benchmark": "DevTools Application 面板 ＋ cookie-editor（浏览器扩展标杆）；textDef 家族基线见 pinyin-converter.md（57 分）",
+  "dims": {
+   "func": 11,
+   "usab": 9,
+   "val": 12,
+   "iact": 11,
+   "ui": 7,
+   "soul": 7
+  },
+  "perf": 9,
+  "mob": 6,
+  "conclusion": "**交互优化** · P0（textDef 家族 180px 钉高共性硬伤延续，判据同 pinyin-converter.md）",
+  "deductions": [
+   "1. 【可用性-硬伤】双 textarea 各钉 180px（`base.css:164-168`；家族实测锚点 M-06）——多行 Set-Cookie 输出的缩进 JSON 数组动辄 30+ 行，窗内滚 3 屏起步（textDef 家族共性-根因 2，本工具因输出含缩进 JSON 受害最重）",
+   "2. 【功能】Expires/Max-Age 无相对解读：解析结果只有原串（`devExt.ts:579`），\"这 cookie 什么时候过期\"是解析的第一动机，GMT 串要人肉换算",
+   "3. 【功能】无规范合法性告警：SameSite=None 缺 Secure、Expires 与 Max-Age 并存（Max-Age 优先）均静默通过（:573-588 只收集不校验）",
+   "4. 【交互】构建方向无表单：JSON→Set-Cookie 要求用户记得 name/value/domain/path/expires/maxAge/sameSite/secure/httpOnly 精确字段名（:607-618），写错即静默丢属性",
+   "5. 【灵魂】无场景示例一键填充：placeholder 说明三场景但空态仍要自己找样例（textDef 家族空态短板，pinyin-converter.md 扣分 7 同款）",
+   "6. 【功能-轻】Partitioned 在 ATTR_KEYS（:552）仅用于嗅探命中，输出落入 other 桶（:584-587）变普通键值，属性语义未单列",
+   "7. 【交互】输出 JSON 无着色/折叠，与站内 json-visualizer 的树视图能力零联动",
+   "8. 【交互】解析输出键名 camelCase（maxAge/httpOnly/sameSite，`devExt.ts:580-583`）与 HTTP 头惯例（Max-Age/HttpOnly）是两套命名且无字段对照说明——构建方向手写 JSON 时最容易错的就是这套命名",
+   "9. 【灵魂】无解析结果摘要（几条 Cookie、几条会话级、几条已过期），多行粘贴后只有裸 JSON 数组，概览要自己数"
+  ],
+  "deduction1": "1. 【可用性-硬伤】双 textarea 各钉 180px（`base.css:164-168`；家族实测锚点 M-06）——多行 Set-Cookie 输出的缩进 JSON 数组动辄 30+ 行，窗内滚 3 屏起步（textDef 家族共性-根因 2，本工具因输出含缩进 JSON 受害最重）",
+  "prescriptions": [
+   "钉高修复（家族级）",
+   "相对时间",
+   "规范告警",
+   "构建模板",
+   "示例一键填充"
+  ],
+  "hard": true,
+  "priority": "P0"
+ },
+ {
+  "file": "cron-explainer",
+  "score": 65,
+  "name": "Cron 表达式解读",
+  "slug": "cron-explainer",
+  "mode": "B",
+  "benchmark": "crontab.guru（解读天花板）＋站内 crontab-builder.md（63 分，同族双档）",
+  "dims": {
+   "func": 12,
+   "usab": 13,
+   "val": 13,
+   "iact": 10,
+   "ui": 8,
+   "soul": 9
+  },
+  "perf": 8,
+  "mob": 8,
+  "conclusion": "**交互优化** · P1",
+  "deductions": [
+   "1. 【交互】按钮触发非实时：改一个字符都要点\"解读\"或回车（`CronExplainer.vue:170-183`），crontab.guru 输入即解读＋下次执行时间常驻更新——迭代读懂长表达式时摩擦最明显",
+   "2. 【功能】Quartz 6/7 字段不支持且错误提示不指名：粘贴 `0 0 12 * * ?` 报\"需要恰好 5 个字段\"（:89），文案不含\"检测到 Quartz 语法（秒 域 ? 占位）\"，xxl-job/Spring 用户第一次粘贴必撞墙",
+   "3. 【交互】无字段联动高亮：crontab.guru 光标放进星期字段时解读对应片段高亮，本工具字段表与输入框零位置联动",
+   "4. 【交互】解读与执行时间均不可复制（无 copyText 引用），贴进值班文档要手动划选",
+   "5. 【功能-轻】@reboot 别名缺席（:86 别名表无此项），粘贴即报错且提示不指名；星期 0 与 7 双写法已兼容但文档 note（:221）未提",
+   "6. 【UI-轻】执行时间每行并排完整 ISO 串（:214 `2026-11-11T09:30:00.000Z`）冗长，本地时间已可读，跨时区核对需求无折叠",
+   "7. 【灵魂】无\"等价写法\"提示（如 `0 9 * * 1-5` ≡ `0 9 * * MON-FRI`），解读/规范化场景常见"
+  ],
+  "deduction1": "1. 【交互】按钮触发非实时：改一个字符都要点\"解读\"或回车（`CronExplainer.vue:170-183`），crontab.guru 输入即解读＋下次执行时间常驻更新——迭代读懂长表达式时摩擦最明显",
+  "prescriptions": [
+   "实时解读",
+   "Quartz 提示",
+   "字段联动高亮",
+   "结果复制",
+   "两页互链"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "crontab-builder",
+  "score": 63,
+  "name": "Cron 表达式构建",
+  "slug": "crontab-builder",
+  "mode": "B",
+  "benchmark": "crontab.guru 生成器 ＋ bejson/cron.pub 类可视化 Cron 生成器（勾选面板形态，经 WebSearch 核实）",
+  "dims": {
+   "func": 11,
+   "usab": 14,
+   "val": 12,
+   "iact": 10,
+   "ui": 8,
+   "soul": 8
+  },
+  "perf": 9,
+  "mob": 7,
+  "conclusion": "**交互优化 + 需拓展** · P1",
+  "deductions": [
+   "1. 【交互】生成表达式不可复制：expr-card（`CrontabBuilder.vue:117-120`）只有展示无复制钮——构建器的最终交付物竟要手动划选，本批九工具中唯一的\"结果不可复制\"构建类工具",
+   "2. 【交互】反馈口径分裂：summary 实时（:50 computed）而\"未来执行时间\"要点按钮（:126），改配置后执行时间区残留旧值无失效提示，易把旧时间当新结果",
+   "3. 【功能】无勾选面板：小时/分钟用\"模式下拉＋数字输入\"表达，对标生成器直接铺 0-23 勾选格；\"第 0、15、30、45 分钟\"要手打逗号串（:103）",
+   "4. 【功能】无表达式导入：粘贴既有 cron 反推各字段模式的方向缺席，与 cron-explainer 之间无任何互链（双向闭环两端都断，见下节）",
+   "5. 【灵魂】range 模式 from>to 时静默输出 `*`（:44 三目 else 分支）：用户设 18-9 想表达跨零点区间却得到\"每 X\"，语义相反且无提示",
+   "6. 【功能-轻】星期字段 max=6（:32）而解读引擎支持 0-7（`CronExplainer.vue:95`），部分系统 7=周日写法在本构建器造不出；日/星期隐藏范围步长（:109-111）但 cron 语法 `1-15/2` 对日域合法，能力被无说明地砍掉",
+   "7. 【交互】预设仅 3 个且硬编码（:60-78），无\"每月 1 号 0 点\"\"每小时第 5 分钟\"等高频扩展位"
+  ],
+  "deduction1": "1. 【交互】生成表达式不可复制：expr-card（`CrontabBuilder.vue:117-120`）只有展示无复制钮——构建器的最终交付物竟要手动划选，本批九工具中唯一的\"结果不可复制\"构建类工具",
+  "prescriptions": [
+   "复制按钮",
+   "执行时间实时化",
+   "导入表达式",
+   "勾选面板",
+   "range 纠错"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "css-formatter",
+  "score": 54,
+  "name": "CSS 格式化 / 压缩",
+  "slug": "css-formatter",
+  "mode": "D",
+  "benchmark": "CSSO 官方在线 demo（css.github.io/csso）＋ minify.dev（CSS/JS 在线压缩套件）",
+  "dims": {
+   "func": 10,
+   "usab": 8,
+   "val": 12,
+   "iact": 10,
+   "ui": 7,
+   "soul": 7
+  },
+  "perf": 5,
+  "mob": 5,
+  "conclusion": "**交互优化 + 需拓展** · P1",
+  "deductions": [
+   "1. 【可用性-硬伤】ResultBox 双重钉高 320px（`ResultBox.vue:69`、`CodeFormatter.vue:87`；同构几何 M-01/M-02 大屏零增益）",
+   "2. 【功能-疑似问题】minifyCss 的 `\\s*([{}:;,>])\\s*` 全局去空白无字符串保护（`jsEngine.ts:323`）：`content:\"a ; b\"` 值内空格被吞为 `\"a;b\"`、字体名 `\"Helvetica Neue\"` 安全但引号内含分隔符的自定义属性值会被改写——压缩可能改变渲染结果",
+   "3. 【功能】压缩非真引擎：无 csso 结构化优化（合并规则、去重、简写化），仅去注释去空白（`jsEngine.ts:320-327`）；站内 code-minifier 已有真 csso 却未复用",
+   "4. 【功能】风格选项为零：缩进固定 2 空格、无\"紧凑/展开\"细档（如每属性一行 vs 全展开）、无行宽控制——CSSO demo 与 Prettier Playground 均可调",
+   "5. 【交互】粘贴后需手动点，无即改即格式化；无压缩前后体积对比",
+   "6. 【灵魂】无压缩率披露（code-minifier 有，`registry.ts:305-308`）；prettier 语法错误仅 toast 瞬闪（`CodeFormatter.vue:50-52`）",
+   "7. 【美观】≤560px 才堆叠（共性-根因 5）；三语言 chip 冗余",
+   "8. 【环境】Cookie 横幅首访遮挡底部结果区（M-01 截图证据）"
+  ],
+  "deduction1": "1. 【可用性-硬伤】ResultBox 双重钉高 320px（`ResultBox.vue:69`、`CodeFormatter.vue:87`；同构几何 M-01/M-02 大屏零增益）",
+  "prescriptions": [
+   "压缩换真引擎",
+   "输出区弹性高度",
+   "压缩率统计",
+   "缩进选项",
+   "即改即格式化"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "css-gradient-generator",
+  "score": 57,
+  "name": "CSS 渐变生成",
+  "slug": "css-gradient-generator",
+  "mode": "C",
+  "benchmark": "cssgradient.io（可视化拖拽色标标杆）＋ uigradients.com（预设库标杆）",
+  "dims": {
+   "func": 10,
+   "usab": 12,
+   "val": 12,
+   "iact": 9,
+   "ui": 7,
+   "soul": 7
+  },
+  "perf": 8,
+  "mob": 6,
+  "conclusion": "**交互优化 + 需拓展** · P1（CSS 生成器家族三兄弟中功能最全的一个，但交互范式落后一代）",
+  "deductions": [
+   "1. 【交互-家族共性】色标调整是\"手填数字\"范式：每行 color picker+文本+位置滑杆（`GradientGenerator.vue:63-69`），cssgradient.io 是在渐变预览条上直接拖色标圆点、双击空白处添加——后者才是行业灵魂",
+   "2. 【可用性】预览区 130px（:137-143）且被色标行压在中部；预览兼色标轨道后高度应为主视觉区",
+   "3. 【功能】无 conic-gradient：三类型只做两个（:17-19），锥形渐变是近年 UI 高频手法",
+   "4. 【功能】无预设库：cssgradient.io/uigradients 均带几十个开箱渐变，本工具每次从零配",
+   "5. 【功能】色标无独立透明度：原生 `input[type=color]` 不含 alpha，做淡出渐变（→transparent）必须手写文本框",
+   "6. 【功能】径向渐变锁死 `circle at 50% 50%`（:18）：无椭圆/尺寸/位置控制",
+   "7. 【交互】角度调节仅滑杆 step=5°（:56）：无数值输入、无角度盘拖拽，微调到 37° 这类值做不到",
+   "8. 【灵魂】加第 6 个色标被 toast 拒绝（:22）但不解释原因也不提供变通"
+  ],
+  "deduction1": "1. 【交互-家族共性】色标调整是\"手填数字\"范式：每行 color picker+文本+位置滑杆（`GradientGenerator.vue:63-69`），cssgradient.io 是在渐变预览条上直接拖色标圆点、双击空白处添加——后者才是行业灵魂",
+  "prescriptions": [
+   "预览条拖拽色标",
+   "角度盘",
+   "预设库",
+   "conic 支持",
+   "色标透明度"
+  ],
+  "hard": false,
+  "priority": "P1"
+ },
+ {
+  "file": "csv-to-json",
+  "score": 63,
+  "name": "CSV 转 JSON",
+  "slug": "csv-to-json",
+  "mode": "D",
+  "benchmark": "convertcsv.com（CSV 全家桶）＋ csvjson.com（csv2json）",
+  "dims": {
+   "func": 13,
+   "usab": 10,
+   "val": 13,
+   "iact": 11,
+   "ui": 7,
+   "soul": 9
+  },
+  "perf": 5,
+  "mob": 6,
+  "conclusion": "**交互优化** · P1",
+  "deductions": [
+   "1. 【可用性】输出 ResultBox `height:minHeight` 钉死 240px（`ResultBox.vue:69`、`CsvToJson.vue:79`；家族共性-根因 2），大数组只能小窗内滚",
+   "2. 【可用性-疑似功能缺陷】Papa 的 errors 数组被完全忽略（`csvEngine.ts:63-64` 只取 r.data）——引号不闭合、列数不齐时**静默输出错位数据**，比报错更危险",
+   "3. 【功能】无分隔符自动嗅探：csvEngine 已有 sniffDelimiter（`csvEngine.ts:121-130`）却未被组件使用，组件总是传显式 delim（`CsvToJson.vue:31`）；`|` 分隔符选项缺失",
+   "4. 【功能】无 a.b 列名 → 嵌套对象展开（`CsvToJson.vue:38-42` 列名原样作 key），对标 csvjson.com 的属性路径选项",
+   "5. 【功能】编码只走 UTF-8（`CsvToJson.vue:21` files[0].text()）——Excel 中文版导出的 GBK CSV 直接乱码，无任何提示",
+   "6. 【交互】粘贴文本后必须手动点\"转换为 JSON\"（:83），拖文件却自动转（:22），行为不一致",
+   "7. 【灵魂】无输出样式选择（缩进写死 2 空格，:43）、无\"列数 × 行数\"解析摘要",
+   "8. 【美观】底部 `<FileSpreadsheet v-if=\"!text\">` 图标（:85）无文字无交互，疑似残留装饰"
+  ],
+  "deduction1": "1. 【可用性】输出 ResultBox `height:minHeight` 钉死 240px（`ResultBox.vue:69`、`CsvToJson.vue:79`；家族共性-根因 2），大数组只能小窗内滚",
+  "prescriptions": [
+   "ResultBox 弹性高度",
+   "解析错误行级上报",
+   "分隔符自动嗅探",
+   "GBK 检测",
+   "嵌套展开开关",
+   "粘贴即转换"
+  ],
+  "hard": false,
+  "priority": "P1"
+ },
+ {
+  "file": "csv-to-markdown",
+  "score": 56,
+  "name": "CSV 转 Markdown 表格",
+  "slug": "csv-to-markdown",
+  "mode": "A",
+  "benchmark": "convertcsv.com（CSV 全家桶，对标库）＋ 站内 markdown-table-generator（registry.ts:159，可编辑网格生成对齐表格）",
+  "dims": {
+   "func": 9,
+   "usab": 10,
+   "val": 12,
+   "iact": 12,
+   "ui": 7,
+   "soul": 6
+  },
+  "perf": 6,
+  "mob": 5,
+  "conclusion": "**交互优化 + 需拓展** · P1",
+  "deductions": [
+   "1. 【功能-硬伤】朴素 split 解析：`l.split(String(o.delim))` + `replace(/^\"|\"$/g,'')`（`registry.ts:170`）不处理引号内分隔符/换行/引号转义——`\"a,b\",c` 被切成 3 列、`\"say \"\"hi\"\"\"` 输出 `say \"\"hi\"\"`；站内已有 papaparse 引擎（`csvEngine.ts:24-35` parseCsvSync）与 miniParse 兜底（:79）未复用，属\"有轮子不用\"",
+   "2. 【功能】无列宽对齐：输出 `| ${r.join(' | ')} |` 按原始长度拼接（`registry.ts:174-175`），中英混排时源码列错位（GitHub 渲染正常但源码可读性差）；兄弟工具 markdown-table-generator 已有\"实时生成对齐的 GFM 表格\"能力（registry.ts:159）",
+   "3. 【功能】无首行表头开关与 ragged 行补齐：第一行永远当表头；行字段数不一致时产出缺列/多列表格，GitHub 渲染错位",
+   "4. 【可用性-硬伤】双 textarea 各钉 180px（`base.css:164-168`；TextTool 无独立高度覆写，共性-根因 2；实测几何同 M-06 pinyin-converter）",
+   "5. 【交互】无文件拖入/上传入口（TextTool 仅 textarea；convertcsv.com 支持上传/URL 入口）",
+   "6. 【灵魂】无示例 CSV 预填；含引号 CSV 解析出错无任何警示（静默产出错表而非报错——错得无声是最伤信任的失败模式）",
+   "7. 【交互】对齐全局单选（registry.ts:167），不支持\"第一列左对齐其余居中\"的列级对齐",
+   "8. 【性能】TextTool pending 状态模板从未渲染（审计底稿§三 TextTool.vue:15），大输入无处理反馈"
+  ],
+  "deduction1": "1. 【功能-硬伤】朴素 split 解析：`l.split(String(o.delim))` + `replace(/^\"|\"$/g,'')`（`registry.ts:170`）不处理引号内分隔符/换行/引号转义——`\"a,b\",c` 被切成 3 列、`\"say \"\"hi\"\"\"` 输出 `say \"\"hi\"\"`；站内已有 papaparse 引擎（`csvEngine.ts:24-35` parseCsvSync）与 miniParse 兜底（:79）未复用，属\"有轮子不用\"",
+  "prescriptions": [
+   "引擎替换",
+   "列宽对齐",
+   "表头开关+ragged 补齐",
+   "文件入口",
+   "示例预填"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "curl-to-fetch",
+  "score": 58,
+  "name": "cURL 转 fetch",
+  "slug": "curl-to-fetch",
+  "mode": "D",
+  "benchmark": "curlconverter.com（30+ 语言天花板，对标库收录）＋ reqbin.com",
+  "dims": {
+   "func": 9,
+   "usab": 11,
+   "val": 12,
+   "iact": 11,
+   "ui": 8,
+   "soul": 7
+  },
+  "perf": 9,
+  "mob": 6,
+  "conclusion": "**交互优化 + 需拓展** · P1（-u 误解析按疑似功能缺陷登记，建议优先修）",
+  "deductions": [
+   "1. 【功能-疑似缺陷】-u/--user/--url/-o 等带独立参数的 flag 落入\"未知裸 flag\"分支直接 continue（`jsEngine.ts:683-685`），其参数在下一轮被当作 URL 抢占（:686-688）——`curl -u user:pass https://api.dev/x` 解析出 url=`user:pass` 且真 URL 丢失，属解析器结构性错误而非单纯缺功能",
+   "2. 【功能】-F/--form 表单静默跳过（:684-685 只跳过参数不生成 multipart 代码），转换结果与原命令语义不等价且无\"表单字段已忽略\"警告",
+   "3. 【功能】单语言输出：仅 fetch，curlconverter.com 的 axios/Python-requests/Go/Spring 等 30+ 语言 Tab 全缺——标注：语言模板层纯前端可实现，属可追差距而非架构限制",
+   "4. 【可用性】代码输出 ResultBox min-height 230 双重钉高（`CurlToFetch.vue:59`；`ResultBox.vue:69`），40 行以上生成代码在 230px 内滚动",
+   "5. 【交互】错误提示无定位：只抛\"未在命令中找到 URL\"类整句（jsEngine.ts:690），复杂多 flag 命令不知道哪个 flag 没被识别（与扣分 1 连带）",
+   "6. 【灵魂】无 curl 方言提示：Windows CMD 的 ^ 续行、-d @data.json 文件引用按字面塞进 body（:681）无警告",
+   "7. 【美观-疑似缺陷】`.stat.wide { grid-column: span 1 }`（`CurlToFetch.vue:84-86`）名为 wide 实与普通卡同宽，疑似样式未完成的死代码，URL 长串被挤在 1/3 栏内",
+   "8. 【交互】无 Ctrl+Enter 快捷转换、无\"从剪贴板粘贴并转换\"一键——DevTools 复制后要\"切窗口→粘贴→点按钮\"三步，高频转换场景步骤冗余"
+  ],
+  "deduction1": "1. 【功能-疑似缺陷】-u/--user/--url/-o 等带独立参数的 flag 落入\"未知裸 flag\"分支直接 continue（`jsEngine.ts:683-685`），其参数在下一轮被当作 URL 抢占（:686-688）——`curl -u user:pass https://api.dev/x` 解析出 url=`user:pass` 且真 URL 丢失，属解析器结构性错误而非单纯缺功能",
+  "prescriptions": [
+   "修带参 flag 解析",
+   "-u 生成 Authorization",
+   "-F 转 FormData＋警告",
+   "多语言 Tab",
+   "代码区弹性高度"
+  ],
+  "hard": false,
+  "priority": "P1"
+ },
+ {
+  "file": "docker-run-to-compose",
+  "score": 62,
+  "name": "Docker Run 转 Compose",
+  "slug": "docker-run-to-compose",
+  "mode": "A",
+  "benchmark": "composerize.com（对标库收录）＋ composerize（GitHub 开源项目）",
+  "dims": {
+   "func": 12,
+   "usab": 11,
+   "val": 12,
+   "iact": 11,
+   "ui": 7,
+   "soul": 9
+  },
+  "perf": 9,
+  "mob": 6,
+  "conclusion": "**交互优化** · P1（--depends-on 生成无效命令按疑似功能缺陷登记，建议优先修）",
+  "deductions": [
+   "1. 【功能-疑似缺陷】compose→run 生成 docker 不存在的 `--depends-on`：docker run 无此 flag（depends_on 是 compose 编排语义，run 时代不存在），生成的命令会被 docker 直接拒绝\"unknown flag\"（`devExt.ts:297-299`）——输出应转为注释或省略并警告",
+   "2. 【可用性】输出/输入窗各钉 180px：真实 compose 文件普遍 40-80 行，转换结果在窗内滚 3+ 屏（`base.css:164-168`，共性-根因 2；TextTool 家族通病在本工具因 YAML 行长而更痛）",
+   "3. 【交互】互换陷阱：swap 只把输出搬进输入（`TextTool.vue:56-58`），方向 select 仍停在 toCompose——用户把 compose 粘回输入测反向时必须记得手动切方向，切错即报错且报错文案（\"没有找到镜像名：docker run 后第一个位置参数应为镜像\"，devExt.ts:205）不提示\"你可能选错了方向\"",
+   "4. 【功能】--mount 仅警告不映射：`--mount type=bind,src=...,dst=...` 是 docker 文档推荐的现代写法（:79 在忽略清单），composerize 会转为 volumes 长语法——迁移脚本用 --mount 即半残",
+   "5. 【功能】无顶层 sections 意识：生成的 compose 只有 `services.app`（devExt.ts:254），volumes/named network 的顶层声明不生成，`docker compose up` 会因未定义网络告警；反向解析也只吃 services 段（:266-267）",
+   "6. 【交互】错误仅 toast：YAML 解析失败（yamlParse 是极简解析器，:264-265）只弹一条 message，坏行无定位无行内 notice——复杂 compose 贴进来报错时不知道改哪行",
+   "7. 【灵魂】无服务名推断：镜像名 nginx → 服务名固定 `app`（devExt.ts:254），composerize 用镜像名当服务名，diff 老配置时更亲切",
+   "8. 【交互】无文件拖入与下载：docker-compose.yml 要开文件复制内容，产物无 `.yml` 下载钮（textDef 仅复制）",
+   "9. 【灵魂】无示例空态：placeholder 仅一句提示（registry.ts:274），无\"一键填入典型 docker run 命令\"——首次使用者对着空输入框不知道工具能吃下多复杂的命令"
+  ],
+  "deduction1": "1. 【功能-疑似缺陷】compose→run 生成 docker 不存在的 `--depends-on`：docker run 无此 flag（depends_on 是 compose 编排语义，run 时代不存在），生成的命令会被 docker 直接拒绝\"unknown flag\"（`devExt.ts:297-299`）——输出应转为注释或省略并警告",
+  "prescriptions": [
+   "修 --depends-on",
+   "互换自动切方向",
+   "--mount 映射",
+   "错误行内化＋方向纠错",
+   "输出窗弹性高度（同 json-formatter.md 处方 1 机制）"
+  ],
+  "hard": false,
+  "priority": "P1"
+ },
+ {
+  "file": "docx-to-markdown",
+  "score": 58,
+  "name": "Word 转 Markdown",
+  "slug": "docx-to-markdown",
+  "mode": "C",
+  "benchmark": "word-to-markdown.com（Ben Balter 开源服务）＋ Pandoc（--extract-media，CLI 天花板参照）",
+  "dims": {
+   "func": 11,
+   "usab": 11,
+   "val": 11,
+   "iact": 11,
+   "ui": 7,
+   "soul": 7
+  },
+  "perf": 6,
+  "mob": 6,
+  "conclusion": "**交互优化** · P2",
+  "deductions": [
+   "1. 【功能-疑似问题】图片文案失实：notice 称\"图片默认以原链接保留，可手动下载后替换\"（`DocxToMarkdown.vue:43`），但 mammoth 未配置 imageConverter（`officeEngine.ts:53-58`），Word 内嵌图片默认转为 base64 data URI，经 turndown 输出为超长 `![](data:image/png;base64,...)`——带图文档 MD 输出膨胀数 MB 且多数编辑器不可用，与\"原链接保留\"表述直接矛盾",
+   "2. 【功能】无图片策略选项：无\"忽略图片/提取为文件/保留 base64\"三选（word-to-markdown 支持图片导出）；mammoth styleMap 未暴露——删除线等在 mammoth 默认映射中丢失为普通文本，居中/高亮同理",
+   "3. 【可用性】ResultBox 钉高 300px（`DocxToMarkdown.vue:42`；`ResultBox.vue:69`；几何同 M-01）——长文档输出小窗内滚",
+   "4. 【功能】旧版 .doc 不支持仅靠提示\"另存为 docx\"（:20），未给站内/站外兜底路径",
+   "5. 【灵魂】无原文/输出对照视图（双栏或 Tab），校对转换保真度需来回开文件",
+   "6. 【交互】无批量队列：跨团队 wiki 搬家场景需逐个拖（word-to-markdown/Pandoc 均可批）",
+   "7. 【性能】大 docx 解析无进度百分比（仅 spinner+文件名），完成前无法预估耗时",
+   "8. 【环境】Cookie 横幅首访遮挡底部（M-01 截图证据）"
+  ],
+  "deduction1": "1. 【功能-疑似问题】图片文案失实：notice 称\"图片默认以原链接保留，可手动下载后替换\"（`DocxToMarkdown.vue:43`），但 mammoth 未配置 imageConverter（`officeEngine.ts:53-58`），Word 内嵌图片默认转为 base64 data URI，经 turndown 输出为超长 `![](data:image/png;base64,...)`——带图文档 MD 输出膨胀数 MB 且多数编辑器不可用，与\"原链接保留\"表述直接矛盾",
+  "prescriptions": [
+   "文案如实化",
+   "图片策略选项",
+   "输出弹性高度",
+   "删除线映射",
+   "图片数量披露"
+  ],
+  "hard": false,
+  "priority": "P2"
+ },
+ {
+  "file": "encoding-converter",
+  "score": 63,
+  "name": "文本编码检测与转换",
+  "slug": "encoding-converter",
+  "mode": "C",
+  "benchmark": "CyberChef Text Encoding Brute Force（gchq 官方操作，全编码试跑排序，经核实）＋ Notepad++ 编码菜单（桌面参照）",
+  "dims": {
+   "func": 12,
+   "usab": 10,
+   "val": 13,
+   "iact": 10,
+   "ui": 7,
+   "soul": 11
+  },
+  "perf": 6,
+  "mob": 6,
+  "conclusion": "**交互优化 + 需拓展** · P1",
+  "deductions": [
+   "1. 【功能-入口】只吃文件：粘贴出来的乱码文本（从 Excel/网页复制时已是坏字符，最常见形态）无法进入检测流程（:157 仅 FileDrop），需先存 txt 再拖入",
+   "2. 【可用性】预览区钉 260px 且截断 2 万字符（:173,:191），长 CSV 小窗内滚；导出前无法完整核对转码质量",
+   "3. 【功能】Big5/Shift_JIS/GB18030 只能解码不能导出（EXPORT_TARGETS 仅四档 :20）；GB18030 导出可用 gbk.js 超集近似而未做",
+   "4. 【功能】无 UTF-16BE 导出（:134-140 手写 UTF-16LE 编码器只差一个字节序开关）",
+   "5. 【灵魂】FFFD 无法定位：只报总数不标位置（:97-98），坏字符在哪一行要肉眼找，无逐处高亮+跳转",
+   "6. 【功能】单文件限制 multiple=false（:157），整目录 CSV 批量转码要逐个手动",
+   "7. 【可用性】低置信度无解读：置信度 chip 显示百分比（:164）但\"60% 该不该信、下一步怎么验证\"无引导",
+   "8. 【交互】无\"原始字节十六进制视图\"——判断 BOM/UTF-8 GBK 混杂文件时原始字节是最终依据（CyberChef 附 hex dump）"
+  ],
+  "deduction1": "1. 【功能-入口】只吃文件：粘贴出来的乱码文本（从 Excel/网页复制时已是坏字符，最常见形态）无法进入检测流程（:157 仅 FileDrop），需先存 txt 再拖入",
+  "prescriptions": [
+   "粘贴入口",
+   "预览弹性",
+   "并排对比",
+   "FFFD 定位",
+   "UTF-16BE 导出",
+   "低置信度引导"
+  ],
+  "hard": false,
+  "priority": "P1"
+ },
+ {
+  "file": "env-to-json",
+  "score": 57,
+  "name": "ENV 与 JSON 互转",
+  "slug": "env-to-json",
+  "mode": "D",
+  "benchmark": "codebeautify.org（ENV/属性文件转换器）＋ dotenv-linter（.env 诊断规范参照）",
+  "dims": {
+   "func": 11,
+   "usab": 11,
+   "val": 12,
+   "iact": 10,
+   "ui": 7,
+   "soul": 6
+  },
+  "perf": 7,
+  "mob": 5,
+  "conclusion": "**交互优化** · P1",
+  "deductions": [
+   "1. 【可用性】非法 key 静默 continue（`EnvToJson.vue:21`），含空格/中划线键名的行直接消失，toast 只报总数（:54）——应列出\"第 N 行已跳过及原因\"（对照 dotenv-linter 的逐条诊断）",
+   "2. 【可用性-家族共性】ResultBox height=minHeight 钉死 280px（`ResultBox.vue:69`、`EnvToJson.vue:82`），大配置输出在小窗内滚，无弹性高度",
+   "3. 【功能】按 `\\n` 硬切（:14）不支持 dotenv 引号内跨行值——私钥/证书类多行配置（如 BEGIN CERTIFICATE）会被截断，属真实高频边界",
+   "4. 【功能】无 ${VAR} 变量插值展开与多文件级联能力",
+   "5. 【交互】JSON→.env 时嵌套对象被 JSON.stringify 塞成单行（:42），输出不可读且无\"点路径展平\"（a.b.c=d 是 12-factor 惯例）",
+   "6. 【灵魂】无语法速查、无示例填充按钮、无\"自动判定方向\"（首字符 `=`→env、`{`→JSON 可启发式判定）",
+   "7. 【交互】两窗无同步滚动，长配置对照检查困难（同 json-formatter 扣分 2 同构）"
+  ],
+  "deduction1": "1. 【可用性】非法 key 静默 continue（`EnvToJson.vue:21`），含空格/中划线键名的行直接消失，toast 只报总数（:54）——应列出\"第 N 行已跳过及原因\"（对照 dotenv-linter 的逐条诊断）",
+  "prescriptions": [
+   "跳过行可见",
+   "自动方向",
+   "跨行值",
+   "点路径展平"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "fake-data-generator",
+  "score": 60,
+  "name": "假数据生成器",
+  "slug": "fake-data-generator",
+  "mode": "D",
+  "benchmark": "Mockaroo ＋ jsdelivr faker.js demo",
+  "dims": {
+   "func": 12,
+   "usab": 12,
+   "val": 13,
+   "iact": 11,
+   "ui": 7,
+   "soul": 5
+  },
+  "perf": 7,
+  "mob": 6,
+  "conclusion": "**交互优化 + 需拓展** · P2（中文场景价值站内独有，补数据质量选项）",
+  "deductions": [
+   "1. 【灵魂】无种子机制：刷新后同配置生成不同数据，测试用例无法固化（对接 Mockaroo 的 seed 概念）",
+   "2. 【功能】无唯一性约束选项：1000 行的手机号/身份证可能重复，压测造唯一索引数据场景落空",
+   "3. 【功能·口径】身份证字段生成规则未披露：是否含合法校验位（GB 11643）、地区码/生日是否随机合理——对照站内 id-card-validator（有档案）的校验能力，产出若不合法则自相矛盾",
+   "4. 【交互】与 mock-json-generator（模板模式）零互链零整合——\"造数\"场景双入口分裂（本工具勾选式 vs 对方模板式）",
+   "5. 【灵魂】字段库覆盖度未展示（FAKE_FIELDS 共几类？公司名/银行卡/IPv4/日期区间等常见字段有无）；无英文 locale（国际团队测试场景）"
+  ],
+  "deduction1": "1. 【灵魂】无种子机制：刷新后同配置生成不同数据，测试用例无法固化（对接 Mockaroo 的 seed 概念）",
+  "prescriptions": [
+   "身份证合规",
+   "种子复现",
+   "唯一性开关",
+   "家族整合"
+  ],
+  "hard": true,
+  "priority": "P2"
+ },
+ {
+  "file": "file-type-detector",
+  "score": 64,
+  "name": "文件真实类型检测",
+  "slug": "file-type-detector",
+  "mode": "C",
+  "benchmark": "Trojan 原始 magic 数据库（file 命令）＋ VirusTotal（安全比对，云端天花板）",
+  "dims": {
+   "func": 11,
+   "usab": 13,
+   "val": 12,
+   "iact": 10,
+   "ui": 8,
+   "soul": 10
+  },
+  "perf": 9,
+  "mob": 7,
+  "conclusion": "**交互优化** · P1",
+  "deductions": [
+   "1. 【交互】结果零复制零导出：MIME/真实扩展名/hex 均无复制钮（:72-91 全文未引 copyText），20 个文件的审计结果无法导出 CSV 贴进报告——安全审计的产出就是清单",
+   "2. 【功能】hex 只亮前 16 字节且无释义：仅 `toHex(head)` 一行（:26-27,43），不对匹配到的魔数段高亮（如 PNG 前 8 字节加色标\"PNG 签名\"）——\"魔数检测\"的教育价值与可信度展示都差这最后一公里，file 命令会输出完整签名解释",
+   "3. 【功能】mismatch 无处置引导：判定\"✗ 扩展名不符\"后没有下一步建议（警告文案/常见伪装案例：jpg 伪装 zip 解压可见、双扩展名钓鱼）——安全工具应在风险时刻说重话",
+   "4. 【功能】文本类格式全弃：.txt/.csv/.js 等无魔数格式一律\"未收录\"（:95 仅声明不尝试），可用 UTF-8 BOM/shebang（`#!`）/HTML 头等启发式识别部分文本类型，file 命令亦如此兜底",
+   "5. 【交互】结果区与拖放区割裂：结果多时 FileDrop 被推出视口（:67 在结果流之上），\"再补一个文件\"要滚回顶部——应结果后附迷你\"继续添加\"按钮",
+   "6. 【功能-轻】单次 20 文件上限硬拦（:49 toast 即拒），无\"已识别前 20 个，剩余请再拖\"的软处理",
+   "7. 【灵魂-轻】无\"常见伪装速查\"内容卡：.exe 伪装 .jpg、Office 宏文档伪装 .pdf 等案例是此工具的灵魂场景，空态期只有原理 notice 没有威胁案例引导",
+   "8. 【交互-轻】busy 仅一行 spinner 文字（:69），多文件时无\"N/20 已完成\"进度——20 个大文件串行读取可感数秒"
+  ],
+  "deduction1": "1. 【交互】结果零复制零导出：MIME/真实扩展名/hex 均无复制钮（:72-91 全文未引 copyText），20 个文件的审计结果无法导出 CSV 贴进报告——安全审计的产出就是清单",
+  "prescriptions": [
+   "结果导出",
+   "魔数高亮释义",
+   "mismatch 风险卡",
+   "文本启发式",
+   "继续添加"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "function-plotter",
+  "score": 61,
+  "name": "函数图像绘制",
+  "slug": "function-plotter",
+  "mode": "B",
+  "benchmark": "Desmos（desmos.com，函数绘图天花板，网页版纯前端实现，属对齐目标而非架构天花板）＋ js-parabola 一类教学级单函数演示页（轻量下限参照）",
+  "dims": {
+   "func": 10,
+   "usab": 12,
+   "val": 11,
+   "iact": 9,
+   "ui": 7,
+   "soul": 12
+  },
+  "perf": 8,
+  "mob": 4,
+  "conclusion": "**交互优化 + 需拓展** · P1",
+  "deductions": [
+   "1. 【可用性】画布 400px 定高＋排于输入之后（模板顺序 :224-248、`.cv` :266），1366×768 下画布下缘约 848 出屏、图例完全在折叠线下——图形工具的主画布应占视口主体（共性-根因 1/2 家族）",
+   "2. 【交互】无拖拽平移：onMove 仅渲染 tip（`FunctionPlotter.vue:186-201`），无按下拖动改 xmin/xmax 的逻辑；平移是 Desmos 画布的基本盘",
+   "3. 【功能】y 轴完全自动：2%~98% 分位自适应（:110-121）思路聪明但不可控——无 y 上下限输入、无锁定，多曲线量级差异大时小量级曲线被压成直线",
+   "4. 【功能】曲线管理只能改文本：增删/隐藏/换色全靠编辑 textarea（:36 按行切片），图例（:250-256）不可点击",
+   "5. 【功能】无参数滑块：Desmos 拖 a 滑块看曲线族变化是核心学习交互；mathjs evaluate 本就支持任意变量 scope（:47），引擎侧零障碍",
+   "6. 【交互】触屏零支持：无 touch/pinch 处理（:244），移动端缩放/平移/取值全失效",
+   "7. 【交互-轻】xmin≥xmax 或输入中途 NaN 时静默回退 -10~10（:96-98），用户无感知",
+   "8. 【灵魂-轻】无零点/极值/交点等关键点标注与取值表，数学教学的第一需求缺席；无 URL 状态分享"
+  ],
+  "deduction1": "1. 【可用性】画布 400px 定高＋排于输入之后（模板顺序 :224-248、`.cv` :266），1366×768 下画布下缘约 848 出屏、图例完全在折叠线下——图形工具的主画布应占视口主体（共性-根因 1/2 家族）",
+  "prescriptions": [
+   "画布弹性高度＋置顶",
+   "拖拽平移",
+   "y 轴手动控制",
+   "图例开关",
+   "参数滑块",
+   "触屏支持"
+  ],
+  "hard": false,
+  "priority": "P1"
+ },
+ {
+  "file": "graphql-formatter",
+  "score": 51,
+  "name": "GraphQL 格式化",
+  "slug": "graphql-formatter",
+  "mode": "D",
+  "benchmark": "GraphiQL 内置 Prettify＋Prettier（graphql 插件，prettier.io/playground）",
+  "dims": {
+   "func": 8,
+   "usab": 8,
+   "val": 11,
+   "iact": 11,
+   "ui": 7,
+   "soul": 6
+  },
+  "perf": 6,
+  "mob": 5,
+  "conclusion": "**交互优化 + 需拓展** · P1",
+  "deductions": [
+   "1. 【可用性-硬伤】ResultBox 双重钉高 300px（`ResultBox.vue:69`、`GraphqlFormatter.vue:50`；同构几何 M-01）",
+   "2. 【功能-疑似问题】minifyGraphql 先全局删 `#` 注释（`jsEngine.ts:382`）：字符串字面量内的 `#` 一并删除（如 `query { user(name: \"issue#1\") }` 压缩后变 `\"issue`），产物语法损坏",
+   "3. 【功能-疑似问题】prettyGraphql 先 `\\s+`→空格全局折叠（`jsEngine.ts:365`）：`\"\"\"` 块描述的排版被压平、描述文本内多空格丢失、字符串内 `{}` 会被当作层级缩进依据",
+   "4. 【功能】零校验：大括号不配对、非法 token 照样\"美化成功\"（`GraphqlFormatter.vue:12-20` 仅 catch 异常，正则永不抛错），无错误定位",
+   "5. 【功能】缩进写死 2 空格（`GraphqlFormatter.vue:15` prettyGraphql 默认参数）、无缩进/行宽选项；schema（SDL）与 query 未区分处理（desc 宣称两者皆可，实为同一正则）",
+   "6. 【交互】无快捷键；输入输出独立滚动，长查询对照困难",
+   "7. 【灵魂】示例按钮是亮点但仅一个；无 fragment/变量定义的专项美化说明，能力边界无文案交代（对照 notice 只说了大括号缩进）",
+   "8. 【环境】Cookie 横幅首访遮挡底部结果区（M-01 截图证据）"
+  ],
+  "deduction1": "1. 【可用性-硬伤】ResultBox 双重钉高 300px（`ResultBox.vue:69`、`GraphqlFormatter.vue:50`；同构几何 M-01）",
+  "prescriptions": [
+   "压缩字符串保护",
+   "块描述保护",
+   "输出区弹性高度",
+   "诚实横幅",
+   "校验接入"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "gzip-compress",
+  "score": 59,
+  "name": "Gzip 压缩解压",
+  "slug": "gzip-compress",
+  "mode": "A",
+  "benchmark": "CyberChef（基准库 Gzip/Brotli 配方）＋ codebeautify.org（基准库，Gzip Compress/Decompress）",
+  "dims": {
+   "func": 12,
+   "usab": 9,
+   "val": 12,
+   "iact": 10,
+   "ui": 7,
+   "soul": 9
+  },
+  "perf": 5,
+  "mob": 6,
+  "conclusion": "**交互优化 + 需拓展** · P2",
+  "deductions": [
+   "1. 【可用性-硬伤】首用 pako 动态加载（`registry.ts:248`）期间无任何加载反馈：`pending` 在 `TextTool.vue:15` 置位但模板从未渲染（家族共性，同 pinyin 首用词库已标硬伤，M-06 已实证该症状；P0 挂整改样板 `pinyin-converter.md`）——粘贴大文本后输出区空白数百毫秒，疑似\"坏了\"",
+   "2. 【可用性-设计缺陷】Latin1 输出档产出含 NUL/控制字符的二进制串（`devExt.ts:27-32` 逐字节 fromCharCode），在 textarea 里显示为乱符且复制经剪贴板易损——该档只对\"程序化粘贴到代码变量\"有意义，却无任何\"此输出不适合直接复制\"警示，也无下载为 .gz 二进制文件的替代出口",
+   "3. 【功能】无压缩统计：原始字节数/压缩后字节数/压缩率应是一行数字的事，姊妹工具 code-minifier 已有同款统计（`registry.ts:305-308`），本工具没对齐",
+   "4. 【功能】无压缩级别（pako level 1-9/策略选项未透传）与 memLevel；无 gzip 头部字段（filename/mtime）控制，跨工具比对字节级输出时对不上",
+   "5. 【交互】watch 深度监听逐击键触发整段压缩（`TextTool.vue:48`），无 300ms 防抖：长文本输入时有输入-压缩-再输入的打字机卡顿",
+   "6. 【灵魂】无魔数识别：粘贴以 `H4sI`（gzip 魔数 1f 8b 的 Base64）开头时可直接建议\"检测到 gzip 串，已切到解压模式\"，当前要用户手切方向",
+   "7. 【功能】无 Hex 输出档（Wireshark/协议文档里 gzip payload 以 hex 呈现），三档输出编码不算 Hex",
+   "8. 【交互】纯文本入口无文件支持：给 .gz 文件解压（最常见形态）全站无路径——需先经其他工具转 Base64 再来，链路断裂"
+  ],
+  "deduction1": "1. 【可用性-硬伤】首用 pako 动态加载（`registry.ts:248`）期间无任何加载反馈：`pending` 在 `TextTool.vue:15` 置位但模板从未渲染（家族共性，同 pinyin 首用词库已标硬伤，M-06 已实证该症状；P0 挂整改样板 `pinyin-converter.md`）——粘贴大文本后输出区空白数百毫秒，疑似\"坏了\"",
+  "prescriptions": [
+   "pending 反馈",
+   "压缩统计行",
+   "压缩级别",
+   "魔数识别",
+   "下载 .gz 出口"
+  ],
+  "hard": true,
+  "priority": "P2"
+ },
+ {
+  "file": "hash-generator",
+  "score": 66,
+  "name": "哈希生成器",
+  "slug": "hash-generator",
+  "mode": "C",
+  "benchmark": "emn178/online-tools（经 WebSearch 核实，含 SM3）＋ CyberChef（基准库）",
+  "dims": {
+   "func": 13,
+   "usab": 11,
+   "val": 14,
+   "iact": 9,
+   "ui": 8,
+   "soul": 11
+  },
+  "perf": 4,
+  "mob": 6,
+  "conclusion": "**交互优化 + 需拓展** · P1",
+  "deductions": [
+   "1. 【交互】大写/无连字符开关 `@change=\"reformat\"`（`HashGenerator.vue:110-111`）而 reformat 直接重跑 run()（:81-83）——formatOne（:76-79）本是后处理，却缓存了原始值不用，1GB 文件切开关=六次全量重读重算，纯浪费",
+   "2. 【性能-硬伤边缘】MD5/SHA 走 `file.arrayBuffer()` 一次载入（`hashEngine.ts:27-29`）：2GB 文件直接占 2GB 内存且 UI 冻结，六算法串行各读一遍（:59-67），无分块/Worker/进度百分比——对照任务红线\"安全类注意大文件性能\"",
+   "3. 【功能】无 SM3 国密算法：中文场景（政务/信创对接）常用，emn178/online-tools 已验证支持（js-sm3 系列库可懒加载，符合站内懒加载纪律）",
+   "4. 【功能】与 hmac-generator（`registry.ts:155`）零互跳：算完哈希想签名要回搜索；emn178 在哈希页直接带 HMAC 开关",
+   "5. 【可用性】大文件期间唯一反馈是按钮 disabled+微文案（:113），无进度条/耗时预估/取消——对照站内 FfBase 进度带百分比是全站最完善反馈（`FfBase.vue:189-197`），此处连简版都没有",
+   "6. 【交互】拖入文件不自动开始计算（:20-26 仅登记），多一次必点；文本粘贴后亦无自动（哈希可实时算，输入即出六行是 emn178 的即时体验）",
+   "7. 【功能】不支持 SHA-3/Keccak、RIPEMD-160（emn178 全有）；算法徽章固定 6 行不可增减排序",
+   "8. 【灵魂】比对通过后无\"复制校验通过报告\"类产出（发公告/存档场景），✓ 判定只活在当前页面"
+  ],
+  "deduction1": "1. 【交互】大写/无连字符开关 `@change=\"reformat\"`（`HashGenerator.vue:110-111`）而 reformat 直接重跑 run()（:81-83）——formatOne（:76-79）本是后处理，却缓存了原始值不用，1GB 文件切开关=六次全量重读重算，纯浪费",
+  "prescriptions": [
+   "开关免重算",
+   "文件计算进度",
+   "SM3 国密",
+   "拖入即算",
+   "HMAC 互跳"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "hmac-generator",
+  "score": 61,
+  "name": "HMAC 签名生成",
+  "slug": "hmac-generator",
+  "mode": "B",
+  "benchmark": "emn178/online-tools（HMAC 计算器，经 WebSearch 核实）＋ CyberChef（基准库 HMAC 配方）",
+  "dims": {
+   "func": 11,
+   "usab": 12,
+   "val": 13,
+   "iact": 9,
+   "ui": 8,
+   "soul": 8
+  },
+  "perf": 8,
+  "mob": 6,
+  "conclusion": "**交互优化 + 需拓展** · P2",
+  "deductions": [
+   "1. 【交互】无自动计算：消息或密钥任何改动都要重新点按钮（`HmacGenerator.vue:16-28` 仅 run 绑定），对照站内 number-base-converter 的 computed 实时（`NumberBase.vue:69-79`）与 textDef 家族 watch 自动（`TextTool.vue:47-48`），同为本地毫秒级运算却退化为手动",
+   "2. 【功能】密钥仅支持 UTF-8 文本（`hashEngine.ts:48` `enc.encode(secret)`）：云厂商密钥常以 Hex/Base64 字节串给出（如二进制 16 字节密钥的 hex 形态），按文本再 UTF-8 编码会得到不同字节，签名对不上且工具无提示",
+   "3. 【功能】无 HMAC-MD5：部分老系统（存款接口/老 SDK）仍用 HMAC-MD5，站内已有本地 md5 引擎（`hashEngine.ts:14-17`）+ RFC 2202 可自行组装，属未暴露能力",
+   "4. 【交互】无期望签名比对：姊妹工具 hash-generator 有\"粘贴期望值自动 ✓/✗\"（`HashGenerator.vue:85-96`），此处调签名只能肉眼逐字符对，同一工程内体验倒挂",
+   "5. 【可用性-轻】结果 ResultBox 钉 180px（共性-根因 2）；消息 textarea 仅 110px（`HmacGenerator.vue:59`），长请求体粘贴需内滚编辑，体验憋屈",
+   "6. 【灵魂】无防呆：消息/密钥两个框视觉相近，粘反了照样出\"合法\"签名——可在密钥框加显示切换/计数徽章提示",
+   "7. 【灵魂】无示例与场景引导：没有\"以 OSS 回调签名为例\"的一键填充（消息=canonical 串、密钥=AccessKeySecret），新用户需自行理解字段含义",
+   "8. 【功能】与 jwt-generator（HS256 签名，`registry.ts:156`）、bcrypt-hash 同属签名家族却零互跳；emn178 的哈希页均内嵌 HMAC 开关"
+  ],
+  "deduction1": "1. 【交互】无自动计算：消息或密钥任何改动都要重新点按钮（`HmacGenerator.vue:16-28` 仅 run 绑定），对照站内 number-base-converter 的 computed 实时（`NumberBase.vue:69-79`）与 textDef 家族 watch 自动（`TextTool.vue:47-48`），同为本地毫秒级运算却退化为手动",
+  "prescriptions": [
+   "自动重算",
+   "密钥格式档",
+   "期望比对",
+   "HMAC-MD5",
+   "示例填充"
+  ],
+  "hard": true,
+  "priority": "P2"
+ },
+ {
+  "file": "html-entity-encoder",
+  "score": 55,
+  "name": "HTML 实体编解码",
+  "slug": "html-entity-encoder",
+  "mode": "A",
+  "benchmark": "CyberChef（基准库 HTML Escape 配方）＋ codebeautify.org（基准库，Escape/Unescape 全家）",
+  "dims": {
+   "func": 9,
+   "usab": 10,
+   "val": 12,
+   "iact": 11,
+   "ui": 7,
+   "soul": 6
+  },
+  "perf": 7,
+  "mob": 6,
+  "conclusion": "**交互优化 + 需拓展** · P2",
+  "deductions": [
+   "1. 【功能】无数字实体档：无法把任意字符（含中文）编成 `&#39064;` 形态——邮件地址混淆、绕过内容过滤、GBK 时代页面兼容三场景均依赖数字实体，CyberChef \"Escape all non-ASCII\" 一档即达",
+   "2. 【功能】编码端只认 5 个实体，`©`、`©`、不间断空格等不转义（`textEngine.ts:266-273`）——贴进 iso-8859-1 老页面即乱码；至少应提供\"扩展集\"档（常见命名实体 ~250 个）",
+   "3. 【灵魂-疑似功能缺陷】解码静默通过畸形输入：`&ampl` 这类非法命名实体、`&#999999999;`（超 BMP）经 textarea innerHTML 技巧原样或替换通过（:275-279），无\"N 处无法识别\"告警，排错全靠肉眼",
+   "4. 【功能】无\"仅转义文本\"档：粘贴整段 HTML 只想转义正文保留 `<p>` 标签结构时，当前会把标签也转掉，需用户先手工摘出正文",
+   "5. 【可用性-硬伤】180px 钉高（家族共性-根因 2；硬伤属 textDef 家族级，P0 挂整改样板 `pinyin-converter.md`）：实体化后长度膨胀 3~6 倍（`&#39;` 对 `'`），输出窗溢出比其他编码类更早",
+   "6. 【灵魂】无\"已转义 N 处\"统计与实体高亮——codebeautify 类工具输出区可直读转义位置；无空态示例（如一行含 `&<>\"'` 的示例代码一键填充）",
+   "7. 【交互】与 unicode-lookup（`registry.ts:207`，可查实体）、html-formatter（:186）零互跳：\"这个实体是哪个字符\"与\"转义完整页面\"两个相邻需求都断链",
+   "8. 【功能】无上下文档位：HTML 属性值内只需转 `&quot;`、正文内只需转 `&lt; &gt; &amp;`，当前五实体一律全转（`textEngine.ts:266-273`）——贴日志/代码时引号全变 `&quot;` 反而降低可读性，无\"最小转义集\"选项"
+  ],
+  "deduction1": "1. 【功能】无数字实体档：无法把任意字符（含中文）编成 `&#39064;` 形态——邮件地址混淆、绕过内容过滤、GBK 时代页面兼容三场景均依赖数字实体，CyberChef \"Escape all non-ASCII\" 一档即达",
+  "prescriptions": [
+   "编码粒度档",
+   "已转义计数",
+   "畸形实体告警",
+   "空态示例",
+   "家族钉高修复"
+  ],
+  "hard": true,
+  "priority": "P2"
+ },
+ {
+  "file": "html-formatter",
+  "score": 56,
+  "name": "HTML 格式化",
+  "slug": "html-formatter",
+  "mode": "D",
+  "benchmark": "Prettier Playground＋codebeautify.org HTML Formatter",
+  "dims": {
+   "func": 12,
+   "usab": 8,
+   "val": 12,
+   "iact": 10,
+   "ui": 7,
+   "soul": 7
+  },
+  "perf": 5,
+  "mob": 5,
+  "conclusion": "**交互优化** · P1",
+  "deductions": [
+   "1. 【可用性-硬伤】ResultBox 双重钉高 320px（`ResultBox.vue:69`、`CodeFormatter.vue:87`；同构几何 M-01/M-02）",
+   "2. 【功能-疑似问题】压缩路径 minifyHtml 先 `replace(/\\n\\s*/g,'')` 再 `>\\s+</`（`jsEngine.ts:332-333`）：`<pre>/<textarea>` 内空白被抹，格式化产物用于压缩会改变页面渲染——无\"跳过 pre\"保护",
+   "3. 【功能】无内联 JS/CSS 处理开关（压缩时脚本/样式原样保留，未提供\"压缩内联脚本\"选项——对标 html-minifier 库的 minifyJS/minifyCSS 能力）",
+   "4. 【功能】缩进固定 2 空格（`CodeFormatter.vue:48` 未传 indent，`jsEngine.ts:296` 默认），无行宽/引号风格选项",
+   "5. 【交互】粘贴后需手动点格式化；无文件上传入口（整页 HTML 粘贴易超限）",
+   "6. 【交互-疑似问题】prettier 对非法 HTML 的报错仅 toast.err 瞬时（`CodeFormatter.vue:50-52`），复现困难",
+   "7. 【灵魂】无快捷键、无格式化前后 diff、示例只有 2 行片段不足以展示嵌入格式化能力（`CodeFormatter.vue:16`）",
+   "8. 【环境】Cookie 横幅首访遮挡底部结果区（M-01 截图证据）"
+  ],
+  "deduction1": "1. 【可用性-硬伤】ResultBox 双重钉高 320px（`ResultBox.vue:69`、`CodeFormatter.vue:87`；同构几何 M-01/M-02）",
+  "prescriptions": [
+   "输出区弹性高度",
+   "pre 保护",
+   "嵌入格式化示例引导",
+   "即改即格式化",
+   "缩进选项"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "html-minifier",
+  "score": 51,
+  "name": "HTML 压缩",
+  "slug": "html-minifier",
+  "mode": "D",
+  "benchmark": "willpeavy.com/minifier＋Toptal HTML Minifier（papaparse 系 Toptal 工具集，均真实可查）",
+  "dims": {
+   "func": 8,
+   "usab": 8,
+   "val": 10,
+   "iact": 11,
+   "ui": 7,
+   "soul": 7
+  },
+  "perf": 6,
+  "mob": 5,
+  "conclusion": "**阉割（并入 html-formatter）或需拓展** · P1",
+  "deductions": [
+   "1. 【实用-硬伤】工具与 html-formatter 完全同一组件同一按钮（`registry.ts:187` component 与 :186 相同），唯一差异是文案——独立存在的理由为零，应为并入或差异化",
+   "2. 【可用性-硬伤】ResultBox 双重钉高 320px（`ResultBox.vue:69`、`CodeFormatter.vue:87`；同构几何 M-01）",
+   "3. 【功能-疑似问题】minifyHtml `replace(/\\n\\s*/g,'')` 无 pre/textarea 保护（`jsEngine.ts:332`）：压缩含 `<pre>` 内容的页面会改变渲染结果，产物不可直接部署",
+   "4. 【功能】内联 JS/CSS 原样保留（无 minifyJS/minifyCSS 处理，对标 html-minifier npm 的核心选项）；属性引号/空布尔值/尾部斜杠均不处理",
+   "5. 【灵魂】零压缩率披露：压完只有\"HTML 已压缩\"toast（`CodeFormatter.vue:49`），用户无法知道压了多少（站内 code-minifier 已有字节数统计范式可复用）",
+   "6. 【交互】无文件上传入口（HTML 压缩高频伴随整个 .html 文件，粘贴 >1MB 不现实）；无压缩前后对比",
+   "7. 【美观】JS/CSS/HTML 三 chip 冗余；≤560px 才堆叠（共性-根因 5）",
+   "8. 【环境】Cookie 横幅首访遮挡底部结果区（M-01 截图证据）"
+  ],
+  "deduction1": "1. 【实用-硬伤】工具与 html-formatter 完全同一组件同一按钮（`registry.ts:187` component 与 :186 相同），唯一差异是文案——独立存在的理由为零，应为并入或差异化",
+  "prescriptions": [
+   "信息架构决策",
+   "压缩率统计",
+   "pre 保护",
+   "文件入口",
+   "输出区弹性高度"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "html-to-markdown",
+  "score": 65,
+  "name": "HTML 转 Markdown",
+  "slug": "html-to-markdown",
+  "mode": "D",
+  "benchmark": "Turndown 官方 Demo（domchristie.github.io/turndown）＋ Obsidian/Notion 导入器",
+  "dims": {
+   "func": 13,
+   "usab": 11,
+   "val": 13,
+   "iact": 12,
+   "ui": 7,
+   "soul": 9
+  },
+  "perf": 7,
+  "mob": 5,
+  "conclusion": "**交互优化** · P2",
+  "deductions": [
+   "1. 【灵魂-疑似问题】输入静默截断：粘贴截断 200,000 字符、文件截断 500,000 字符（`HtmlToMarkdown.vue:36,43`），UI 无任何\"已截断\"提示——长文用户拿到不完整产出而不自知，信任硬伤",
+   "2. 【功能】零转换选项：turndown 配置硬编码（headingStyle:atx、bullet:'-'、em:'*'，`mdEngine.ts:110-116`），标题风格/项目符号/代码围栏风格均不可选——Turndown 官方 Demo 全部可调",
+   "3. 【交互】粘贴需先点击 hint-box 或输入框聚焦（paste 事件挂局部元素 :60,:67），未挂 window——从\"复制完切到本页直接 Ctrl+V\"还差一步",
+   "4. 【可用性】双栏各钉 300px（`HtmlToMarkdown.vue:67,78`；`ResultBox.vue:69`；几何同 M-01）",
+   "5. 【功能】无选择性转换：不支持\"忽略 img/仅转正文\"；网页常含导航/页脚噪音，直接 turndown 产生大量无用链接行（Obsidian 导入器带正文提取预处理）",
+   "6. 【灵魂】空态无预填示例（对比 markdown-toc 有示例）；无 GFM 能力边界说明（iframe/video/公式等标签转不出，会静默丢失）",
+   "7. 【美观】≤560px 堆叠（共性-根因 5）；842px 面板双栏偏挤",
+   "8. 【环境】Cookie 横幅首访遮挡底部结果区（M-01 截图证据）"
+  ],
+  "deduction1": "1. 【灵魂-疑似问题】输入静默截断：粘贴截断 200,000 字符、文件截断 500,000 字符（`HtmlToMarkdown.vue:36,43`），UI 无任何\"已截断\"提示——长文用户拿到不完整产出而不自知，信任硬伤",
+  "prescriptions": [
+   "截断提示",
+   "window 级粘贴",
+   "选项面板",
+   "忽略标签",
+   "输出弹性高度"
+  ],
+  "hard": true,
+  "priority": "P2"
+ },
+ {
+  "file": "http-status-codes",
+  "score": 62,
+  "name": "HTTP 状态码速查",
+  "slug": "http-status-codes",
+  "mode": "C",
+  "benchmark": "httpstatuses.io ＋ MDN HTTP Status 页",
+  "dims": {
+   "func": 10,
+   "usab": 13,
+   "val": 11,
+   "iact": 11,
+   "ui": 8,
+   "soul": 9
+  },
+  "perf": 9,
+  "mob": 8,
+  "conclusion": "**需拓展（补全状态码库）＋ 交互优化** · P1（desc 与实际库不符按疑似功能问题登记）",
+  "deductions": [
+   "1. 【功能-疑似缺陷】状态码库覆盖不足且 desc 名实不符：`HTTP_STATUS` 仅 29 条（`jsEngine.ts:777-807`），缺 RFC 常见码 34 个——300 Multiple Choices、402、406、407、411、412、414、416、418、421、423、425、426、428、431、451、505、507、511、102、103、203、205、207 等；registry.ts:208 desc 写\"1xx–5xx 全部状态码\"与实际不符，用户搜\"418\"\"451\"返回零结果且无\"未收录\"说明",
+   "2. 【功能】无处置层：每个码只有一句定义（如 502\"网关收到上游无效响应\"），没有\"常见触发方（nginx upstream/网关）、排查动作（看上游日志）、伴随头（Retry-After）\"——排障用户拿到 502 的真实问题是\"我该怎么办\"",
+   "3. 【交互】无锚点直达：无 `?code=404` 或 `/t/http-status-codes#404` 承载，聊天里发\"看这个工具\"对方还得自己再搜一遍 404；httpstatuses.io 每码独立 URL 是分享刚需",
+   "4. 【交互】单行不可复制：状态码行无复制钮（:83-89），写文档贴\"429 Too Many Requests\"要手动划选",
+   "5. 【灵魂】无场景化入口：登录失败用 401 还是 403、限流返回 429 要带什么头，这类\"按问题找码\"的反向路径缺席——速查表的灵魂是回答真实排障问题而非罗列",
+   "6. 【功能-轻】搜索仅匹配 code/name/desc 三字段（:24-28），搜\"teapot\"\"payment\"无果（库内本无）；搜索无防抖亦无延迟问题，但空结果态无\"试试这些词\"引导",
+   "7. 【UI-轻】搜索高亮用 `<mark>` 的 v-html 注入：先 escapeHtml 再 wrap（:9-11,33）实现安全✓，但分组头计数在过滤后显示\"0 条\"的分组仍占一整行折叠头（:80,90），扫视时噪音偏大"
+  ],
+  "deduction1": "1. 【功能-疑似缺陷】状态码库覆盖不足且 desc 名实不符：`HTTP_STATUS` 仅 29 条（`jsEngine.ts:777-807`），缺 RFC 常见码 34 个——300 Multiple Choices、402、406、407、411、412、414、416、418、421、423、425、426、428、431、451、505、507、511、102、103、203、205、207 等；registry.ts:208 desc 写\"1xx–5xx 全部状态码\"与实际不符，用户搜\"418\"\"451\"返回零结果且无\"未收录\"说明",
+  "prescriptions": [
+   "补全状态码库",
+   "desc 对齐",
+   "锚点直达",
+   "单行复制",
+   "场景化标签"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "javascript-formatter",
+  "score": 56,
+  "name": "JS 格式化 / 压缩",
+  "slug": "javascript-formatter",
+  "mode": "D",
+  "benchmark": "Prettier Playground（prettier.io/playground，即改即格式化天花板）＋ javascript-minifier.com",
+  "dims": {
+   "func": 11,
+   "usab": 8,
+   "val": 13,
+   "iact": 10,
+   "ui": 7,
+   "soul": 7
+  },
+  "perf": 5,
+  "mob": 5,
+  "conclusion": "**交互优化 + 需拓展** · P1",
+  "deductions": [
+   "1. 【可用性-硬伤】ResultBox 双重钉高 320px（`ResultBox.vue:69`、`CodeFormatter.vue:87`；同构几何 M-01/M-02：1920 大屏依旧 320px）",
+   "2. 【功能】**压缩为假压缩**：minifyJs 仅正则去注释去空白（`jsEngine.ts:337-344`），不改名不优化；desc 宣称\"压缩\"易让用户误以为 terser 级（站内 code-minifier 才是真 terser，`registry.ts:298-300`，双入口能力不一致）",
+   "3. 【功能-疑似问题】minifyJs 无字符串/模板字面量保护：模板字符串中行首 `//` 会被当注释整行删除（`jsEngine.ts:340`），压缩可能改变代码语义",
+   "4. 【功能】配置面为零：semi:true 写死（`jsEngine.ts:297`）、tabWidth 走默认 2（`CodeFormatter.vue:48` 未传 indent），无 printWidth/singleQuote/trailingComma——Prettier Playground 全部可调",
+   "5. 【交互-疑似问题】prettier 语法错误信息（含行列号与代码帧）仅 toast.err 且 slice(0,120)（`CodeFormatter.vue:50-52`），toast 瞬时消失后用户无从复查",
+   "6. 【交互】粘贴后需手动点\"格式化\"，无即改即格式化开关",
+   "7. 【灵魂】无快捷键（Ctrl+Enter）、无格式化前后 diff 对照",
+   "8. 【美观】≤560px 才堆叠（共性-根因 5），768 平板双栏各约 250px"
+  ],
+  "deduction1": "1. 【可用性-硬伤】ResultBox 双重钉高 320px（`ResultBox.vue:69`、`CodeFormatter.vue:87`；同构几何 M-01/M-02：1920 大屏依旧 320px）",
+  "prescriptions": [
+   "输出区弹性高度",
+   "压缩换真引擎",
+   "配置面板",
+   "即改即格式化",
+   "错误持久化"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "json-diff",
+  "score": 58,
+  "name": "JSON 结构对比",
+  "slug": "json-diff",
+  "mode": "D",
+  "benchmark": "jsondiff.com（树形对比标杆）＋ diffchecker.com",
+  "dims": {
+   "func": 12,
+   "usab": 10,
+   "val": 12,
+   "iact": 9,
+   "ui": 7,
+   "soul": 8
+  },
+  "perf": 5,
+  "mob": 5,
+  "conclusion": "**交互优化 + 需拓展** · P1（结果可读性硬伤在长数组场景，与 jsondiff.com 有代差）",
+  "deductions": [
+   "1. 【可用性】左右输入 textarea 各钉 170px（`JsonDiff.vue:75,79`；M-05 同构，共性-根因 2）——长 JSON 粘贴后窗口只显示十几行，且对比后焦点回到列表、输入区被挤压",
+   "2. 【功能·策略】数组对比按路径索引逐项（deepDiff 对 Array 的处理未做按键/值匹配），`[1,2,3]`→`[1,2,3,4]` 可识别新增，但 `[3,2,1]`→`[1,2,3]` 会报 3 处修改——**顺序无关数组的语义对比缺失**，jsondiff.com 按键匹配（id 字段）可正确识别",
+   "3. 【功能】无\"只看差异\"过滤视图：千项对象找 3 处差异靠肉眼滚列表",
+   "4. 【交互】无路径点击定位：`data.items[5].name` 只是文本，无法展开树形上下文",
+   "5. 【可用性】差异列表无固定高度/虚拟滚动，500 处差异时页面无限拉长",
+   "6. 【灵魂】无示例（改 3 个字段的两个版本 JSON）一键填入；与 text-diff（文本 diff）零互链指引（\"结构对比 vs 文本对比\"的选择指引）"
+  ],
+  "deduction1": "1. 【可用性】左右输入 textarea 各钉 170px（`JsonDiff.vue:75,79`；M-05 同构，共性-根因 2）——长 JSON 粘贴后窗口只显示十几行，且对比后焦点回到列表、输入区被挤压",
+  "prescriptions": [
+   "输入区弹性高度",
+   "差异列表约束",
+   "只看差异",
+   "数组匹配披露"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "json-escape",
+  "score": 56,
+  "name": "JSON 转义 / 反转义",
+  "slug": "json-escape",
+  "mode": "A",
+  "benchmark": "CyberChef（Strings/Escape 模块）＋ freeformatter.com escape",
+  "dims": {
+   "func": 11,
+   "usab": 9,
+   "val": 12,
+   "iact": 10,
+   "ui": 7,
+   "soul": 7
+  },
+  "perf": 7,
+  "mob": 6,
+  "conclusion": "**交互优化** · P2（家族处方覆盖；个性问题轻但值得披露口径）",
+  "deductions": [
+   "1. 【灵魂·口径】unescape fallback（`JSON.parse` 失败时正则替换，`textEngine.ts:287-290`）会把输入中的**字面反斜杠+n**（如 Windows 路径 `C:\\new`）误转为换行符，且 `\\uXXXX` 序列不处理——含糊 fallback 无任何提示，输出可能静默失真",
+   "2. 【可用性-家族】180px 钉高 + pending 不渲染（M-06；共性-根因 2，引用 pinyin-converter.md 处方 1-2）",
+   "3. 【功能】无自动方向检测：粘贴以 `\"…\"` 包裹且含 `\\n` 的串时应建议反转义，现需手动切方向",
+   "4. 【功能】无 Unicode 输出选项：中文默认原样输出（`JSON.stringify` 行为），需要 `\\uXXXX` 纯 ASCII 场景（老系统）无开关",
+   "5. 【灵魂】无空态示例（\"Hello\\n\"世界 一例即懂）"
+  ],
+  "deduction1": "1. 【灵魂·口径】unescape fallback（`JSON.parse` 失败时正则替换，`textEngine.ts:287-290`）会把输入中的**字面反斜杠+n**（如 Windows 路径 `C:\\new`）误转为换行符，且 `\\uXXXX` 序列不处理——含糊 fallback 无任何提示，输出可能静默失真",
+  "prescriptions": [
+   "fallback 披露",
+   "方向自动检测",
+   "Unicode 档",
+   "家族整改"
+  ],
+  "hard": true,
+  "priority": "P2"
+ },
+ {
+  "file": "json-formatter",
+  "score": 58,
+  "name": "JSON 格式化校验",
+  "slug": "json-formatter",
+  "mode": "D",
+  "benchmark": "JSON Crack（jsoncrack.com）＋ jsonformatter.org",
+  "dims": {
+   "func": 12,
+   "usab": 8,
+   "val": 13,
+   "iact": 11,
+   "ui": 7,
+   "soul": 7
+  },
+  "perf": 5,
+  "mob": 5,
+  "conclusion": "**交互优化 + 需拓展** · P0（用户点名工具，全站模式 D 的整改样板）",
+  "deductions": [
+   "1. 【可用性-硬伤】输出 ResultBox `:style=\"{ minHeight, height: minHeight }\"` 双重钉高 320px，无法撑满视口（`ResultBox.vue:69`、`JsonFormatter.vue:65`；实测 M-01/M-02：**1920×1080 大屏下依旧 320px/842px 面板，零增益**）",
+   "2. 【可用性】输入与输出独立滚动，对照检查长 JSON 时无法同步定位（`JsonFormatter.vue:63-65` 双 textarea 无 scroll 联动）",
+   "3. 【功能】无折叠树/结构视图——JSON Crack 的核心价值即\"看清结构\"，本工具只有纯文本",
+   "4. 【交互】粘贴 JSON 后仍需手动点击\"格式化\"，未提供\"粘贴即处理\"开关（`run()` 仅由按钮触发，`JsonFormatter.vue:55-57`）",
+   "5. 【灵魂】空态只有一句 placeholder\"结果将显示在这里\"，无示例 JSON 一键填充、无格式说明",
+   "6. 【灵魂】无快捷键（Ctrl+Enter 格式化、Ctrl+Shift+C 复制均未实现）",
+   "7. 【性能】同步主线程执行，1MB+ JSON 会冻结输入框且无任何进度提示",
+   "8. 【美观】`.grid-2` 到 ≤560px 才堆叠（`base.css:329-335`），768px 平板上双栏各 ~250px 近乎不可读",
+   "9. 【环境】Cookie 横幅首访遮挡底部\"JSON 校验通过\"结果条（M-01 截图证据）"
+  ],
+  "deduction1": "1. 【可用性-硬伤】输出 ResultBox `:style=\"{ minHeight, height: minHeight }\"` 双重钉高 320px，无法撑满视口（`ResultBox.vue:69`、`JsonFormatter.vue:65`；实测 M-01/M-02：**1920×1080 大屏下依旧 320px/842px 面板，零增益**）",
+  "prescriptions": [
+   "输出区弹性高度",
+   "粘贴即处理",
+   "错误行内跳转",
+   "折叠树 Tab",
+   "同步滚动"
+  ],
+  "hard": true,
+  "priority": "P0"
+ },
+ {
+  "file": "json-schema-generator",
+  "score": 53,
+  "name": "JSON Schema 生成",
+  "slug": "json-schema-generator",
+  "mode": "D",
+  "benchmark": "jsonschema.net（即时 Schema 推断＋选项面板）＋ quicktype.io（推断深度参照）",
+  "dims": {
+   "func": 9,
+   "usab": 10,
+   "val": 12,
+   "iact": 9,
+   "ui": 7,
+   "soul": 6
+  },
+  "perf": 6,
+  "mob": 5,
+  "conclusion": "**交互优化 + 需拓展** · P1",
+  "deductions": [
+   "1. 【功能】required 一律\"非 null 即必填\"（`jsEngine.ts:506`）——数组多元素字段不齐时产出过严 schema，直接用于校验会误杀合法数据（与 json-to-typescript 扣分 2 同源，推断内核应共享）",
+   "2. 【功能】draft-07 写死（:495）：无 2020-12/2019-09 版本选择；`type: \"null\"`（:497）在部分旧校验器（draft-04）不被支持，无降级提示",
+   "3. 【功能】无 format 推断：email/url/date-time 值按样例明显可判，却只输出 `type: \"string\"`（:511）——format 是 schema 校验价值的一半",
+   "4. 【功能】数组 items 只取首元素（:499），空数组输出空 items（:499）无 anyOf 兜底或提示",
+   "5. 【功能】additionalProperties:false 写死（:508）无开关——宽松场景（配置合并）用户被迫手改输出",
+   "6. 【可用性-家族共性】ResultBox 钉死 300px（`ResultBox.vue:69`），深 schema 小窗内滚",
+   "7. 【灵魂】生成后无\"回验\"回路：拿 schema 校验原 JSON（或粘贴另一份样例验证）是 schema 工具的闭环动作，本工具生成即终点"
+  ],
+  "deduction1": "1. 【功能】required 一律\"非 null 即必填\"（`jsEngine.ts:506`）——数组多元素字段不齐时产出过严 schema，直接用于校验会误杀合法数据（与 json-to-typescript 扣分 2 同源，推断内核应共享）",
+  "prescriptions": [
+   "required 策略开关",
+   "format 推断",
+   "Draft 版本选择",
+   "回验 Tab"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "json-to-csv",
+  "score": 56,
+  "name": "JSON 转 CSV",
+  "slug": "json-to-csv",
+  "mode": "A",
+  "benchmark": "convertcsv.com（JSON to CSV）＋ csvjson.com（json2csv）",
+  "dims": {
+   "func": 9,
+   "usab": 10,
+   "val": 12,
+   "iact": 11,
+   "ui": 7,
+   "soul": 7
+  },
+  "perf": 5,
+  "mob": 6,
+  "conclusion": "**交互优化 + 需拓展** · P1",
+  "deductions": [
+   "1. 【功能】嵌套对象/数组不做拍平，直接 `JSON.stringify` 塞进单元格（`registry.ts:58`）——同站 json-to-excel 有 a.b.c 拍平开关（`JsonToExcel.vue:41-48`），**同族工具两套行为**",
+   "2. 【功能-可用性】无文件下载：TextTool 输出仅复制（`TextTool.vue:130-133`），千行 CSV 手工粘贴易出事；且复制内容无 BOM 选项，Excel 打开中文乱码（convertcsv 有 UTF-8 BOM 开关）",
+   "3. 【功能】列顺序 = 首个出现顺序的 Set（`registry.ts:57`），无选列/重排/删列能力",
+   "4. 【可用性】双窗 180px 钉高（家族共性-根因 2，M-06），大数组输出小窗内滚",
+   "5. 【可用性】出错时输出区清空（`TextTool.vue:39`），对照排查丢失上次结果",
+   "6. 【交互】与 csv-to-json 非严格双向一致：csv-to-json 会把 \"028\" cast 成 28（`CsvToJson.vue:34`），json-to-csv 回转后 28——前导零/字符串数字往返漂移，无口径说明",
+   "7. 【灵魂】无示例数组一键填充；无嵌套行为说明文案；placeholder 仅\"粘贴 JSON 对象数组…\"一个词"
+  ],
+  "deduction1": "1. 【功能】嵌套对象/数组不做拍平，直接 `JSON.stringify` 塞进单元格（`registry.ts:58`）——同站 json-to-excel 有 a.b.c 拍平开关（`JsonToExcel.vue:41-48`），**同族工具两套行为**",
+  "prescriptions": [
+   "拍平开关",
+   "下载 .csv",
+   "嵌套行为披露",
+   "弹性高度",
+   "往返口径说明"
+  ],
+  "hard": false,
+  "priority": "P1"
+ },
+ {
+  "file": "json-to-excel",
+  "score": 57,
+  "name": "JSON 转 Excel",
+  "slug": "json-to-excel",
+  "mode": "C",
+  "benchmark": "convertcsv.com（JSON to Excel）＋ Table Convert（tableconvert.com）",
+  "dims": {
+   "func": 12,
+   "usab": 8,
+   "val": 12,
+   "iact": 10,
+   "ui": 7,
+   "soul": 8
+  },
+  "perf": 5,
+  "mob": 6,
+  "conclusion": "**交互优化 + 需拓展** · P0（盲盒下载 = 结果完全不可见，属\"结果区没法看\"可用性硬伤红线）",
+  "deductions": [
+   "1. 【可用性-硬伤】盲盒下载：run() 校验后直接 saveBlob 自动下载（`JsonToExcel.vue:78-91`），无表格预览、无下载前确认——拍平列名对不对、列顺序如何、null 填了什么，全部下载后才能发现（模式 F\"notice 条即结果\"变体，共性-根因 2 的高度问题在此表现为\"结果区根本不存在\"）",
+   "2. 【可用性-疑似功能缺陷】文件载入静默截断 200 万字符（`JsonToExcel.vue:19` `.slice(0, 2000000)`）无任何提示——大 JSON 被砍尾后 JSON.parse 必失败，报\"JSON 无效\"把用户引向完全错误的排查方向",
+   "3. 【功能-疑似功能缺陷】关闭拍平时嵌套对象/数组原样传入 aoa_to_sheet（`JsonToExcel.vue:66,75`）——SheetJS 不接受任意对象作单元格，此类列疑似空白或损坏",
+   "4. 【功能】多数组场景无 sheet 勾选/改名预览，全量导出不可挑拣（:63-93）",
+   "5. 【功能】无列宽自适应、无表头冻结、无样式（rowsToXlsx 仅 `aoa_to_sheet`，officeEngine.ts:36-40）",
+   "6. 【交互】无示例一键填充按钮；sheet 名重复时静默改名 `-2`（:70-71）无提示",
+   "7. 【实用-重复度】data 分类 csv-to-excel 也接受 JSON 文件（`data/registry.ts:7`、`CsvToExcel.vue:33-44`），两入口无互相指引；本工具数值保型更正确却名不带 JSON（入口词\"json excel\"可同时搜到两者）"
+  ],
+  "deduction1": "1. 【可用性-硬伤】盲盒下载：run() 校验后直接 saveBlob 自动下载（`JsonToExcel.vue:78-91`），无表格预览、无下载前确认——拍平列名对不对、列顺序如何、null 填了什么，全部下载后才能发现（模式 F\"notice 条即结果\"变体，共性-根因 2 的高度问题在此表现为\"结果区根本不存在\"）",
+  "prescriptions": [
+   "生成前预览",
+   "截断提示",
+   "关闭拍平兜底",
+   "sheet 勾选",
+   "示例按钮"
+  ],
+  "hard": true,
+  "priority": "P0"
+ },
+ {
+  "file": "json-to-java-entity",
+  "score": 56,
+  "name": "JSON 转 Java 实体类",
+  "slug": "json-to-java-entity",
+  "mode": "A",
+  "benchmark": "quicktype.io（JSON→多语言类型生成天花板）",
+  "dims": {
+   "func": 10,
+   "usab": 9,
+   "val": 13,
+   "iact": 11,
+   "ui": 7,
+   "soul": 6
+  },
+  "perf": 6,
+  "mob": 6,
+  "conclusion": "**交互优化 + 需拓展** · P1",
+  "deductions": [
+   "1. 【功能-疑似缺陷】嵌套对象生成的多个**平级 public class 拼在同一个输出文件**（`jsEngine.ts:959` 每类都 emit `public class`，:984 根类在前、子类依次追加）——Java 一个 .java 文件只允许一个 public class，含嵌套 DTO 的输出直接复制编译必报错；应改内部 static class 或提示拆文件",
+   "2. 【功能】同名嵌套键跨层级复用同一类：`seen` 只按 pascal+Dto 类名去重（`jsEngine.ts:943-947`），`a.user` 与 `b.user` 结构不同时会错误复用先注册的类定义",
+   "3. 【功能】无 package 声明、无 @JsonProperty/@JsonFormat（日期仍是 String，:934）、无 Jackson/Gson 注解风格选项——quicktype 对 Java 可输出 Jackson 注解与 java.time 类型",
+   "4. 【可用性-家族共性】TextTool 双窗 180px 钉死（`base.css:164-168`；M-06），输出多类时需在 180px 窗内滚 10+ 屏（同金标准 M-01 的 10.8 屏问题）",
+   "5. 【灵魂】顶层数组静默取首元素（`jsEngine.ts:980`）无任何提示——用户不知道 List<根类> 语义被隐含了",
+   "6. 【功能】空数组 → `List<Object>`（:938）不尝试按字段名/上下文推断元素类型"
+  ],
+  "deduction1": "1. 【功能-疑似缺陷】嵌套对象生成的多个**平级 public class 拼在同一个输出文件**（`jsEngine.ts:959` 每类都 emit `public class`，:984 根类在前、子类依次追加）——Java 一个 .java 文件只允许一个 public class，含嵌套 DTO 的输出直接复制编译必报错；应改内部 static class 或提示拆文件",
+  "prescriptions": [
+   "嵌套类编译可过",
+   "同名嵌套键各自成类",
+   "包名与注解选项",
+   "数组顶层提示"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "json-to-typescript",
+  "score": 58,
+  "name": "JSON 生成 TS 类型",
+  "slug": "json-to-typescript",
+  "mode": "D",
+  "benchmark": "quicktype.io（JSON→TS 类型生成天花板）＋ jsonformatter.org（Tree 视图参照）",
+  "dims": {
+   "func": 11,
+   "usab": 10,
+   "val": 13,
+   "iact": 10,
+   "ui": 7,
+   "soul": 7
+  },
+  "perf": 6,
+  "mob": 5,
+  "conclusion": "**交互优化 + 需拓展** · P1",
+  "deductions": [
+   "1. 【功能】数组只取首元素推断（`jsEngine.ts:467`）——`tags: [\"a\", 1, null]` 全按首元素 `string[]` 输出，无多元素 union 合并；quicktype 会对数组全样本做类型归并",
+   "2. 【功能】可选字段仅认 null（:477）——数组内多对象字段不齐时（`[{a:1},{b:2}]`）不会把 a/b 标为可选，产出错误精确度的类型",
+   "3. 【功能】无字面量 union 推断：同类字段稳定出现 2~3 个固定值时 quicktype 生成 `type: \"a\" | \"b\"`，本工具一律 string",
+   "4. 【可用性-家族共性】ResultBox height=minHeight 钉死 300px（`ResultBox.vue:69`、`JsonToTypescript.vue:49`），接口树长时需手动拖拽",
+   "5. 【交互】根类名改动不触发重新生成（`generate()` 仅按钮触发，:15-25），需二次点击",
+   "6. 【功能】嵌套键名 pascal 化可能冲突：`user_info` 与 `userInfo` 生成同名 interface（:463 归一化后同键），无冲突检测（与 json-to-java-entity 扣分 2 同源）",
+   "7. 【性能】同步主线程，大 JSON 无进度反馈（家族共性）"
+  ],
+  "deduction1": "1. 【功能】数组只取首元素推断（`jsEngine.ts:467`）——`tags: [\"a\", 1, null]` 全按首元素 `string[]` 输出，无多元素 union 合并；quicktype 会对数组全样本做类型归并",
+  "prescriptions": [
+   "多样本推断",
+   "字面量 union",
+   "根类名实时生效",
+   "输出弹性高度"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "json-to-xml",
+  "score": 52,
+  "name": "JSON 转 XML",
+  "slug": "json-to-xml",
+  "mode": "A",
+  "benchmark": "Code Beautify JSON→XML ＋ convertcsv.com",
+  "dims": {
+   "func": 10,
+   "usab": 9,
+   "val": 11,
+   "iact": 10,
+   "ui": 7,
+   "soul": 5
+  },
+  "perf": 6,
+  "mob": 6,
+  "conclusion": "**交互优化 + 需拓展** · P1（产出正确性缺陷应与 xml-to-json 的 @ 前缀对称性一起解决）",
+  "deductions": [
+   "1. 【灵魂-产出缺陷】JSON key 直接用作 XML 标签名且不校验合法性（`build(val,k)` 直接拼 `<${name}>`，`jsEngine.ts:432,436`）——`{\"2F 空间\":\"x\"}` 产出 `<2F 空间>x</2F 空间>` **非法 XML**（标签不得数字开头/含空格），下游解析器报错时用户无从得知源头在此",
+   "2. 【功能】数组转换语义不对称：`{\"items\":[1,2]}` 产出 `<items>1</items>\\n<items>2</items>`（数组键名重复，`jsEngine.ts:429`）而非 `<items><item>…</item></items>`——与 xml-to-json 的 @ 属性前缀（registry.ts:110-113 desc 承诺）往返不对称，A→B→A 不可还原",
+   "3. 【功能】对象属性无 `@attr` 映射策略（xml-to-json 产出 `@id` 键，本工具反向时把 `@id` 原样转成 `<@id>` 同样非法）",
+   "4. 【可用性-家族】180px 钉高 + pending 不渲染（M-06；共性-根因 2，引用 pinyin-converter.md 处方 1-2）",
+   "5. 【灵魂】JSON 语法错误只有浏览器原生 message（\"Unexpected token\"），未翻译未定位"
+  ],
+  "deduction1": "1. 【灵魂-产出缺陷】JSON key 直接用作 XML 标签名且不校验合法性（`build(val,k)` 直接拼 `<${name}>`，`jsEngine.ts:432,436`）——`{\"2F 空间\":\"x\"}` 产出 `<2F 空间>x</2F 空间>` **非法 XML**（标签不得数字开头/含空格），下游解析器报错时用户无从得知源头在此",
+  "prescriptions": [
+   "标签名合法性守卫",
+   "数组包裹选项",
+   "往返自检",
+   "家族整改"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "json-to-yaml",
+  "score": 55,
+  "name": "JSON 转 YAML",
+  "slug": "json-to-yaml",
+  "mode": "A",
+  "benchmark": "Code Beautify（codebeautify.org JSON to YAML）＋ jsonformatter.org（JSON↔YAML）",
+  "dims": {
+   "func": 10,
+   "usab": 10,
+   "val": 11,
+   "iact": 11,
+   "ui": 7,
+   "soul": 6
+  },
+  "perf": 6,
+  "mob": 6,
+  "conclusion": "**交互优化 + 需拓展** · P1（附功能缺陷记录，交用户决定是否修复）",
+  "deductions": [
+   "1. 【功能-疑似缺陷】字符串引号策略不安全：仅含 `:` `#` `\\n` 的字符串才加引号（`jsEngine.ts:99`）——`\"3\"` 输出 `v: 3`、`\"2024-01-01\"` 输出裸时间戳、空串 `\"\"` 输出 `v:`（重解析为 null）；用站内 yaml-to-json 回转 `{\"v\":\"3\"}` 得到数字 3，**自家两工具往返即类型漂移**（YAML 1.1 下 \"yes\"/\"on\" 还会变布尔）",
+   "2. 【功能】手写序列化器未用 js-yaml dump（`jsEngine.ts:78-102`）：无 2/4 空格缩进选择、无 flow 风格 `{a: 1}`、无按键排序、无双引号风格",
+   "3. 【功能】值以 `-` `&` `*` `%` `@` 等指示符开头时同样裸输出（:99 不拦截），个别组合（如 `key: *a`）产生非法/歧义 YAML",
+   "4. 【可用性】双窗 180px 钉高（家族共性-根因 2，M-06）；深层嵌套 YAML 缩进在 180px 内无法总览",
+   "5. 【交互】无 .yaml/.yml 文件下载（TextTool.vue:130-133 仅复制），写 compose 文件要手工建文件",
+   "6. 【灵魂】主打 K8s/Compose 场景（registry.ts:85-86）却无对应示例片段一键填充；无键数/最大深度统计"
+  ],
+  "deduction1": "1. 【功能-疑似缺陷】字符串引号策略不安全：仅含 `:` `#` `\\n` 的字符串才加引号（`jsEngine.ts:99`）——`\"3\"` 输出 `v: 3`、`\"2024-01-01\"` 输出裸时间戳、空串 `\"\"` 输出 `v:`（重解析为 null）；用站内 yaml-to-json 回转 `{\"v\":\"3\"}` 得到数字 3，**自家两工具往返即类型漂移**（YAML 1.1 下 \"yes\"/\"on\" 还会变布尔）",
+  "prescriptions": [
+   "安全引号化",
+   "下载 .yaml",
+   "示例填充",
+   "弹性高度",
+   "重解析预警"
+  ],
+  "hard": false,
+  "priority": "P1"
+ },
+ {
+  "file": "json-visualizer",
+  "score": 63,
+  "name": "JSON 可视化树",
+  "slug": "json-visualizer",
+  "mode": "D",
+  "benchmark": "JSON Crack（jsoncrack.com）＋ jsonhero.io（JSON 可视化树天花板）",
+  "dims": {
+   "func": 13,
+   "usab": 9,
+   "val": 13,
+   "iact": 12,
+   "ui": 8,
+   "soul": 8
+  },
+  "perf": 8,
+  "mob": 6,
+  "conclusion": "**交互优化** · P1",
+  "deductions": [
+   "1. 【可用性-硬伤倾向】树区 `max-height:480px` 钉死（`JsonVisualizer.vue:155`，共性-根因 2 在案点名），全屏工作流（对照浏览大响应体）无法放大——可视化工具的结果区就是产品本体",
+   "2. 【可用性】搜索命中无计数反馈（`JsonVisualizer.vue:89-96` 只做展开，无\"命中 N 处\"），大 JSON 里用户不知道搜没搜全",
+   "3. 【功能】无图谱视图（Graph 模式）——JSON Crack 的招牌能力，复杂引用关系（环形引用、跨层跳转）只有树一种表达",
+   "4. 【功能】复制路径为 JS 点路径格式 `a.b[0].c`（JsonTreeNode copyPath），非 JSONPath `$..a.b[0].c`——与 jsonpath-tester 无法无缝衔接（工作台断链点）",
+   "5. 【功能】无 URL 分享/快照：JSON Crack 可把当前数据+展开状态编码进链接，协作场景本工具为零",
+   "6. 【交互】输入窗 110px（:119）改完 JSON 需重新粘贴才能\"回到根视图\"，无\"重新解析\"按钮",
+   "7. 【功能】无原文对照视图（jsonformatter.org 的 Text/Tree 双 Tab），找\"第几行\"场景要切去 json-formatter"
+  ],
+  "deduction1": "1. 【可用性-硬伤倾向】树区 `max-height:480px` 钉死（`JsonVisualizer.vue:155`，共性-根因 2 在案点名），全屏工作流（对照浏览大响应体）无法放大——可视化工具的结果区就是产品本体",
+  "prescriptions": [
+   "树区弹性高度",
+   "搜索命中计数",
+   "JSONPath 复制",
+   "重新解析按钮"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "jsonpath-tester",
+  "score": 57,
+  "name": "JSONPath 测试器",
+  "slug": "jsonpath-tester",
+  "mode": "D",
+  "benchmark": "jsonpath.com（JSONPath Online Evaluator，实时求值＋结果带路径）",
+  "dims": {
+   "func": 10,
+   "usab": 9,
+   "val": 13,
+   "iact": 10,
+   "ui": 7,
+   "soul": 8
+  },
+  "perf": 6,
+  "mob": 5,
+  "conclusion": "**交互优化 + 需拓展** · P1",
+  "deductions": [
+   "1. 【可用性】结果区 `max-height:420px` 钉死（`JsonPathTester.vue:93`，共性-根因 2 钉高清单在案），命中 50+ 条时小窗内滚且无总数分页",
+   "2. 【可用性】结果卡片只显示值（`JsonPathTester.vue:68` 逐条 pre），**不带命中路径**（如 `$..book[2].title`）——jsonpath.com 每条结果标注来源路径，diff 排查\"哪条来自哪\"无从下手",
+   "3. 【功能】过滤器 regex 仅支持 `@.key=='value'` 单等号（`jsEngine.ts:536`），`[?(@.price<10)]`、`[?(@.a&&@.b)]`、`[?(@.name=~ /^s/)]` 全部静默返回空——**语法速查卡声称\"过滤器（简化支持 ==）\"（:22）但空结果无解释**，用户以为查询错了",
+   "4. 【功能】无多路径批量：`$.a` 与 `$..b` 要跑两次（对标金标准\"JSONPath 提取\"愿景）",
+   "5. 【交互】无实时查询（run 仅 Enter/按钮触发，:25-45），jsonpath.com 输入即算",
+   "6. 【功能】切片无步长（`jsEngine.ts:559-561` 仅 `[a:b]`），负步长/`[::2]` 不支持",
+   "7. 【灵魂】命中结果无法在左侧 JSON 原文中高亮定位（json-visualizer 的搜索高亮能力就在隔壁 `JsonTreeNode.vue` 却未复用）"
+  ],
+  "deduction1": "1. 【可用性】结果区 `max-height:420px` 钉死（`JsonPathTester.vue:93`，共性-根因 2 钉高清单在案），命中 50+ 条时小窗内滚且无总数分页",
+  "prescriptions": [
+   "结果带路径",
+   "过滤表达式报错可见",
+   "比较操作符",
+   "实时查询",
+   "结果区弹性高度"
+  ],
+  "hard": false,
+  "priority": "P1"
+ },
+ {
+  "file": "jwt-decoder",
+  "score": 62,
+  "name": "JWT 解析器",
+  "slug": "jwt-decoder",
+  "mode": "C",
+  "benchmark": "jwt.io（JWT 解析天花板，解码着色+签名校验区）＋ CyberChef JWT Decode（gchq 官方操作，v8.7.0 起）",
+  "dims": {
+   "func": 11,
+   "usab": 11,
+   "val": 13,
+   "iact": 10,
+   "ui": 8,
+   "soul": 9
+  },
+  "perf": 8,
+  "mob": 6,
+  "conclusion": "**交互优化 + 需拓展** · P1",
+  "deductions": [
+   "1. 【功能-代差】无签名校验：HS\\* 可用站内 hmac（`src/lib/hashEngine.ts:41`）本地重算比对，RS\\*/ES\\* 可 WebCrypto importKey 公钥验签——均纯前端可实现而未做（jwt.io 核心即 \"Signature Verified\" 绿条）",
+   "2. 【可用性】三段结果区各钉 `max-height:260px`（`JwtDecoder.vue:130`），claims 多的 payload 在小窗内滚且三窗各自滚动",
+   "3. 【交互】粘贴令牌后需手动点\"解析令牌\"（decode 仅按钮触发 :24-53），未做粘贴即解码（本站 TextTool 家族已有 watch 自动执行先例）",
+   "4. 【灵魂】无算法安全提示：alg=none、HS256 弱密钥等风险零提示（jwt.io 对 none 显式红条警示）",
+   "5. 【功能】仅 exp 人话化（:40-47），iat/nbf 保持裸时间戳（脚注 :95 只列字段名）；无 claims 键值表格视图",
+   "6. 【灵魂】空态无示例令牌一键填充，placeholder 内的示例串不可点击",
+   "7. 【美观】768px 下令牌输入（110px）+按钮+三段结果纵向超一屏，首屏只见输入框"
+  ],
+  "deduction1": "1. 【功能-代差】无签名校验：HS\\* 可用站内 hmac（`src/lib/hashEngine.ts:41`）本地重算比对，RS\\*/ES\\* 可 WebCrypto importKey 公钥验签——均纯前端可实现而未做（jwt.io 核心即 \"Signature Verified\" 绿条）",
+  "prescriptions": [
+   "HS\\* 签名校验",
+   "粘贴即解码",
+   "alg 安全提示",
+   "时间戳人话化",
+   "结果区弹性",
+   "示例令牌填充"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "jwt-generator",
+  "score": 57,
+  "name": "JWT 生成器",
+  "slug": "jwt-generator",
+  "mode": "B",
+  "benchmark": "jwt.io 调试器（编辑即重签）＋ CyberChef JWT Sign（HS\\/RS\\ 全算法）",
+  "dims": {
+   "func": 10,
+   "usab": 11,
+   "val": 12,
+   "iact": 9,
+   "ui": 7,
+   "soul": 8
+  },
+  "perf": 8,
+  "mob": 6,
+  "conclusion": "**交互优化 + 需拓展** · P2",
+  "deductions": [
+   "1. 【交互】exp 无辅助：默认 payload 里 exp=1893456000 是写死的 2030 年（`JwtGenerator.vue:10`），签出的测试令牌\"永不过期\"误导联调；无相对时间快捷档也无 iat=now（:76 只有一句提醒文案）",
+   "2. 【功能】仅 HS\\*：RS256/ES256 非对称签名缺失（jwt.io/CyberChef JWT Sign 均支持，WebCrypto importKey PEM 纯前端可及）",
+   "3. 【灵魂】无随机密钥生成：HS256 要求 ≥256bit 密钥，工具让用户自己想一个（placeholder \"your-256-bit-secret\" :59），\"生成随机密钥\"按钮是零成本加分项",
+   "4. 【交互】与 jwt-decoder 无闭环：签完想验签要手动复制→跳页→再粘贴，两页无互链无参数传递",
+   "5. 【可用性】密钥输入框 type=text 明文回显（:59），无\"隐藏\"切换",
+   "6. 【功能】payload 无字段模板/联想（iss/sub/aud/jti 常用 claims 速填缺失），新手对\"该写什么\"零引导",
+   "7. 【可用性】结果 ResultBox 钉 140px（:79），长令牌可视范围小且输入输出高度不成比例",
+   "8. 【交互】改 payload 任意字符后旧 token 仍展示（generate 手动触发 :22-43），无\"结果已过期不匹配当前输入\"提示，易复制错版本"
+  ],
+  "deduction1": "1. 【交互】exp 无辅助：默认 payload 里 exp=1893456000 是写死的 2030 年（`JwtGenerator.vue:10`），签出的测试令牌\"永不过期\"误导联调；无相对时间快捷档也无 iat=now（:76 只有一句提醒文案）",
+  "prescriptions": [
+   "exp 快捷档",
+   "iat=now 按钮",
+   "随机密钥",
+   "decoder 闭环",
+   "输入变更提示"
+  ],
+  "hard": true,
+  "priority": "P2"
+ },
+ {
+  "file": "keycode-lookup",
+  "score": 66,
+  "name": "按键 KeyCode 查询",
+  "slug": "keycode-lookup",
+  "mode": "B",
+  "benchmark": "keycode.info（Toptal 托管版，Wes Bos 经典、\"按键即显示\"交互源头）＋ keyjs.dev（全字段＋逐值复制，均经 WebSearch 核实）",
+  "dims": {
+   "func": 9,
+   "usab": 14,
+   "val": 11,
+   "iact": 12,
+   "ui": 8,
+   "soul": 12
+  },
+  "perf": 9,
+  "mob": 4,
+  "conclusion": "**交互优化** · P1",
+  "deductions": [
+   "1. 【功能-疑似 Bug】速查表筛选漏掉 keyCode 列：过滤条件仅 `c.key/c.code`（`KeycodeLookup.vue:109`）不含 `c.kc`，输入\"13\"查不到 Enter——工具名叫\"KeyCode 查询\"却不认数字（注册步骤还承诺\"速查表可搜索\"，registry.ts:415），交用户确认是否修复",
+   "2. 【功能-疑似 Bug】Firefox quick-find 防护失效：PREVENT 集合塞的是 code 值 `Slash/Quote`（:21），但判断用的是 `PREVENT.has(e.key)`（:24）——这两键的 key 是 `'/` 与 `\"`，永远匹配不上，Firefox 下按 `/` 仍会弹快速查找；同集合内 Tab/方向键/空格按 key 判断则正常，混用两种语义",
+   "3. 【功能】无反向查询：keycode.info 类站支持输入数字反查按键，本工具只有\"按键→码\"单向",
+   "4. 【交互】三元组零复制：event.key/code/keyCode 瓦片（:86-88）无复制钮——对照站内 ResultBox 成熟复制交互（`ResultBox.vue:49-62`），属自家体验倒挂",
+   "5. 【功能】事件字段不全：无 e.which（legacy 等价物）、e.location（区分左右 Shift/小键盘）、getModifierState('CapsLock')——keyjs.dev 首屏即列全字段",
+   "6. 【灵魂】修饰键只报按下布尔（:91），CapsLock/NumLock 态不可见；窗口失焦后\"按下\"chip 无 blur 复位（onKey :23-36 无 blur 处理）",
+   "7. 【灵魂-轻】捕获区聚焦后 Tab 被 preventDefault（:21）永远出不去，只能鼠标点外部逃走——捕获是目的，但无\"点击外部释放焦点\"提示，键盘可达性死角",
+   "8. 【功能-轻】速查表仅 24 行且无标点键（`;` `[` `'` 反引号）与 IME/dead key 说明，对照 keycode.info 全键表覆盖不足"
+  ],
+  "deduction1": "1. 【功能-疑似 Bug】速查表筛选漏掉 keyCode 列：过滤条件仅 `c.key/c.code`（`KeycodeLookup.vue:109`）不含 `c.kc`，输入\"13\"查不到 Enter——工具名叫\"KeyCode 查询\"却不认数字（注册步骤还承诺\"速查表可搜索\"，registry.ts:415），交用户确认是否修复",
+  "prescriptions": [
+   "筛选并入 keyCode 列",
+   "修复 Slash/Quote 防护",
+   "三元组加复制",
+   "事件流回看",
+   "CapsLock 态＋失焦复位"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "mac-oui-lookup",
+  "score": 65,
+  "name": "MAC 厂商查询",
+  "slug": "mac-oui-lookup",
+  "mode": "B",
+  "benchmark": "MAC-Vendors API（macvendors.com）＋ Wireshark OUI 查询页",
+  "dims": {
+   "func": 12,
+   "usab": 12,
+   "val": 13,
+   "iact": 10,
+   "ui": 8,
+   "soul": 10
+  },
+  "perf": 7,
+  "mob": 8,
+  "conclusion": "**交互优化** · P1",
+  "deductions": [
+   "1. 【交互】结果零搬运：单查卡的厂商/OUI/EUI-64/链路本地地址均无复制钮（:157-169 全文未引 copyText），批量表无\"导出 CSV/复制表格\"（:172-187）——盘点场景的终点就是表格进文档",
+   "2. 【可用性-轻】2MB 首载无进度：loading 文案只有 spinner＋\"约 2MB\"（:137），慢网下无百分比/已加载量，用户无法判断是卡死还是在走；fetch 可接 ReadableStream 计算进度（content-length 已知）",
+   "3. 【可用性-轻】2MB 解析主线程阻塞：`await res.json()`（:41）＋3 万条 Map 构建同线程，低配设备首查点击后有约半秒到一秒冻结，无\"解析中\"阶段拆分（可 setTimeout 分块或 Web Worker）",
+   "4. 【功能】无厂商反查：输入\"华为\"或\"Huawei\"列不出其全部 OUI 前缀——MAC-Vendors 支持双向，设备采购核对与安全分析（识别伪造厂商字段）都依赖反查",
+   "5. 【功能】批量无 CSV 导出与统计摘要：1000 行批量后无\"全局/本地地址占比\"\"未收录数\"汇总（:118-129 只逐行），网管盘点要自己数",
+   "6. 【灵魂-轻】会话内缓存仅内存（:35-36 `loaded` 标志），刷新页面重新拉 2MB——Cache API/IndexedDB 可存一次管一个月，IEEE OUI 月级更新频率完全允许",
+   "7. 【交互-轻】批量中非法行混排：错误行 vendor 列写错误文案（:121），但表格无按\"合法/非法\"过滤或高亮过滤钮，混在 1000 行里难挑出",
+   "8. 【UI-轻】单查与批量结果互斥清空（:105-106,124），切模式即丢上一次结果，无\"保留上次结果\"记忆"
+  ],
+  "deduction1": "1. 【交互】结果零搬运：单查卡的厂商/OUI/EUI-64/链路本地地址均无复制钮（:157-169 全文未引 copyText），批量表无\"导出 CSV/复制表格\"（:172-187）——盘点场景的终点就是表格进文档",
+  "prescriptions": [
+   "结果搬运",
+   "加载进度条",
+   "厂商反查",
+   "持久缓存",
+   "批量统计摘要"
+  ],
+  "hard": false,
+  "priority": "P1"
+ },
+ {
+  "file": "map-coordinate-converter",
+  "score": 64,
+  "name": "地图坐标系转换",
+  "slug": "map-coordinate-converter",
+  "mode": "B",
+  "benchmark": "coordinator.info（坐标转换国民工具）＋ 高德开放平台坐标转换 API 文档",
+  "dims": {
+   "func": 12,
+   "usab": 12,
+   "val": 13,
+   "iact": 10,
+   "ui": 8,
+   "soul": 9
+  },
+  "perf": 8,
+  "mob": 7,
+  "conclusion": "**交互优化** · P1",
+  "deductions": [
+   "1. 【交互】结果零复制：600 个坐标值无任何复制入口（registry.ts compute 未接 copyText，CalcTool.vue 无结果行复制机制）——转完的坐标最终目的就是贴进代码/Excel，现在只能手动划选 6 位小数",
+   "2. 【可用性】批量结果无表格形态：200 行输入产生 600 条结果行平铺（CalcTool.vue:44-52 逐行 div），无分组表头、无折叠、无\"只看第 2 行\"能力——coordinator.info 是输入输出左右对照表",
+   "3. 【交互】经纬度顺序不宽容：严格要求「经度,纬度」（registry.ts:332），用户从 Google Earth（lat,lon 习惯）或部分 GPS 工具粘贴 `39.9,116.4` 会得到纬度 116.4 报\"格式不合法\"，而中国经度 73-135、纬度 0.8-55.8 的取值域足以自动判别并提示",
+   "4. 【功能】无 DMS 度分秒输入：GPS 设备与测绘资料常给 `116°23′29″E`，需自行转十进制才能用",
+   "5. 【功能】无地图预览：转换对不对肉眼难辨（偏移约 500m），coordinator.info 在地图上打点前后对比是最有说服力的验证——纯前端可用无需 key 的瓦片（OSM）渲染，属可追差距",
+   "6. 【交互】200 行上限静默截断（registry.ts:328 slice(0,200)），超限无提示，用户不知道第 201 行起被丢弃",
+   "7. 【灵魂】无偏移量显示：GCJ02 与 WGS84 差值（约几百米）本身是排查\"偏了多少\"的答案，输出只有终值没有 Δ",
+   "8. 【交互-轻】默认坐标系 wgs84 固定（registry.ts:322），无记忆——高德开发者每次来都要手动切 GCJ02"
+  ],
+  "deduction1": "1. 【交互】结果零复制：600 个坐标值无任何复制入口（registry.ts compute 未接 copyText，CalcTool.vue 无结果行复制机制）——转完的坐标最终目的就是贴进代码/Excel，现在只能手动划选 6 位小数",
+  "prescriptions": [
+   "结果可复制",
+   "顺序智能判别",
+   "对照表格",
+   "偏移量显示",
+   "截断提示"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "markdown-formatter",
+  "score": 57,
+  "name": "Markdown 格式化",
+  "slug": "markdown-formatter",
+  "mode": "D",
+  "benchmark": "Prettier Playground（markdown parser）＋ markdownlint（DavidAnson，VS Code/CLI 事实标准）",
+  "dims": {
+   "func": 13,
+   "usab": 8,
+   "val": 13,
+   "iact": 10,
+   "ui": 7,
+   "soul": 6
+  },
+  "perf": 6,
+  "mob": 5,
+  "conclusion": "**交互优化** · P2",
+  "deductions": [
+   "1. 【可用性-硬伤】ResultBox 双重钉高 300px（`ResultBox.vue:69`、`MarkdownFormatter.vue:71`；同构几何 M-01）",
+   "2. 【功能】嵌入代码块不格式化：Prettier Playground 可对 ```js 围栏内代码同步排版，本工具插件仅载 markdown（`MarkdownFormatter.vue:21`），代码块原样保留——README/技术文档场景核心能力缺席",
+   "3. 【功能-疑似问题】bullet 正则补丁 `/^(\\s*)\\*\\s/gm`（`MarkdownFormatter.vue:30`）：仅处理 `*` 列表且无字符串保护，行首形如 `* 强调` 的内容会被误转列表符号；`+` 列表完全不在册（desc 宣称\"列表符号统一\"名不副实）",
+   "4. 【功能】printWidth 未暴露：proseWrap=always 时按 prettier 默认 80 列折行（`MarkdownFormatter.vue:22-27` 未传 printWidth），中文文档按 80 列折行会断句突兀且不可调",
+   "5. 【交互】粘贴后需手动点格式化；无\"格式化前后 diff\"或渲染对照，用户无法确认表格对齐结果是否正确",
+   "6. 【灵魂】无快捷键、无 lint 能力边界说明（不检查标题层级/死链/裸链接——这是排版工具不是校验工具，但 UI 未交代，易被误当 markdownlint 用）",
+   "7. 【美观】≤560px 才堆叠（共性-根因 5）",
+   "8. 【环境】Cookie 横幅首访遮挡底部结果区（M-01 截图证据）"
+  ],
+  "deduction1": "1. 【可用性-硬伤】ResultBox 双重钉高 300px（`ResultBox.vue:69`、`MarkdownFormatter.vue:71`；同构几何 M-01）",
+  "prescriptions": [
+   "输出区弹性高度",
+   "即改即格式化",
+   "行宽选项",
+   "bullet 三态",
+   "嵌入代码格式化"
+  ],
+  "hard": true,
+  "priority": "P2"
+ },
+ {
+  "file": "markdown-preview",
+  "score": 58,
+  "name": "Markdown 预览",
+  "slug": "markdown-preview",
+  "mode": "D",
+  "benchmark": "StackEdit（stackedit.io）＋ Dillinger（dillinger.io）",
+  "dims": {
+   "func": 14,
+   "usab": 8,
+   "val": 13,
+   "iact": 8,
+   "ui": 7,
+   "soul": 8
+  },
+  "perf": 6,
+  "mob": 5,
+  "conclusion": "**交互优化** · P1",
+  "deductions": [
+   "1. 【可用性-硬伤】预览盒 `max-height:520px` 钉死（`MarkdownPreview.vue:91`；审计底稿 developer 系钉高清单点名），无弹性高度、无全屏切换",
+   "2. 【交互-疑似问题】desc 宣称\"输入 Markdown 实时渲染预览\"（`registry.ts:158`），实际 render() 仅在挂载（`MarkdownPreview.vue:35`）、勾选框（:64-65）与按钮（:60）触发，输入无 watch——粘贴长文后预览仍是旧内容，与文案直接矛盾",
+   "3. 【可用性】无滚动同步：输入与预览独立滚动（无 scroll 联动），对照长文档两侧永远对不齐——StackEdit/Dillinger 的核心体验",
+   "4. 【功能】代码块无语法高亮：mdToHtml 未接 highlight（`mdEngine.ts:14-22` 仅 marked gfm），技术文档预览黑白菜",
+   "5. 【功能】导出 HTML 数学依赖 jsdelivr CDN（`MarkdownPreview.vue:45`），离线打开公式失效；无导出 PDF/长图路径",
+   "6. 【灵魂】长文预览无大纲导航（markdown-toc 的能力未联动）；无字数/行数统计",
+   "7. 【美观】520px 内滚让\"长文读不完\"成为错觉；≤560px 堆叠（共性-根因 5）",
+   "8. 【环境】Cookie 横幅首访遮挡底部 notice（M-01 截图证据）"
+  ],
+  "deduction1": "1. 【可用性-硬伤】预览盒 `max-height:520px` 钉死（`MarkdownPreview.vue:91`；审计底稿 developer 系钉高清单点名），无弹性高度、无全屏切换",
+  "prescriptions": [
+   "实时渲染",
+   "预览盒弹性高度",
+   "滚动同步",
+   "代码高亮",
+   "文案对齐"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "markdown-table-generator",
+  "score": 60,
+  "name": "Markdown 表格生成",
+  "slug": "markdown-table-generator",
+  "mode": "C",
+  "benchmark": "tableconvert.com（表格多格式互转标杆）＋ 站内 csv-to-markdown.md（56 分，同族互补工具，关系见下）",
+  "dims": {
+   "func": 10,
+   "usab": 12,
+   "val": 12,
+   "iact": 10,
+   "ui": 8,
+   "soul": 8
+  },
+  "perf": 8,
+  "mob": 6,
+  "conclusion": "**交互优化 + 需拓展** · P1",
+  "deductions": [
+   "1. 【功能】行列操作只有尾部 push/pop（`MarkdownTable.vue:15-22`）：中间插行、删除指定行/指定列全部缺失——第 3 行填错只能逐格清空，10 行表格场景直接劝退",
+   "2. 【功能】对齐仅全局单选（:12,:54-58）：GFM 本支持逐列对齐（`| :--- | ---: |`），\"左列文字＋右列数字\"的常见表格无法表达",
+   "3. 【功能】无任何导入：粘贴 CSV/HTML 表格一键进网格没有——tableconvert.com 支持 CSV/Excel/HTML/JSON/MD 多态互转",
+   "4. 【交互】无渲染预览：输出只有源码 pre（:82），效果要另开 markdown-preview 或 GitHub 验证",
+   "5. 【可用性-轻】输出 pre 无 max-height 无行号（:116-126），行多时页面失控拉长，与全站\"钉死过矮\"形成另一个极端",
+   "6. 【交互-轻】增删行列/切对齐无键盘路径，批量编辑全靠鼠标逐格",
+   "7. 【灵魂】无粘贴侦测：用户把 3 行 CSV 贴进某格时无\"检测到 CSV，一键导入\"提示，主动智能缺席"
+  ],
+  "deduction1": "1. 【功能】行列操作只有尾部 push/pop（`MarkdownTable.vue:15-22`）：中间插行、删除指定行/指定列全部缺失——第 3 行填错只能逐格清空，10 行表格场景直接劝退",
+  "prescriptions": [
+   "行列粒度操作",
+   "逐列对齐",
+   "CSV 粘贴导入",
+   "渲染预览 Tab",
+   "输出区滚动上限",
+   "两页互链"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "markdown-to-docx",
+  "score": 58,
+  "name": "Markdown 转 Word",
+  "slug": "markdown-to-docx",
+  "mode": "C",
+  "benchmark": "Pandoc（CLI 天花板参照，纯前端可以 docx npm 逼近）＋ CloudConvert（云）",
+  "dims": {
+   "func": 11,
+   "usab": 10,
+   "val": 13,
+   "iact": 10,
+   "ui": 7,
+   "soul": 7
+  },
+  "perf": 6,
+  "mob": 5,
+  "conclusion": "**交互优化 + 需拓展** · P1",
+  "deductions": [
+   "1. 【可用性-硬伤】零预览：产物无任何可视化确认（无 docx→HTML 回显、无缩略图），\"生成 Word 文档\"即下载（`MarkdownToDocx.vue:28-29`）——表格底纹/标题级别等样式映射对错用户不可见，模式 F 风险（审计底稿§二 F）",
+   "2. 【功能】图片仅占位符：inlineRuns image 分支输出\"[图片：alt]\"灰字（`mdEngine.ts:257`）——远程图片可 fetch 后经 docx ImageRun 嵌入但未实现，带图文档转出即\"图丢\"，交付场景硬缺口",
+   "3. 【功能-疑似问题】有序列表为手动前缀\"1. \"（`mdEngine.ts:183-187`，代码注释自认\"简化为手动前缀\"）：Word 中回车不会自动续编号，嵌套有序列表层级语义丢失",
+   "4. 【功能】代码块整段合并：整块 text 塞进单一带底纹段落（`mdEngine.ts:159-166`），多行代码无逐行段落、无等宽字体保障（依赖 Word 字体回退）",
+   "5. 【可用性】输入区钉 280px（`MarkdownToDocx.vue:46`）；执行按钮在内容流底部（共性-根因 4）",
+   "6. 【交互】零转换选项：字体/字号/页边距/h4~h6 降级策略均不可配；接受 .txt（:16）但无编码检测",
+   "7. 【灵魂】无\"转换前后对照\"（预览缺位连带）；预填示例偏短无嵌套结构演示",
+   "8. 【美观】≤560px 堆叠（共性-根因 5）"
+  ],
+  "deduction1": "1. 【可用性-硬伤】零预览：产物无任何可视化确认（无 docx→HTML 回显、无缩略图），\"生成 Word 文档\"即下载（`MarkdownToDocx.vue:28-29`）——表格底纹/标题级别等样式映射对错用户不可见，模式 F 风险（审计底稿§二 F）",
+  "prescriptions": [
+   "产物预览",
+   "图片嵌入",
+   "真 Word 编号",
+   "执行按钮首屏可达",
+   "代码块逐行"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "markdown-to-image",
+  "score": 56,
+  "name": "Markdown 转长图",
+  "slug": "markdown-to-image",
+  "mode": "D",
+  "benchmark": "ray.so（ray.so）＋ carbon.now.sh（代码截图天花板，均在对标库）",
+  "dims": {
+   "func": 11,
+   "usab": 9,
+   "val": 12,
+   "iact": 10,
+   "ui": 7,
+   "soul": 7
+  },
+  "perf": 6,
+  "mob": 5,
+  "conclusion": "**交互优化** · P1",
+  "deductions": [
+   "1. 【可用性-硬伤】预览区导出前空白：renderBox.innerHTML 仅在 run()→render() 链路填充（`MarkdownToImage.vue:26`；run 仅由按钮触发 :39-50），挂载/输入/换主题均不渲染——\"预览\"标签名不副实，用户对效果零感知直到 PNG 已落盘",
+   "2. 【可用性-硬伤】预览容器 `max-height:420px` 钉死（`MarkdownToImage.vue:109`；审计底稿 developer 系钉高清单点名），长卡片小窗内滚",
+   "3. 【功能】代码块无高亮：mdToWechatHtml 的 pre 仅深底+统一字色（`mdEngine.ts:329-334`），技术卡片场景黑白片",
+   "4. 【功能】主题不可自定义：4 套主题仅 accent 单变量（`mdEngine.ts:311,319`），正文排版全同；无渐变背景/圆角卡/窗口框/字体选择——对标 ray.so 多主题+渐变背景+窗口控制",
+   "5. 【交互】换主题不刷新预览（chip 仅赋值 theme，render 未调用）；无复制图片到剪贴板（ClipboardItem 'image/png'），微信/聊天场景少一步",
+   "6. 【灵魂】导出后无预览确认（直接 saveBlob :43）；pixelRatio 固定 2x（:32）不可调（Retina 3x/公众号 1x 场景）",
+   "7. 【性能】长文 2x 渲染无进度反馈，仅按钮 spinner；失败仅 toast（:46）",
+   "8. 【美观】≤560px 堆叠（共性-根因 5）；842px 面板中 300px 侧栏挤压（共性-根因 3）"
+  ],
+  "deduction1": "1. 【可用性-硬伤】预览区导出前空白：renderBox.innerHTML 仅在 run()→render() 链路填充（`MarkdownToImage.vue:26`；run 仅由按钮触发 :39-50），挂载/输入/换主题均不渲染——\"预览\"标签名不副实，用户对效果零感知直到 PNG 已落盘",
+  "prescriptions": [
+   "挂载即预览",
+   "预览弹性高度",
+   "复制图片",
+   "卡片主题",
+   "密度选项"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "markdown-to-slides",
+  "score": 57,
+  "name": "Markdown 转幻灯片",
+  "slug": "markdown-to-slides",
+  "mode": "C",
+  "benchmark": "Marp（marp.app，Markdown 幻灯片标杆）＋ reveal.js（revealjs.com）",
+  "dims": {
+   "func": 12,
+   "usab": 10,
+   "val": 12,
+   "iact": 9,
+   "ui": 7,
+   "soul": 7
+  },
+  "perf": 6,
+  "mob": 5,
+  "conclusion": "**交互优化** · P1",
+  "deductions": [
+   "1. 【可用性-硬伤】逐页预览不随输入更新：previews ref 仅在挂载（`MarkdownToSlides.vue:48` void render()）与导出（:51）时刷新，编辑中预览是过期内容，而页数提示（:96）是实时 computed——页数变了、内容没变，用户无法信任预览",
+   "2. 【可用性-硬伤】预览配色与导出主题脱节：slide-card 标题色固定 var(--accent-text)（:115），THEMES 三套配色（:13-17）仅导出生效——切\"暖橙\"主题预览毫无变化，所见非所得",
+   "3. 【可用性】编辑区 rows=10（:98）≈240px 全家族最小；逐页预览堆叠下方，第 10 页预览需滚 2 屏（共性-根因 1/2 叠加）",
+   "4. 【功能】非 reveal.js/Marp：无演讲者备注、无 fragment 逐点显示、无纵向子页、无 PDF 导出（reveal ?print-pdf / Marp CLI 均支持）——正式演示场景功能悬殊",
+   "5. 【功能】分页语法单一：不支持 Marp 指令（bg/color/paging）与 reveal 属性块，图片页/章节页需手写 HTML",
+   "6. 【灵魂】无页码跳转/缩略图侧栏（第 N 页直达）；导出前无全屏试演（站内预览只能滚卡片）",
+   "7. 【性能】每次导出全量重渲染所有页（exportHtml 内 await render，:51），无增量/缓存",
+   "8. 【美观】≤560px 堆叠（共性-根因 5）"
+  ],
+  "deduction1": "1. 【可用性-硬伤】逐页预览不随输入更新：previews ref 仅在挂载（`MarkdownToSlides.vue:48` void render()）与导出（:51）时刷新，编辑中预览是过期内容，而页数提示（:96）是实时 computed——页数变了、内容没变，用户无法信任预览",
+  "prescriptions": [
+   "实时分页预览",
+   "预览随主题",
+   "备注支持",
+   "编辑区弹性高度",
+   "PDF 导出"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "markdown-to-wechat",
+  "score": 58,
+  "name": "Markdown 公众号排版",
+  "slug": "markdown-to-wechat",
+  "mode": "D",
+  "benchmark": "mdnice（mdnice.com，公众号排版标杆）＋ Doocs md（doocs.github.io/md，开源公众号编辑器）",
+  "dims": {
+   "func": 12,
+   "usab": 10,
+   "val": 13,
+   "iact": 9,
+   "ui": 7,
+   "soul": 7
+  },
+  "perf": 6,
+  "mob": 5,
+  "conclusion": "**交互优化** · P1",
+  "deductions": [
+   "1. 【可用性-硬伤】主题切换不刷新：chip `@click=\"theme = t\"`（`MarkdownToWechat.vue:51`）不触发 render，预览 v-html 绑定的 html ref（:71）保持旧主题产物，而字段标签已显示新主题名（:69）——预览内容与标签自相矛盾；此时点\"复制到公众号\"（:57）复制的是旧主题 HTML，公众号后台得到错误排版且全程无提示",
+   "2. 【可用性】预览需手动\"生成排版\"：输入不触发渲染（render 仅按钮 :56），无防抖实时——预览类工具核心交互缺席",
+   "3. 【功能】代码块无语法高亮：pre 仅深底 #282c34+统一 #abb2bf 字色（`mdEngine.ts:329-334`），公众号技术号排版核心诉求缺席（mdnice 有 30+ 代码主题）",
+   "4. 【功能】主题仅 4 套且仅 accent 单变量：标题/引用/表格底纹全由一个 accent 派生（`mdEngine.ts:311,319,336`），无字号/间距/字间距风格差异",
+   "5. 【功能】无自定义 CSS 输入框（Doocs md 支持），样式微调只能复制后手改——违背\"复制即贴\"工具闭环",
+   "6. 【可用性】预览盒 `max-height:560px` 钉死（`MarkdownToWechat.vue:89`；共性-根因 2 家族形态），长文手机框内滚",
+   "7. 【灵魂】无一键复制纯文本版；无快捷键；无\"复制成功后打开公众号后台\"引导链接",
+   "8. 【环境】Cookie 横幅首访遮挡底部（M-01 截图证据）"
+  ],
+  "deduction1": "1. 【可用性-硬伤】主题切换不刷新：chip `@click=\"theme = t\"`（`MarkdownToWechat.vue:51`）不触发 render，预览 v-html 绑定的 html ref（:71）保持旧主题产物，而字段标签已显示新主题名（:69）——预览内容与标签自相矛盾；此时点\"复制到公众号\"（:57）复制的是旧主题 HTML，公众号后台得到错误排版且全程无提示",
+  "prescriptions": [
+   "主题联动",
+   "实时渲染",
+   "复制防呆",
+   "代码高亮",
+   "预览弹性高度"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "markdown-toc",
+  "score": 61,
+  "name": "Markdown 目录生成",
+  "slug": "markdown-toc",
+  "mode": "D",
+  "benchmark": "VS Code「Markdown All in One」插件（TOC 命令，yzhang）＋ AlanWalk/markdown-toc（Atom 插件）",
+  "dims": {
+   "func": 12,
+   "usab": 12,
+   "val": 13,
+   "iact": 10,
+   "ui": 7,
+   "soul": 7
+  },
+  "perf": 6,
+  "mob": 5,
+  "conclusion": "**交互优化** · P2",
+  "deductions": [
+   "1. 【功能-疑似问题】\"锚点规则\"下拉有 GitHub/VuePress 两项（`MarkdownToc.vue:113-118`），但 slugify 全程只按 GitHub 规则执行（:23-33），`linkStyle` 从未参与任何分支——选 VuePress 与选 GitHub 输出完全相同，属死选项；底部 notice（:141）自认\"VuePress 场景下 GitHub 规则同样适用\"，却未解释为何仍提供该选项",
+   "2. 【功能】深度上限 h4：选项仅 2/3/4（:107-110），h5/h6 无法收录——长技术文档场景缺角；且深度语义只有\"从 h1 数到 N\"，无法\"只要 h2~h3\"（跳过 h1）",
+   "3. 【可用性】双栏各钉 280px（`MarkdownToc.vue:136,138`；`ResultBox.vue:69` height=minHeight 双重钉高），长文输入需大量内滚（共性-根因 2；几何同 M-01）",
+   "4. 【交互】无实时重算：run 仅由按钮触发（:127-130），粘贴/改选项后需再点一次——TextTool 家族 watch 自动执行（`TextTool.vue:47-48`）证明站内已有免按钮范式",
+   "5. 【灵魂】无\"插回文档\"工作流：TOC 的归宿是粘回 Markdown 开头，本工具止步于复制输出；未提供\"替换已有 TOC 区块\"能力（Markdown All in One 可按 `<!-- TOC -->` 注释定位更新）",
+   "6. 【灵魂】无示例文档追加按钮（对比 markdown-preview 的\"追加表格示例\"）、无快捷键",
+   "7. 【美观】≤560px 才堆叠（共性-根因 5）；768px 平板双栏近乎不可读",
+   "8. 【环境】Cookie 横幅首访遮挡底部结果区（M-01 截图证据）"
+  ],
+  "deduction1": "1. 【功能-疑似问题】\"锚点规则\"下拉有 GitHub/VuePress 两项（`MarkdownToc.vue:113-118`），但 slugify 全程只按 GitHub 规则执行（:23-33），`linkStyle` 从未参与任何分支——选 VuePress 与选 GitHub 输出完全相同，属死选项；底部 notice（:141）自认\"VuePress 场景下 GitHub 规则同样适用\"，却未解释为何仍提供该选项",
+  "prescriptions": [
+   "锚点规则二选一",
+   "深度区间",
+   "实时重算",
+   "输出区弹性高度",
+   "TOC 区块更新"
+  ],
+  "hard": true,
+  "priority": "P2"
+ },
+ {
+  "file": "meta-tag-generator",
+  "score": 57,
+  "name": "Meta 标签生成",
+  "slug": "meta-tag-generator",
+  "mode": "B",
+  "benchmark": "metatags.io（Meta/OG 预览标杆，对标库）＋ 站内 SEO 分类 serp-preview（同字段已有更严口径，见家族节）",
+  "dims": {
+   "func": 10,
+   "usab": 11,
+   "val": 11,
+   "iact": 11,
+   "ui": 7,
+   "soul": 7
+  },
+  "perf": 8,
+  "mob": 7,
+  "conclusion": "**交互优化 + 需拓展** · P1",
+  "deductions": [
+   "1. 【可用性】输出 ResultBox min-height 200px 双重钉死（`MetaTagGenerator.vue:89`；`ResultBox.vue:69`），共性-根因 2 标准病例；表单 8 字段把输出压到首屏底缘",
+   "2. 【功能】长度提示无判级：计数永远中性灰（:51,:56），超长不红显不提示截断——同字段在 serp-preview 有 effLen＋像素估算＋红黄判级（SerpPreview.vue:43-46），同一产品两套标准",
+   "3. 【功能】keywords 字段无时代提示：Google 2009 年起忽略该 meta，字段仍排主位无任何说明，专业生成器普遍标注\"仅部分引擎参考\"",
+   "4. 【可用性】输出不转义引号且要求用户\"自行避免直接写入\"（:95）：description 带引号产出破损 HTML 而工具不预警；姊妹工具 open-graph-generator 反而做了 esc（OpenGraphGenerator.vue:17）——同家族一个转义一个不转义",
+   "5. 【功能】robots 仅 index/follow 四组合（:71-76），缺 max-snippet/max-image-preview/noarchive 等现代指令；author 字段对 SEO 无效却占一整格",
+   "6. 【交互】无 SERP 预览：填完看不到 Google 展示效果，须另开 serp-preview 全部重填——家族字段重复录入的典型代价",
+   "7. 【灵魂】默认值是 ToolHub 品牌文案（:8-15），既是示例也是误贴陷阱，无\"重置为空白\"按钮",
+   "8. 【风格-轻】下载为组件内自实现 blob（:32-42）而非 lib/download saveText 统一通道（功能正常，工程口径不一）"
+  ],
+  "deduction1": "1. 【可用性】输出 ResultBox min-height 200px 双重钉死（`MetaTagGenerator.vue:89`；`ResultBox.vue:69`），共性-根因 2 标准病例；表单 8 字段把输出压到首屏底缘",
+  "prescriptions": [
+   "长度判级",
+   "引号转义",
+   "keywords 提示",
+   "家族字段共享",
+   "现代 robots 指令",
+   "重置空白"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "mock-json-generator",
+  "score": 57,
+  "name": "Mock 数据生成",
+  "slug": "mock-json-generator",
+  "mode": "D",
+  "benchmark": "Mockaroo（schema 驱动标杆）＋ faker.js playground",
+  "dims": {
+   "func": 11,
+   "usab": 12,
+   "val": 12,
+   "iact": 11,
+   "ui": 7,
+   "soul": 4
+  },
+  "perf": 7,
+  "mob": 6,
+  "conclusion": "**交互优化 + 需拓展** · P2（可用性达标，错误反馈与 schema 能力是差距）",
+  "deductions": [
+   "1. 【灵魂·产出隐患】模板中拼错 token（`{{naem}}`）静默原样输出不报错——用户拿到 500 条数据后才发现字段全错；token 清单（TOKENS）无\"识别未知 {{…}} 并提示\"守卫",
+   "2. 【功能】无 schema 驱动模式：给一段 TS 类型/JSON Schema 直接生成 mock（Mockaroo 核心）——与 json-to-typescript（有档案）天然衔接却零联动",
+   "3. 【交互】Token chips 无分类分组（:63 平铺一行），20+ token 时找目标靠肉眼",
+   "4. 【功能】嵌套数组/对象模板能力未披露（示例模板是否演示嵌套？）；数量上限 500 对压力测试偏小",
+   "5. 【灵魂】结果无统计摘要（N 条 × M 字段、含哪些 token）；重新生成无种子机制（无法复现同一批数据）"
+  ],
+  "deduction1": "1. 【灵魂·产出隐患】模板中拼错 token（`{{naem}}`）静默原样输出不报错——用户拿到 500 条数据后才发现字段全错；token 清单（TOKENS）无\"识别未知 {{…}} 并提示\"守卫",
+  "prescriptions": [
+   "未知 token 守卫",
+   "token 分组",
+   "种子复现",
+   "类型反推"
+  ],
+  "hard": true,
+  "priority": "P2"
+ },
+ {
+  "file": "number-base-converter",
+  "score": 67,
+  "name": "进制转换",
+  "slug": "number-base-converter",
+  "mode": "B",
+  "benchmark": "binaryhexconverter.com（经 WebSearch 核实）＋ CyberChef（基准库，To/From Base 配方）",
+  "dims": {
+   "func": 12,
+   "usab": 13,
+   "val": 13,
+   "iact": 10,
+   "ui": 8,
+   "soul": 11
+  },
+  "perf": 8,
+  "mob": 7,
+  "conclusion": "**交互优化** · P2",
+  "deductions": [
+   "1. 【功能】不支持小数：输入 `10.5` 直接报\"字符 “.” 不是 10 进制数字\"（`NumberBase.vue:50`）——binaryhexconverter 支持**二进制/十六进制小数互转**，浮点教学与协议字段解析场景缺位",
+   "2. 【功能】负数无补码展示：负值直接隐藏 32 位位模式（:85 `if (v < 0n ...) return ''`），而位运算调试最需要的恰是负数的补码形态；站内有 bitwise-calculator（`registry.ts:182`）但两工具互不知晓",
+   "3. 【功能】位模式仅 32 位一档（:81-87），无 8/16/64 位选择；64 位标志位/IPv6 分组场景无法覆盖",
+   "4. 【功能】十六进制输出恒小写（digits 表 :38,57），无大写选项——嵌入式/内存 dump 习惯大写 hex，只能复制后手改",
+   "5. 【灵魂-瑕疵】前缀剔除无条件执行（:21 `replace(/^0[bBoOxX]/)`）：选 10 进制输入 `0x1F` 会剔成 `1F` 再按十进制解析报错，报错文案与用户预期错位；应提示\"检测到 0x 前缀，是否按 16 进制解析\"",
+   "6. 【交互】无\"复制全部进制\"一键（五条结果逐个点）；36 进制自定义行插到列表最前（:73）打乱固定行序，批量复制时位置记忆困难",
+   "7. 【可用性-轻】十进制大数输出无千位分组、二进制长串无分组开关（位模式区仅 32 位内有 4 位分组），万人数字符串可读性差",
+   "8. 【功能】无文本 ↔ 进制互转：把 hex 串读成 ASCII/UTF-8 字符（协议调试常用）需另寻 encoding-converter（`registry.ts:211`）且该工具面向 GBK 乱码场景，binaryhexconverter 的 Text 模式此处无对应"
+  ],
+  "deduction1": "1. 【功能】不支持小数：输入 `10.5` 直接报\"字符 “.” 不是 10 进制数字\"（`NumberBase.vue:50`）——binaryhexconverter 支持**二进制/十六进制小数互转**，浮点教学与协议字段解析场景缺位",
+  "prescriptions": [
+   "前缀纠偏",
+   "补码视图",
+   "hex 大写开关",
+   "复制全部",
+   "小数进制（远期）"
+  ],
+  "hard": true,
+  "priority": "P2"
+ },
+ {
+  "file": "open-graph-generator",
+  "score": 62,
+  "name": "Open Graph 生成",
+  "slug": "open-graph-generator",
+  "mode": "B",
+  "benchmark": "metatags.io（Meta/OG 预览标杆：Google/Twitter/Facebook 三视图，对标库）",
+  "dims": {
+   "func": 10,
+   "usab": 12,
+   "val": 13,
+   "iact": 10,
+   "ui": 8,
+   "soul": 9
+  },
+  "perf": 8,
+  "mob": 8,
+  "conclusion": "**交互优化 + 需拓展** · P1",
+  "deductions": [
+   "1. 【功能】零预览是代差级缺失：metatags.io 编辑即渲染 Facebook/X/LinkedIn 三平台卡片模拟，本工具只有标签源码（ResultBox :77）——og:image 比例对不对、标题会不会截断全靠用户贴到真实平台试错；纯 CSS 模拟卡片无需任何网络请求，属纯前端可及项而非架构天花板",
+   "2. 【功能】Twitter 侧只有 card/title/desc/image 四件（:26-29）：缺 twitter:site（@账号，X 展示归属）、twitter:image:alt（无障碍＋平台推荐）；og:image:width/height/alt 同缺",
+   "3. 【功能】og:type=article 无附加字段：选 article（:64）后输出与 website 完全相同，published_time/author/section 一概没有——博客文章场景是 OG 最高频场景之一",
+   "4. 【交互】og:image 无校验：相对路径 `/cover.png`、非图片 URL 照样输出且无警告（:22 仅拼串），而提示卡自己都写着\"必须是绝对地址且可公开访问\"（:90）——规则在提示里不在校验里",
+   "5. 【可用性-轻】ResultBox 230px 双重钉死（:77；ResultBox.vue:69），13 行标签勉强够用，属家族共享病灶",
+   "6. 【交互】与 meta-tag-generator 字段重复录入：title/description/image 各填一遍，改一处须手工同步两页",
+   "7. 【灵魂-轻】调试器建议（:89-91）只有文字没给 Facebook Sharing Debugger/X Card Validator 直达链接，用户还得自己搜"
+  ],
+  "deduction1": "1. 【功能】零预览是代差级缺失：metatags.io 编辑即渲染 Facebook/X/LinkedIn 三平台卡片模拟，本工具只有标签源码（ResultBox :77）——og:image 比例对不对、标题会不会截断全靠用户贴到真实平台试错；纯 CSS 模拟卡片无需任何网络请求，属纯前端可及项而非架构天花板",
+  "prescriptions": [
+   "卡片预览",
+   "og:image 校验",
+   "字段补全",
+   "article 模式",
+   "调试器直达",
+   "家族字段共享"
+  ],
+  "hard": false,
+  "priority": "P1"
+ },
+ {
+  "file": "pgp-encrypt",
+  "score": 61,
+  "name": "PGP 加密解密",
+  "slug": "pgp-encrypt",
+  "mode": "C",
+  "benchmark": "CyberChef PGP Encrypt/Decrypt/Sign/Verify（gchq 官方操作，经核实）＋ keybase.io（密钥管理参照）",
+  "dims": {
+   "func": 12,
+   "usab": 11,
+   "val": 13,
+   "iact": 9,
+   "ui": 7,
+   "soul": 9
+  },
+  "perf": 5,
+  "mob": 6,
+  "conclusion": "**交互优化 + 需拓展** · P2",
+  "deductions": [
+   "1. 【功能-代差】无签名/验签：PGP 的另一半核心是 sign/verify（CyberChef 提供 Sign/Verify/Encrypt-and-Sign/Decrypt-and-Verify），\"发我签名的信\"与\"验对方真伪\"场景缺位（openpgp 纯前端全可做）",
+   "2. 【交互】Tab 上下文割裂：生成密钥后无法一键\"用此密钥加密/把公钥填进加密 Tab\"（:220-235 结果区与 :150-169 加密区无联动），手工跨 Tab 复制 4 次",
+   "3. 【可用性】输出区钉 240px（:256）、明文输入 90px（:152）——长信加密输入输出都憋屈（同族 260px 病灶变体）",
+   "4. 【功能】无私钥详情视图：导入私钥后不显示指纹/keyID/算法/创建时间，\"这把钥对不对\"只能靠解密成败反推（keybase key inspector 是标准动作）",
+   "5. 【功能】仅文本：无文件加密（openpgp createMessage 支持 binary 数据未暴露），.asc 附文件场景断链",
+   "6. 【交互】解密结果复制无对勾反馈（:191 通用 copy 仅 toast，与加密侧 :130-137 不一致）",
+   "7. 【灵魂】无指纹当面校验引导（\"与对方核对指纹\"是 PGP 安全仪式核心），安全教学缺一块",
+   "8. 【可用性】busy 状态三 Tab 共享但无防误触提示，切换 Tab 后返回不保留中间输入感（输入虽在、视觉焦点丢失）"
+  ],
+  "deduction1": "1. 【功能-代差】无签名/验签：PGP 的另一半核心是 sign/verify（CyberChef 提供 Sign/Verify/Encrypt-and-Sign/Decrypt-and-Verify），\"发我签名的信\"与\"验对方真伪\"场景缺位（openpgp 纯前端全可做）",
+  "prescriptions": [
+   "Tab 联动",
+   "签名/验签",
+   "私钥详情",
+   "输出区弹性",
+   "明文输入扩容"
+  ],
+  "hard": true,
+  "priority": "P2"
+ },
+ {
+  "file": "placeholder-image",
+  "score": 61,
+  "name": "占位图生成",
+  "slug": "placeholder-image",
+  "mode": "B",
+  "benchmark": "placehold.co ＋ picsum.photos（经 WebSearch 核实）",
+  "dims": {
+   "func": 10,
+   "usab": 13,
+   "val": 10,
+   "iact": 11,
+   "ui": 8,
+   "soul": 9
+  },
+  "perf": 8,
+  "mob": 8,
+  "conclusion": "**交互优化 + 需拓展** · P1",
+  "deductions": [
+   "1. 【功能】仅 PNG 单格式：`toBlob(..., 'image/png')` 写死（`PlaceholderImage.vue:56`），SVG（矢量占位、体积极小、文本可编辑）与 JPEG/WebP 一行代码可加却缺席——placehold.co 四格式是标配",
+   "2. 【功能】无\"复制即用\"出口：对标站的灵魂是拿到一段 `<img src>` 或 `background-image: url(...)` 直接贴进代码；本工具唯一出口是下载文件，前端用户还要自己转 base64——SVG data-URI 复制是纯前端可及的补偿方案",
+   "3. 【交互】无尺寸预设：OG 图 1200×630、公众号头图 900×383、favicon 512×512、App Store 截图等高频尺寸要手敲两个输入框",
+   "4. 【交互】非法尺寸静默钳制：输入 0 或负数直接按 1 绘制（:18-19），无\"最小 1px\"提示，用户不知道自己输入没生效",
+   "5. 【可用性-轻】预览与实际导出无对比信息：360px 预览不显示导出文件体积（PNG 尺寸差异巨大），\"导出多大\"只能下载后才知道",
+   "6. 【灵魂】无图案/照片占位变体：placehold.co 的斜纹/网格/灰度人像（picsum.photos 随机照片）是排版稿里区分\"图文区\"的关键，本工具只有单一对角线款（:26-35）",
+   "7. 【交互-轻】无宽高互换钮：竖版改横版要手动交换两个数；下载行\"清空文字\"（:97）与参数区距离远，操作分组松散"
+  ],
+  "deduction1": "1. 【功能】仅 PNG 单格式：`toBlob(..., 'image/png')` 写死（`PlaceholderImage.vue:56`），SVG（矢量占位、体积极小、文本可编辑）与 JPEG/WebP 一行代码可加却缺席——placehold.co 四格式是标配",
+  "prescriptions": [
+   "SVG 出口",
+   "尺寸预设 chip",
+   "格式选择",
+   "导出体积预估",
+   "非法输入提示"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "punycode-converter",
+  "score": 57,
+  "name": "中文域名转码",
+  "slug": "punycode-converter",
+  "mode": "A",
+  "benchmark": "punycoder.com（UTS #46 全流程，经 WebSearch 核实）＋ dnschecker.org IDN Converter（域名/邮箱/URL 整体形态）",
+  "dims": {
+   "func": 9,
+   "usab": 9,
+   "val": 12,
+   "iact": 10,
+   "ui": 7,
+   "soul": 10
+  },
+  "perf": 7,
+  "mob": 6,
+  "conclusion": "**交互优化** · P2",
+  "deductions": [
+   "1. 【可用性-硬伤·家族】双 textarea 各钉 180px、两窗无同步滚动（`base.css:164-168`；M-06），批量域名多时输出窗内滚，详见 `pinyin-converter.md` 扣分 1",
+   "2. 【可用性-硬伤·家族】首用 punycode.js 动态加载（registry.ts:366）期间 pending 置位但模板从未渲染（`TextTool.vue:15`），粘贴后输出区空转数百毫秒",
+   "3. 【交互】方向手动选：输入以 `xn--` 开头仍需手动切\"→中文域名\"（registry.ts:362-364 无自动探测），拿反方向只会整行标注\"无法转换\"",
+   "4. 【功能】无 UTS46 口径：`faß.de`、大写英文、全角句点（。）等边界按 RFC3492 直转，与 punycoder.com 的 UTS46（transitional/nontransitional）结果可能不同，工具无口径说明",
+   "5. 【功能】无逐标签拆解：`百度.示例.中国` 只给整串 xn-- 结果，多级域名哪段对应哪个 xn-- 不可见（punycoder.com 为逐标签表格）",
+   "6. 【灵魂】无科普锚点：xn-- 前缀含义、\"浏览器地址栏会显示原中文还是 xn--\"、\"证书/Whois 该填哪种写法\"三连问零覆盖",
+   "7. 【交互】行内错误注释与正常结果混排同一 textarea，批量时不能一键只复制合法行",
+   "8. 【功能】注册表无 steps 快速指南（registry.ts:358-389 无 steps 字段），TrustSidebar\"快速指南\"空缺"
+  ],
+  "deduction1": "1. 【可用性-硬伤·家族】双 textarea 各钉 180px、两窗无同步滚动（`base.css:164-168`；M-06），批量域名多时输出窗内滚，详见 `pinyin-converter.md` 扣分 1",
+  "prescriptions": [
+   "自动切向",
+   "steps 补齐",
+   "逐标签视图",
+   "口径说明",
+   "家族整改跟随",
+   "合法行一键复制"
+  ],
+  "hard": true,
+  "priority": "P2"
+ },
+ {
+  "file": "px-to-rem-converter",
+  "score": 56,
+  "name": "PX/REM 换算",
+  "slug": "px-to-rem-converter",
+  "mode": "B",
+  "benchmark": "nekocalc.com px-to-rem（批量转换标杆）＋ convertlive.co（双向即时换算标杆）",
+  "dims": {
+   "func": 8,
+   "usab": 13,
+   "val": 11,
+   "iact": 9,
+   "ui": 8,
+   "soul": 7
+  },
+  "perf": 8,
+  "mob": 8,
+  "conclusion": "**交互优化** · P1（含一处疑似功能缺陷需修复确认）",
+  "deductions": [
+   "1. 【交互-疑似缺陷】改根字号后换算结果不更新：`onPx/onRem` 仅挂在两个输入框的 `@input`（`PxRemConverter.vue:49,:57`），无 `watch(root)` 重算——输入 32px 得 2rem 后把根字号改成 8，结果仍显示 2rem（应为 4rem），而对照表因依赖 `rootNum` computed（:78-79）即时更新，页面自相矛盾；且 :87 文案明确承诺\"表格与换算实时更新\"",
+   "2. 【功能】无批量转换：不能粘贴多行 px 值或整段 CSS 一次性替换为 rem（nekocalc 的核心用法），真实迁移场景效率低",
+   "3. 【功能】em 列无信息量：与 rem 列逐格相同（:78-79 按\"1em=根字号\"估算），em 实际随父元素字号变化，表格未给出任何额外参考或干脆移除",
+   "4. 【交互】对照表行不可复制：常用值表 6 行只有\"复制对照表\"整表按钮（:25-29），无法单行点击复制",
+   "5. 【灵魂】root 值不持久化（localStorage），每次进入都要重新设置非 16px 项目的根字号",
+   "6. 【功能】无双向\"锁定输入焦点\"模式：两个方向各占一卡，同屏同时维护两份输入值，反向输入会覆盖正向结果（共用 pxInput/remInput 两个状态，:9-10），用户可能被静默覆盖感到困惑",
+   "7. 【交互】换算结果无一键复制：结果在 readonly input 里，没有复制按钮也没有回车复制（:51,:59），每次都要手动选中文本",
+   "8. 【功能】无反向链换算（px→rem→px 完整闭环展示）：卡内只显示一步结果，无\"12px = 0.75rem = 12px\"自检行帮助确认根字号设置正确"
+  ],
+  "deduction1": "1. 【交互-疑似缺陷】改根字号后换算结果不更新：`onPx/onRem` 仅挂在两个输入框的 `@input`（`PxRemConverter.vue:49,:57`），无 `watch(root)` 重算——输入 32px 得 2rem 后把根字号改成 8，结果仍显示 2rem（应为 4rem），而对照表因依赖 `rootNum` computed（:78-79）即时更新，页面自相矛盾；且 :87 文案明确承诺\"表格与换算实时更新\"",
+  "prescriptions": [
+   "root 联动重算",
+   "批量转换 Tab",
+   "对照表单行复制",
+   "root 持久化",
+   "em 列改造",
+   "结果一键复制"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "regex-tester",
+  "score": 60,
+  "name": "正则表达式测试",
+  "slug": "regex-tester",
+  "mode": "C",
+  "benchmark": "regex101.com ＋ Regulex（铁路图可视化）",
+  "dims": {
+   "func": 11,
+   "usab": 10,
+   "val": 12,
+   "iact": 11,
+   "ui": 7,
+   "soul": 9
+  },
+  "perf": 6,
+  "mob": 6,
+  "conclusion": "**交互优化 + 需拓展** · P1（预设首屏外 147px 接近硬伤；主流程输入→高亮首屏闭环可达故不判 P0）",
+  "deductions": [
+   "1. 【可用性】常用预设按钮组（邮箱/URL/手机号…）位于 DOM 最底部（`RegexTester.vue:110-117`），实测 top=915、首屏外需滚 147px（M-04）——预设是该工具最便捷的入口，却藏在最深处",
+   "2. 【可用性】测试文本 textarea `min-height:120px`（:87）、高亮区 `.hl max-height:220px`（:144）双钉高（共性-根因 2），长文本只能在两个小窗内分别滚动，且文本窗与高亮窗滚动不同步",
+   "3. 【可用性】正则输入是单行 `<input type=\"text\">`（:72），复杂正则（如 IPv4 那条 55 字符）在窄面板里被截断，无法通览全貌——regex101 支持多行编辑",
+   "4. 【功能】无替换（replace/substitute）模式：regex101 底部的替换预演是调正则的第二 half，本工具只能测匹配",
+   "5. 【功能】捕获组只在文本下方列表展示\"第一个匹配的组值\"（:98），正文高亮不区分组（regex101 每组独立着色、hover 高亮对应组）",
+   "6. 【功能】无逐 token 解释——regex101 的灵魂：鼠标放任一段自动讲\"这里是负向断言/量词贪婪\"。本工具对复杂正则零解释能力",
+   "7. 【交互】匹配列表仅\"位置 {{ m.index }}\"裸数字（:105），无行:列定位，无法回原文定位第几行",
+   "8. 【灵魂】报错只有浏览器原生 message（:95\"正则有误：…\"），未翻译成人话（如\"缺少右括号\"）"
+  ],
+  "deduction1": "1. 【可用性】常用预设按钮组（邮箱/URL/手机号…）位于 DOM 最底部（`RegexTester.vue:110-117`），实测 top=915、首屏外需滚 147px（M-04）——预设是该工具最便捷的入口，却藏在最深处",
+  "prescriptions": [
+   "预设前置",
+   "双区弹性高度",
+   "替换预演",
+   "匹配列表行:列 + 回跳",
+   "报错人话化"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "regex-visualizer",
+  "score": 61,
+  "name": "正则可视化",
+  "slug": "regex-visualizer",
+  "mode": "C",
+  "benchmark": "Regulex（实时铁路图标杆）＋ debuggex（匹配模拟动画标杆）；与 regex-tester.md（已有档案，60 分）的定位关系见下",
+  "dims": {
+   "func": 11,
+   "usab": 12,
+   "val": 12,
+   "iact": 10,
+   "ui": 8,
+   "soul": 8
+  },
+  "perf": 7,
+  "mob": 6,
+  "conclusion": "**交互优化** · P1（导出保真缺陷应尽快修复）",
+  "deductions": [
+   "1. 【功能-疑似缺陷】下载的 SVG 独立打开失效：全部 rect/text/path 用 `fill=\"var(--panel-solid)\"`、`stroke=\"var(--accent)\"` 等页面级 CSS 变量（`regexDiagram.ts:39-40,:69-70,:107-110,:125`），saveText 存出后变量无定义——fill 回退 black、stroke 回退 none，**独立打开是一坨黑块**，与 :56\"下载的 SVG 可直接贴进文档\"的承诺相悖",
+   "2. 【交互】非实时渲染：Regulex 输入即画，本工具改一个字符都要点按钮/回车（`RegexVisualizer.vue:16-35`），迭代调正则时摩擦明显",
+   "3. 【功能】无匹配模拟动画：debuggex 的样例文本沿铁路图逐节点点亮是\"理解执行过程\"的独特能力，纯前端可实现",
+   "4. 【功能】无逐节点解释：hover 量词盒应讲\"贪婪，尽可能多吃\"，现仅有静态标签；与 regex-tester 缺\"逐 token 解释\"同病（见上节）",
+   "5. 【灵魂】size（宽×高）已计算但模板从未展示（`RegexVisualizer.vue:12,:26`）——贴文档前想知道图多大做不到（死数据）",
+   "6. 【可用性】图区无缩放：宽度 >1200px 的长正则只能横滚（svg max-width 截顶 regexDiagram.ts:234），无\"适应宽度/原始尺寸\"切换",
+   "7. 【性能】极端嵌套正则无复杂度上限保护，递归布局可能长阻塞"
+  ],
+  "deduction1": "1. 【功能-疑似缺陷】下载的 SVG 独立打开失效：全部 rect/text/path 用 `fill=\"var(--panel-solid)\"`、`stroke=\"var(--accent)\"` 等页面级 CSS 变量（`regexDiagram.ts:39-40,:69-70,:107-110,:125`），saveText 存出后变量无定义——fill 回退 black、stroke 回退 none，**独立打开是一坨黑块**，与 :56\"下载的 SVG 可直接贴进文档\"的承诺相悖",
+  "prescriptions": [
+   "导出保真",
+   "实时渲染",
+   "节点解释",
+   "尺寸展示",
+   "与 regex-tester 互链"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "robots-txt-generator",
+  "score": 60,
+  "name": "robots.txt 生成",
+  "slug": "robots-txt-generator",
+  "mode": "B",
+  "benchmark": "xml-sitemaps.com（SEO 站点工具标杆，robots/sitemap 成对）＋ ai-robots-txt 类开源预设集合（AI 爬虫屏蔽名单事实标准）",
+  "dims": {
+   "func": 9,
+   "usab": 12,
+   "val": 12,
+   "iact": 11,
+   "ui": 8,
+   "soul": 8
+  },
+  "perf": 8,
+  "mob": 7,
+  "conclusion": "**交互优化 + 需拓展** · P1",
+  "deductions": [
+   "1. 【功能】无爬虫预设：UA 输入是裸 text input（`RobotsTxtGenerator.vue:69`），无 datalist、无常用 UA 一键组——\"屏蔽 AI 爬虫\"（GPTBot/ClaudeBot/Bytespider 等）是 2026 年站长高频刚需，业界已有成熟名单可直接内置",
+   "2. 【可用性】生成文件组段拆裂：基础策略、自定义规则、Crawl-delay 各自输出独立 `User-agent: *` 组（:21-25,:26-32,:33-36），默认配置即可产出 2~3 个 * 组段——多数引擎按 REP 合并语义能容，但严格解析器/教学范本不会这么写，且 Crawl-delay 永远挂 * 无法给特定爬虫设速",
+   "3. 【功能】无语法校验与提示：路径通配符 `*`/`$` 语义、中文/空格路径应 URL 编码、Disallow 空值含义，全部依赖用户已有知识，输出\"所见\"但\"是否合法\"无从判断",
+   "4. 【交互】预设半成品：\"禁止目录/允许目录\"按钮只添加 path 为 `/目录/`、`/公开目录/` 的中文占位行（:43-45），不是真预设；应给 /admin/ /wp-admin/ /tmp/ 等常见组合",
+   "5. 【功能】Sitemap 单值（:10,:37-39）：robots.txt 允许多条 Sitemap 指令（多域名/分片站点场景），输入框只吃一条",
+   "6. 【可用性-轻】ResultBox 220px 双重钉死（:85；ResultBox.vue:69，共性-根因 2）；十余行规则即触发内部滚动",
+   "7. 【灵魂】deny-all 模式下自定义规则仍照常输出（:21-25 与 :26-32 并存），\"全局禁抓＋例外允许\"到底生效与否无一句解释——恰好是 robots 协议最易误读的点，提示卡缺席"
+  ],
+  "deduction1": "1. 【功能】无爬虫预设：UA 输入是裸 text input（`RobotsTxtGenerator.vue:69`），无 datalist、无常用 UA 一键组——\"屏蔽 AI 爬虫\"（GPTBot/ClaudeBot/Bytespider 等）是 2026 年站长高频刚需，业界已有成熟名单可直接内置",
+  "prescriptions": [
+   "爬虫预设库",
+   "组段合并",
+   "路径语法提示",
+   "Crawl-delay 挂指定 UA",
+   "多 Sitemap",
+   "家族互链"
+  ],
+  "hard": false,
+  "priority": "P1"
+ },
+ {
+  "file": "rsa-key-generator",
+  "score": 58,
+  "name": "RSA 密钥对生成",
+  "slug": "rsa-key-generator",
+  "mode": "C",
+  "benchmark": "ArcaneUtils RSA Key Generator（PEM/JWK/DER，WebCrypto 客户端生成）＋ cuuduongthancong.com RSA 工具（PKCS#8/PKCS#1/JWK+SHA-256 指纹，均经 WebSearch 核实）",
+  "dims": {
+   "func": 10,
+   "usab": 9,
+   "val": 12,
+   "iact": 10,
+   "ui": 7,
+   "soul": 10
+  },
+  "perf": 3,
+  "mob": 6,
+  "conclusion": "**交互优化 + 需拓展** · P1",
+  "deductions": [
+   "1. 【可用性-重】同步阻塞+进度失真：`forge.pki.rsa.generateKeyPair`（:25）纯 JS 同步运算，`setInterval` 计时（:20）在阻塞期间无法触发——\"正在生成，已进行 Xs\"（:61）实际全程停在 0.2s，4096 位时用户面对死页 10 秒+；WebCrypto `subtle.generateKey` 原生异步非阻塞且更快（ArcaneUtils/DailyTool 均走此路），纯前端可实现",
+   "2. 【功能】无 PKCS#8 私钥输出：现代 openssl 默认 `BEGIN PRIVATE KEY`，工具只出 PKCS#1（:27），底部提示还让用户自己跑 `ssh-keygen -i -m PKCS8`（:86）——把格式转换推给用户",
+   "3. 【功能】无 JWK 格式：JWT RS256 调试、JWKS 发布场景需要 JWK（对标工具均支持），与 jwt-generator 也无法联动",
+   "4. 【可用性】PEM 结果区钉 260px（:111），4096 位私钥约 50 行需内部滚动且无行号定位",
+   "5. 【功能】无指纹/位数回显：生成后不展示 SHA-256 指纹，比对两把密钥是否相同只能肉眼对 PEM",
+   "6. 【功能】无私钥口令保护选项：下载的 private.pem 明文落盘（:44-47）",
+   "7. 【交互】无生成历史：误覆盖后只能重新生成（密钥不可找回，4096 位重生成成本 10 秒+）"
+  ],
+  "deduction1": "1. 【可用性-重】同步阻塞+进度失真：`forge.pki.rsa.generateKeyPair`（:25）纯 JS 同步运算，`setInterval` 计时（:20）在阻塞期间无法触发——\"正在生成，已进行 Xs\"（:61）实际全程停在 0.2s，4096 位时用户面对死页 10 秒+；WebCrypto `subtle.generateKey` 原生异步非阻塞且更快（ArcaneUtils/DailyTool 均走此路），纯前端可实现",
+  "prescriptions": [
+   "非阻塞生成",
+   "PKCS#8 选项",
+   "指纹回显",
+   "JWK 导出",
+   "PEM 区弹性",
+   "口令保护导出"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "slugify",
+  "score": 63,
+  "name": "Slug 生成器",
+  "slug": "slugify",
+  "mode": "C",
+  "benchmark": "slugify.online（经 WebSearch 核实）＋ WordPress/Google slug 规范；拼音能力站内已有（pinyin-converter.md，57 分）",
+  "dims": {
+   "func": 9,
+   "usab": 14,
+   "val": 11,
+   "iact": 12,
+   "ui": 8,
+   "soul": 9
+  },
+  "perf": 9,
+  "mob": 8,
+  "conclusion": "**交互优化 + 需拓展** · P1",
+  "deductions": [
+   "1. 【功能】中文只有\"保留原样\"一档：诚实声明（`SlugGenerator.vue:63-65`）值得肯定，但 pinyin-pro 引擎就在站内（`src/lib/chineseText.ts`，pinyin-converter 已用懒加载）却未暴露\"中文转拼音 slug\"选项——中文标题场景的灵魂功能缺席且补齐成本最低",
+   "2. 【功能】无长度截断：SEO 惯例 slug 建议 ≤5 词/约 60 字符，长标题生成的长 slug 无\"按词截断\"开关",
+   "3. 【功能】无批量：多行标题→逐行 slug 的批量模式缺席，内容团队一次起 20 个标题要复制 20 次",
+   "4. 【交互】预览域名写死 example.com/blog/（:53）不可自定义，与实际站点前缀对不上时预览价值打折",
+   "5. 【功能-轻】分隔符只有 -/_：无\"无分隔符\"档；\"全部大写\"对 SEO 是反模式（大小写 URL 易被判为不同路径）却无任何提示",
+   "6. 【灵魂】示例 chips 里含中文的仅 2 枚（:28），缺\"纯中文长标题\"这种最需要引导的场景样例",
+   "7. 【交互】无\"生成即复制\"开关（高频粘贴场景每次都要点一次复制钮）",
+   "8. 【功能-疑似缺陷】点号被整段删除导致词元粘连：允许集不含 `.`（textEngine.ts:670 `[^a-zA-Z0-9\\u4e00-\\u9fff\\s-]` 直接删），`产品更新 v2.0：全新 UI` 生成 `产品更新-v20全新-ui`——`v2.0` 变 `v20`、`2.6.32` 变 `2632`，对标工具将 `.` 归一为分隔符"
+  ],
+  "deduction1": "1. 【功能】中文只有\"保留原样\"一档：诚实声明（`SlugGenerator.vue:63-65`）值得肯定，但 pinyin-pro 引擎就在站内（`src/lib/chineseText.ts`，pinyin-converter 已用懒加载）却未暴露\"中文转拼音 slug\"选项——中文标题场景的灵魂功能缺席且补齐成本最低",
+  "prescriptions": [
+   "拼音 slug",
+   "词数截断",
+   "批量模式",
+   "自定义预览前缀",
+   "大写提示"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "snowflake-id-generator",
+  "score": 64,
+  "name": "雪花 ID 生成解析",
+  "slug": "snowflake-id-generator",
+  "mode": "D",
+  "benchmark": "计算器在线/各语言 snowflake 实现文档（Twitter Sonar 源头口径）＋ Discord ID 解析页（discordsnowflake.info）",
+  "dims": {
+   "func": 12,
+   "usab": 12,
+   "val": 12,
+   "iact": 11,
+   "ui": 8,
+   "soul": 9
+  },
+  "perf": 9,
+  "mob": 7,
+  "conclusion": "**交互优化** · P1",
+  "deductions": [
+   "1. 【功能】无自定义位布局与预设 epoch：数据中心/机器固定 5+5 位（devExt.ts:443-446），百度的 41+10+12、Sony 的变体等非标准 ID 粘进来按标准布局反解，时间/机器位全部错位且无任何警告——解析前应检查 ID 数值域并提示\"疑似非标准布局\"",
+   "2. 【功能】epoch 无预设：Twitter（默认）/Discord（1420070400000）/Instagram/Laravel 等常见 epoch 要手查毫秒值填入（:87 仅裸输入框），SnowflakeGen 常量旁无下拉预设（devExt.ts:415）",
+   "3. 【交互】无位布局可视化：41+5+5+12 的切分没有二进制对齐图（ discordsnowflake.info 的核心视图），\"时间戳在哪几位、机器位怎么取\"只能靠脚注文字想象（:129）——教学与排障价值最高的视图缺席",
+   "4. 【交互】解析表行不可复制：五列结果无复制钮（:113-128 无 copyText），把\"生成时间\"贴进工单要手选；表格 520px 钉高内滚 500 行结果扫读累",
+   "5. 【功能-轻】生成与解析参数强绑定但无反向联动：解析出的数据中心/机器 ID 不会提示\"要生成同机房 ID 请把上方参数设为相同值\"——双向工具的联动断在中间",
+   "6. 【可用性-轻】500 条 ID 列表 220px 窗内滚（SnowflakeTool.vue:141），无\"只显示前 N 条＋已全部复制\"折叠，视觉噪音大",
+   "7. 【灵魂-轻】时钟回拨报错文案优秀（\"为避免生成重复 ID 已暂停\"，devExt.ts:432）但组件层只透传 toast（:29-31），无\"点击重试\"入口",
+   "8. 【交互-轻】无\"从剪贴板粘贴并解析\"一键（DevTools 复制 ID 后要切窗口三步，curl-to-fetch.md 扣分 8 同款痛点）"
+  ],
+  "deduction1": "1. 【功能】无自定义位布局与预设 epoch：数据中心/机器固定 5+5 位（devExt.ts:443-446），百度的 41+10+12、Sony 的变体等非标准 ID 粘进来按标准布局反解，时间/机器位全部错位且无任何警告——解析前应检查 ID 数值域并提示\"疑似非标准布局\"",
+  "prescriptions": [
+   "epoch 预设",
+   "非标准布局警告",
+   "位布局色块图",
+   "实时解析",
+   "结果行复制"
+  ],
+  "hard": false,
+  "priority": "P1"
+ },
+ {
+  "file": "sql-formatter",
+  "score": 57,
+  "name": "SQL 格式化",
+  "slug": "sql-formatter",
+  "mode": "D",
+  "benchmark": "sql-formatter.org（同一引擎的官方在线 demo）＋ codebeautify.org SQL Formatter",
+  "dims": {
+   "func": 12,
+   "usab": 8,
+   "val": 13,
+   "iact": 10,
+   "ui": 7,
+   "soul": 7
+  },
+  "perf": 6,
+  "mob": 5,
+  "conclusion": "**交互优化 + 需拓展** · P1",
+  "deductions": [
+   "1. 【可用性-硬伤】ResultBox `height:minHeight` 双重钉高 300px（`ResultBox.vue:69`、`SqlFormatter.vue:96`；面板几何同 M-01 实测：装饰层吃掉首屏 32%）",
+   "2. 【功能】方言仅 3 种（`SqlFormatter.vue:73-77`）：所用库本身支持 plsql/tsql/bigquery/mariadb/hive/spark 等，属未暴露能力",
+   "3. 【功能】缩进固定 2 空格（`SqlFormatter.vue:54` tabWidth:2 硬编码），无 indentStyle/每子句换行策略等风格选项",
+   "4. 【灵魂-疑似问题】catch 分支把一切异常（含语法错误）静默降级为 lightFormat（`SqlFormatter.vue:56-59`），错误 SQL 也提示\"已格式化\"，无校验无定位",
+   "5. 【功能-疑似问题】lightFormat 兜底先 `replace(/\\s+/g,' ')` 再按空格切词（`SqlFormatter.vue:18`）：字符串字面量被拆词，内部关键字（如 `'please group by hand'`）会被大写并强插换行，破坏 SQL 语义",
+   "6. 【交互】粘贴/修改后不自动格式化，无\"即改即格式化\"（sql-formatter.org 为输入即出）",
+   "7. 【灵魂】无快捷键、无风格预设、错误提示仅 toast 瞬时",
+   "8. 【美观】首用动态加载 sql-formatter 库期间只有按钮 spinner，无\"解析库首次加载\"说明（对照 CodeFormatter 有 notice 文案，`CodeFormatter.vue:90-92`）"
+  ],
+  "deduction1": "1. 【可用性-硬伤】ResultBox `height:minHeight` 双重钉高 300px（`ResultBox.vue:69`、`SqlFormatter.vue:96`；面板几何同 M-01 实测：装饰层吃掉首屏 32%）",
+  "prescriptions": [
+   "输出区弹性高度",
+   "即改即格式化",
+   "方言扩充",
+   "缩进与风格选项",
+   "降级诚实化"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "subnet-calculator",
+  "score": 61,
+  "name": "子网计算器",
+  "slug": "subnet-calculator",
+  "mode": "B",
+  "benchmark": "subnetcalculator.info ＋ ipcalc.org（经 WebSearch 核实）",
+  "dims": {
+   "func": 11,
+   "usab": 12,
+   "val": 13,
+   "iact": 10,
+   "ui": 8,
+   "soul": 7
+  },
+  "perf": 9,
+  "mob": 7,
+  "conclusion": "**交互优化 + 需拓展** · P1",
+  "deductions": [
+   "1. 【交互】CIDR 仅滑杆无数字输入（`SubnetCalculator.vue:62-64`）：精确 /26、/30 只能逐格拖，无 -/+ 步进、无回车输入框",
+   "2. 【功能】无掩码→CIDR 反向输入：subnetcalculator.info 直接接受 `255.255.255.192` 输入，本工具拿着掩码只能人肉换算前缀；\"载入网络地址\"按钮（:45-51）只把 network 回填 IP 框，既不做掩码互换也不改 CIDR，文案与行为错位",
+   "3. 【交互】结果九行零复制：全文未引 copyText，网络/掩码/主机范围无法单值复制（CalcTool 家族\"结果不可单值复制\"共性在此复现且更甚）",
+   "4. 【功能】无 VLSM/子网拆分：给定 /24 拆 4 个 /26 的需求要另寻工具，对标站的 multi-subnet 表格是核心增值",
+   "5. 【灵魂】无私有/公网段判别：192.168/10.x/172.16-31 应标注\"私有地址（RFC 1918）\"，防火墙调试高频依赖此判别",
+   "6. 【可用性-轻】二进制不做位对齐：jsEngine.ts:860 仅 IP 二进制平铺一行，\"掩码怎么切出网络位\"的 IP/掩码/网络三行对齐视图缺席",
+   "7. 【交互】两种输入行为不一致：改前缀滑杆立即重算（:43,:63），改 IP 却要按回车/按钮（:59,:65）",
+   "8. 【交互】结果不可分享/持久化：无 URL query 参数承载 ip/cidr，刷新即丢——subnetcalculator.info 的可分享链接是网络团队协作刚需"
+  ],
+  "deduction1": "1. 【交互】CIDR 仅滑杆无数字输入（`SubnetCalculator.vue:62-64`）：精确 /26、/30 只能逐格拖，无 -/+ 步进、无回车输入框",
+  "prescriptions": [
+   "输入格式宽容",
+   "滑杆＋数字双向绑定",
+   "逐行复制",
+   "私有段判别",
+   "VLSM（远期）"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "svg-optimizer",
+  "score": 53,
+  "name": "SVG 优化器",
+  "slug": "svg-optimizer",
+  "mode": "C",
+  "benchmark": "SVGOMG（SVGO 官方可视化版：逐项插件开关+实时预览+压缩率标杆）",
+  "dims": {
+   "func": 8,
+   "usab": 11,
+   "val": 11,
+   "iact": 9,
+   "ui": 7,
+   "soul": 7
+  },
+  "perf": 6,
+  "mob": 6,
+  "conclusion": "**需拓展 + 交互优化** · P1（引擎真实度是根本短板）",
+  "deductions": [
+   "1. 【功能】引擎非 SVGO：`optimizeSvg` 仅正则去注释/metadata/属性+取整+压空白（`jsEngine.ts:866-884`），SVGO 的 path 数据优化（相对坐标/弧转曲线）、mergePaths、collapseGroups、cleanupIDs、removeUselessDefs 全部缺席——设计稿导出 SVG 通常只能省 20% 左右，SVGO 可达 50%+",
+   "2. 【功能-疑似缺陷】数字精度正则误伤非几何内容：`/-?\\d+\\.\\d+/g` 作用于全文（`jsEngine.ts:878-881`），`<text>` 内的数字文本、`stroke-width=\"1.5\"`、`opacity=\"0.45\"` 都会被取整——precision=0 时 1.5px 描边变 2px、图内\"3.14\"文字变\"3\"，视觉静默损坏",
+   "3. 【交互】预览需手动刷新：优化完成后不自动渲染（`SvgOptimizer.vue:50-53`），要点\"刷新预览\"（:98）才更新 img——SVGOMG 是参数一动预览即动",
+   "4. 【可用性】预览区 max-height 300px 钉死（:149-152）：600px 高的插画预览被压缩，确认画质需下载文件（对比滑块/原优并排也没有）",
+   "5. 【功能】开关仅 2 个：精度+移除元数据（:67-70），SVGOMG 每个插件可独立勾选/试错",
+   "6. 【可用性】双窗 200px（:78,:80）：中型 SVG（几百行）两侧都要内滚，原始代码窗还是裸 textarea 无行号无错误定位",
+   "7. 【功能】单文件限制：`:multiple=\"false\"`（:64），无批量优化+打包下载",
+   "8. 【灵魂】压缩率条形图只有\"优化前/后\"绝对宽度，无 SVGO 同场景参考线，用户无法判断 30% 是好是坏（SVGOMG 会显示优化细节分类统计）"
+  ],
+  "deduction1": "1. 【功能】引擎非 SVGO：`optimizeSvg` 仅正则去注释/metadata/属性+取整+压空白（`jsEngine.ts:866-884`），SVGO 的 path 数据优化（相对坐标/弧转曲线）、mergePaths、collapseGroups、cleanupIDs、removeUselessDefs 全部缺席——设计稿导出 SVG 通常只能省 20% 左右，SVGO 可达 50%+",
+  "prescriptions": [
+   "精度白名单",
+   "预览实时化",
+   "引擎升级",
+   "对比滑块",
+   "逐项开关"
+  ],
+  "hard": false,
+  "priority": "P1"
+ },
+ {
+  "file": "text-diff",
+  "score": 54,
+  "name": "文本对比",
+  "slug": "text-diff",
+  "mode": "D",
+  "benchmark": "diffchecker.com ＋ Text-Compare（text-compare，行内词级高亮）",
+  "dims": {
+   "func": 9,
+   "usab": 9,
+   "val": 12,
+   "iact": 9,
+   "ui": 7,
+   "soul": 8
+  },
+  "perf": 6,
+  "mob": 5,
+  "conclusion": "**交互优化 + 需拓展** · P0（结果区视口外 = 可用性硬伤；输入区 170px 主功能区过小）",
+  "deductions": [
+   "1. 【可用性-硬伤】对比前面板仅 308px 高、结果区出现在视口外（M-05）；对比后面板增长但结果区顶部仍在 570px 左右，1366×768 下首屏只见增删徽章、见不了正文几行",
+   "2. 【可用性】双输入 textarea 各钉 170px（`TextDiff.vue:56`、`:60`，比全局 180px 还低，共性-根因 2），对比前连\"看全要贴的两段话\"都做不到",
+   "3. 【可用性】结果区 `.diff-view max-height:420px` 钉死（:92），500 行 diff 需在 420px 窗口滚 10+ 屏，无\"只看差异\"过滤",
+   "4. 【功能】无并排（side-by-side）视图——diffchecker 默认双栏对照，适合逐行核对；本工具仅 unified 单列",
+   "5. 【功能】无行内词级高亮：一行改了两个词，本工具整行标红/绿，用户自己找差异（jsdiff 有 diffChars/diffWords 能力未用，:24-25 仅用了 diffLines）",
+   "6. 【功能】无行号列、无未变行折叠（GitHub 式\"…跳过 N 行\"），长 diff 上下文淹没变更",
+   "7. 【交互】输入变化后不自动重算也不提示\"内容已修改，请重新对比\"（:20-48 run 仅按钮触发），用户极易对着旧结果看新文本",
+   "8. 【交互】结果不可导出：无复制 diff 文本、无下载 .diff/.html，闭环断裂",
+   "9. 【美观】无行号列（:77-81 仅 +/- 标记列），反馈与协作场景（\"第 12 行删了这句\"）无法落地"
+  ],
+  "deduction1": "1. 【可用性-硬伤】对比前面板仅 308px 高、结果区出现在视口外（M-05）；对比后面板增长但结果区顶部仍在 570px 左右，1366×768 下首屏只见增删徽章、见不了正文几行",
+  "prescriptions": [
+   "输入区弹性高度",
+   "结果区进入首屏",
+   "自动重算",
+   "行内词级高亮",
+   "并排视图"
+  ],
+  "hard": true,
+  "priority": "P0"
+ },
+ {
+  "file": "timestamp-converter",
+  "score": 64,
+  "name": "Unix 时间戳转换",
+  "slug": "timestamp-converter",
+  "mode": "D",
+  "benchmark": "unixtimestamp.com ＋ epochconverter.com（两者均经 WebSearch 核实）",
+  "dims": {
+   "func": 12,
+   "usab": 13,
+   "val": 13,
+   "iact": 8,
+   "ui": 8,
+   "soul": 10
+  },
+  "perf": 9,
+  "mob": 7,
+  "conclusion": "**交互优化 + 需拓展** · P1",
+  "deductions": [
+   "1. 【交互】正向三行结果、反向两行结果**全部没有复制按钮**（`TimestampConverter.vue:87-91,100-103`），时间戳工具的核心动作就是把数值粘进代码，用户只能手动框选——对照站内 ResultBox/NumberBase 的成熟复制交互（`ResultBox.vue:49-62`），属自家体验倒挂",
+   "2. 【功能】日期→时间戳**只输出 Unix 秒**（:62），毫秒级需用户自己 ×1000；正向支持毫秒、反向不支持，能力不对等",
+   "3. 【功能】无时区选择器：本地/UTC 写死为设备时区（:42-44），跨时区协作（如核对美东发布时间）场景无法应对——epochconverter 支持 UTC/本地/任意偏移",
+   "4. 【交互】输入时间戳后必须点\"转换\"或回车（:79、:85），粘贴即转换（watch 输入）在 textDef 家族是标配（`TextTool.vue:47-48`），本独立组件反而退化为手动",
+   "5. 【功能】无批量转换（日志里一列时间戳逐个粘贴逐个点）；无\"距今 X 天/X 小时\"人类化相对时间",
+   "6. 【功能】反向输入仅 `datetime-local` 单一时区视角（:97），无法\"按 UTC 视角指定时间再取时间戳\"，跨时区反查是常见坑",
+   "7. 【灵魂】自动识别阈值\"≥13 位为毫秒\"对 11~12 位歧义输入直接按秒处理（:34），未提示判定依据——虽有口径说明（:108），但判定瞬间无结果区旁注",
+   "8. 【美观】≤560px 才堆叠（共性-根因 5），760~900px 常见平板宽度下双栏各约 300px，ISO 串折行成两行"
+  ],
+  "deduction1": "1. 【交互】正向三行结果、反向两行结果**全部没有复制按钮**（`TimestampConverter.vue:87-91,100-103`），时间戳工具的核心动作就是把数值粘进代码，用户只能手动框选——对照站内 ResultBox/NumberBase 的成熟复制交互（`ResultBox.vue:49-62`），属自家体验倒挂",
+  "prescriptions": [
+   "逐行复制",
+   "毫秒反向输出",
+   "粘贴即转换",
+   "时区选择",
+   "批量模式"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "toml-to-json",
+  "score": 60,
+  "name": "TOML 与 JSON 互转",
+  "slug": "toml-to-json",
+  "mode": "D",
+  "benchmark": "toml.io 官方试金石 ＋ Code Beautify TOML Converter",
+  "dims": {
+   "func": 12,
+   "usab": 13,
+   "val": 12,
+   "iact": 12,
+   "ui": 7,
+   "soul": 4
+  },
+  "perf": 6,
+  "mob": 6,
+  "conclusion": "**交互优化** · P2（结构健全，补灵魂细节即可）",
+  "deductions": [
+   "1. 【灵魂】JSON→TOML 方向**必然丢失注释**（TOML 注释无 JSON 载体），无任何警示——用户反向保存后注释蒸发",
+   "2. 【灵魂】无 TOML 示例空态（placeholder 有三行示例 :63 是亮点，但输出区无对应示例结果）",
+   "3. 【功能】`[[array-of-tables]]`（TOML 数组表语法）转换质量未验证未披露；TOML 1.0 的多行字符串/字面量字符串支持度无说明",
+   "4. 【灵魂】与 env-to-json、yaml-to-json 组成配置家族三兄弟却零互链（ToolPage 相关位按注册序前 3 基本不可达）——\"配置格式统一转换\"整合机会",
+   "5. 【交互】busy 态按钮 disabled（:51,:54 :disabled）但无 spinner 视觉，慢解析期间无反馈"
+  ],
+  "deduction1": "1. 【灵魂】JSON→TOML 方向**必然丢失注释**（TOML 注释无 JSON 载体），无任何警示——用户反向保存后注释蒸发",
+  "prescriptions": [
+   "丢注释警示",
+   "busy spinner",
+   "配置家族互链",
+   "示例空态"
+  ],
+  "hard": true,
+  "priority": "P2"
+ },
+ {
+  "file": "totp-generator",
+  "score": 64,
+  "name": "TOTP 动态口令",
+  "slug": "totp-generator",
+  "mode": "C",
+  "benchmark": "totp.app（多账户管理标杆）＋ 2fa.live（当前/下一码并排）",
+  "dims": {
+   "func": 11,
+   "usab": 12,
+   "val": 13,
+   "iact": 9,
+   "ui": 8,
+   "soul": 11
+  },
+  "perf": 8,
+  "mob": 8,
+  "conclusion": "**交互优化 + 需拓展** · P1",
+  "deductions": [
+   "1. 【功能-代差】无多账户管理：真实用户存 5–20 个服务的密钥，本页一次只能算一把（totp.app 为多账户卡片流+命名+本地持久化）",
+   "2. 【功能-疑似问题】HOTP 链接误接受：parseUri 正则接受 `otpauth://hotp/`（:56）但 counter 参数被忽略、仍按时间口径出码——HOTP 密钥会得到看似合法实则错误的口令",
+   "3. 【功能】issuer 丢失：`issuer=xxx` 参数未回填（:68-72 仅从 label 提取含\":\"的账号），口令卡下账户语境不全",
+   "4. 【可用性】首用 otpauth 动态加载（:45）期间口令卡空白占位无\"引擎加载中\"提示（对照 PgpTool.vue:146 有加载提示，站内不一致）",
+   "5. 【交互】无下一码预览：30 秒末尾复制常在传输途中过期，2fa.live 当前/下一码并排",
+   "6. 【交互】无 otpauth 迁移二维码扫描入口（Google Authenticator 导出场景断链）；也无粘贴板一键读取",
+   "7. 【灵魂】与 base32-converter（`registry.ts:134-143`）无互链：手动模式下\"密钥从哪来/Base32 是什么\"无跳转指引",
+   "8. 【美观】剩余 <5 秒时秒数与进度条无红色紧迫态，\"复制到一半就过期\"的挫败无预警"
+  ],
+  "deduction1": "1. 【功能-代差】无多账户管理：真实用户存 5–20 个服务的密钥，本页一次只能算一把（totp.app 为多账户卡片流+命名+本地持久化）",
+  "prescriptions": [
+   "HOTP 纠偏",
+   "issuer 回填",
+   "下一码预览",
+   "多账户",
+   "紧迫态"
+  ],
+  "hard": false,
+  "priority": "P1"
+ },
+ {
+  "file": "unicode-lookup",
+  "score": 59,
+  "name": "Unicode 字符查询",
+  "slug": "unicode-lookup",
+  "mode": "D",
+  "benchmark": "unicode-table.com（全区块浏览）＋ BabelStone Unicode 信息",
+  "dims": {
+   "func": 9,
+   "usab": 13,
+   "val": 10,
+   "iact": 10,
+   "ui": 8,
+   "soul": 9
+  },
+  "perf": 9,
+  "mob": 7,
+  "conclusion": "**交互优化 + 需拓展** · P1",
+  "deductions": [
+   "1. 【功能】无字符官方名称：unicodeInfo 只回码点/区块（`jsEngine.ts:888-897`），未引入 Unicode 名（Intl 或离线名表皆可），\"查这个字符是什么\"只能靠区块名猜——对标站每字符首行即名称",
+   "2. 【功能】无区块浏览：25 个区块表（jsEngine.ts:900-910）只用于归类已输入字符，不能反向\"打开 CJK 区块看全部 20992 字\"——unicode-table.com 的网格浏览是其流量主入口",
+   "3. 【功能】转义输出矩阵缺失：`\\u4E2D`、`\\x`、`%u4E2D`（JS/Java/URL 编码各有用场）与命名实体全部缺席，只有十进制实体一列（jsEngine.ts:895）——前端开发实际粘贴频率最高的是 `\\u` 转义",
+   "4. 【交互】逐行与反查结果均不可复制：行卡无复制钮（UnicodeLookup.vue:63-71），rev-card 大字符同样无复制（:79-87），只有\"复制全部\"TSV 一条路",
+   "5. 【可用性-轻】200 字符切片静默截断：textarea maxlength=400（:60）与 MAX=200（:12）双上限不一致，超出后计数显示\"250/200\"但内容已截半，无\"已截断\"提示",
+   "6. 【灵魂】不可见字符检测缺席：NBSP/ZWJ/ZWNJ/BOM 是文案排障第一高频，应输入即高亮标注\"⚠ 零宽字符\"，现与普通字符无差别展示",
+   "7. 【功能-轻】emoji ZWJ 组合序列被拆成逐码点行（`[...text]` 按 code point 切分，:24），\"👨‍👩‍👧\"显示 5 行互不相关的码点，无\"这是一个组合 emoji\"的说明",
+   "8. 【交互】反查不支持的输入（如直接粘贴汉字反查码点入口已在左栏，尚可）但六位以上十六进制（astral 区 `U+1F600` 五位可、`U+10FFFF` 六位可）仅限 1-6 位（:32 正则 `{1,6}`）——边界恰覆盖全平面，无误；唯无\"随机字符/上一位/下一位\"浏览器式探索"
+  ],
+  "deduction1": "1. 【功能】无字符官方名称：unicodeInfo 只回码点/区块（`jsEngine.ts:888-897`），未引入 Unicode 名（Intl 或离线名表皆可），\"查这个字符是什么\"只能靠区块名猜——对标站每字符首行即名称",
+  "prescriptions": [
+   "行卡加 `\\u` 转义列＋逐行复制",
+   "不可见字符高亮",
+   "截断提示",
+   "反查卡复制",
+   "区块浏览 Tab（远期）"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "url-encoder",
+  "score": 59,
+  "name": "URL 编解码",
+  "slug": "url-encoder",
+  "mode": "A",
+  "benchmark": "urlencoder.org（经 WebSearch 核实）＋ CyberChef（基准库）",
+  "dims": {
+   "func": 11,
+   "usab": 10,
+   "val": 13,
+   "iact": 11,
+   "ui": 7,
+   "soul": 7
+  },
+  "perf": 6,
+  "mob": 6,
+  "conclusion": "**交互优化 + 需拓展** · P1",
+  "deductions": [
+   "1. 【可用性-疑似功能缺陷】解码（组件档）先 `replace(/\\+/g, ' ')` 再 decodeURIComponent（`textEngine.ts:263`）——**字面 `+` 被静默改成空格**。RFC 3986 中 `+` 是组件内合法字面字符，只有 application/x-www-form-urlencoded 才把 `+` 当空格；解码 `50%2B25` 对、解码 `a+b` 错（得 `a b`），API 签名串/含 + 的 token 场景直接翻车，且无开关可关",
+   "2. 【可用性】解码非法 % 序列（如 `%E0%A4%A`）抛 URIError，TextTool 直接透出英文原文\"URI malformed\"（`TextTool.vue:40-41` 仅对 JSON 错误做人话化），中文用户无法理解也无法恢复",
+   "3. 【功能】无 form-urlencoded 编码档（空格→`+`）：构造 `application/x-www-form-urlencoded` 请求体时只能编码后手工把 %20 换 +；范围选项只覆盖 RFC 3986 两档",
+   "4. 【功能】无批量模式：日志中一列 URL/参数逐条处理需整段贴入再拆",
+   "5. 【灵魂】无差异高亮：urlencoder.org 类工具可直观看到哪些字符被改写成 %XX；本工具输出一整串，排查\"到底哪个字符惹的祸\"靠肉眼",
+   "6. 【灵魂】无空态示例（如一条带中文+空格+& 的示例 URL 一键填充），首用者不知道\"组件/整个 URI\"两档该选哪个",
+   "7. 【交互】与姊妹工具 punycode-converter（中文域名，`registry.ts:358`）、url-parser（`registry.ts:199`）无交叉引导：编码完想解析参数、遇到 xn-- 想还原，均需回搜索另找",
+   "8. 【灵魂】\"范围\"两档行为差异（encodeURI 保留 :/?# 等结构字符 vs 组件档全编码）无即时说明或对照示例，切档后输出变了但用户不知为何变——需自行试错建立心智模型"
+  ],
+  "deduction1": "1. 【可用性-疑似功能缺陷】解码（组件档）先 `replace(/\\+/g, ' ')` 再 decodeURIComponent（`textEngine.ts:263`）——**字面 `+` 被静默改成空格**。RFC 3986 中 `+` 是组件内合法字面字符，只有 application/x-www-form-urlencoded 才把 `+` 当空格；解码 `50%2B25` 对、解码 `a+b` 错（得 `a b`），API 签名串/含 + 的 token 场景直接翻车，且无开关可关",
+  "prescriptions": [
+   "+ 号行为可控",
+   "form 编码档",
+   "解码报错人话化",
+   "空态示例",
+   "差异高亮"
+  ],
+  "hard": false,
+  "priority": "P1"
+ },
+ {
+  "file": "url-parser",
+  "score": 61,
+  "name": "URL 解析器",
+  "slug": "url-parser",
+  "mode": "B",
+  "benchmark": "urlparser.io ＋ freeformatter.com URL Parser（批量方向，经 WebSearch 核实）",
+  "dims": {
+   "func": 10,
+   "usab": 13,
+   "val": 12,
+   "iact": 11,
+   "ui": 8,
+   "soul": 7
+  },
+  "perf": 9,
+  "mob": 7,
+  "conclusion": "**交互优化 + 需拓展** · P1",
+  "deductions": [
+   "1. 【功能-疑似缺陷】Parsed.host 已计算但从未展示（`UrlParser.vue:39` 赋值、:73-79 模板无对应行）——带非默认端口时 hostname＋port 要自己拼，与 regex-visualizer 的 size 死数据同病（疑似漏渲染或冗余字段，请开发确认意图）",
+   "2. 【功能】query 只读：不能增删改参数后重新生成 URL（urlparser.io 的核心闭环），\"改个 utm 再复制链接\"要绕道 url-encoder",
+   "3. 【交互】参数只可复制值不可复制键/键值对（:83,:88 只绑 value），拼 curl query 串时要手动补 `=`",
+   "4. 【功能】无 raw/decoded 切换：searchParams 自动解码（:44）后编码问题排查时看不到原始形态",
+   "5. 【功能】无域名三段拆分（subdomain/domain/TLD）与 path 分段列表——SEO 与前端路由调试各缺一角",
+   "6. 【交互】非实时：URL 改一个字符需重点\"解析\"（:27-50），与 cron/进制家族的实时口径不齐",
+   "7. 【灵魂】无安全提示：user:pass 明文走 http 的场景不警告——密码打码了却对明文传输沉默",
+   "8. 【功能】hash 内路由不解析：SPA 常见的 `https://app.com/#/page?a=1` 中 query 位于 hash 域，searchParams 解析为空列表（:42,:79 整串塞进 hash 行），前端路由调试场景失明"
+  ],
+  "deduction1": "1. 【功能-疑似缺陷】Parsed.host 已计算但从未展示（`UrlParser.vue:39` 赋值、:73-79 模板无对应行）——带非默认端口时 hostname＋port 要自己拼，与 regex-visualizer 的 size 死数据同病（疑似漏渲染或冗余字段，请开发确认意图）",
+  "prescriptions": [
+   "host 行补齐",
+   "query 编辑重构",
+   "raw/decoded 切换",
+   "键值对复制",
+   "实时解析"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "user-agent-parser",
+  "score": 62,
+  "name": "UA 解析器",
+  "slug": "user-agent-parser",
+  "mode": "B",
+  "benchmark": "ua.dev（UA-CH 全解析）＋ whatismybrowser.com",
+  "dims": {
+   "func": 10,
+   "usab": 13,
+   "val": 11,
+   "iact": 10,
+   "ui": 8,
+   "soul": 10
+  },
+  "perf": 9,
+  "mob": 8,
+  "conclusion": "**交互优化 + 需拓展** · P1",
+  "deductions": [
+   "1. 【功能】国产浏览器/内嵌 WebView 零识别：MicroMessenger、MQQBrowser、UCBrowser、Quark、HuaweiBrowser、Doubao 等均不在特征库（`jsEngine.ts:724-732` 仅 7 个正则），含 `Chrome/` 的国产 UA 一律报\"Chrome\"——中文站用户遇到的高频 UA 恰恰是这些",
+   "2. 【功能】bot 识别仅一个正则 `/Bot|bot|Spider|slurp|crawl/`（:771）且排在 Mobile 之后（:769）：Googlebot-Mobile 类 UA 会先命中\"移动设备\"再漏判爬虫；也不报 bot 名称与归属（ua.dev 会报 Google/Googlebot）",
+   "3. 【功能】UA Client Hints 完全未利用：`navigator.userAgentData` 与 `Sec-CH-UA` 头可精确区分 Windows 10/11 与真实版本（免责文案自己也承认此局限，`UaParser.vue:66`），ua.dev 已做双通道融合",
+   "4. 【功能】iOS/引擎/设备无版本：iPhone 只报\"iOS\"不带 OS 版本（`jsEngine.ts:758` 未捕获 `iPhone OS 17_5`），Gecko 引擎无版本（:741-742 有捕获但结果未用）——版本是兼容性排障的核心字段",
+   "5. 【交互】结果四卡不可复制：全文未引 copyText，把\"Chrome 131 / Blink / Windows 10/11 / 桌面设备\"贴进工单要手动划选",
+   "6. 【交互】非实时：改 UA 串后需再点按钮（`parse()` 仅由 :47 按钮触发），无 400ms 防抖 watch",
+   "7. 【可用性-轻】原始串 `max-height:120px` 钉死（`UaParser.vue:105`）：iOS 完整 UA 约 250 字符，在窄面板下需内部滚动才能核对尾部版本号",
+   "8. 【灵魂】无预设 UA 样例：调试场景最常需要\"微信内嵌/iPad/curl/Googlebot\"四类一键填入，现只能去别处复制"
+  ],
+  "deduction1": "1. 【功能】国产浏览器/内嵌 WebView 零识别：MicroMessenger、MQQBrowser、UCBrowser、Quark、HuaweiBrowser、Doubao 等均不在特征库（`jsEngine.ts:724-732` 仅 7 个正则），含 `Chrome/` 的国产 UA 一律报\"Chrome\"——中文站用户遇到的高频 UA 恰恰是这些",
+  "prescriptions": [
+   "国产浏览器特征库",
+   "结果可复制",
+   "实时解析",
+   "UA-CH 融合",
+   "预设样例条"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "xml-formatter",
+  "score": 56,
+  "name": "XML 格式化",
+  "slug": "xml-formatter",
+  "mode": "D",
+  "benchmark": "codebeautify.org XML Formatter＋freeformatter.com XML Formatter（含校验报告）",
+  "dims": {
+   "func": 11,
+   "usab": 8,
+   "val": 12,
+   "iact": 10,
+   "ui": 7,
+   "soul": 8
+  },
+  "perf": 6,
+  "mob": 5,
+  "conclusion": "**交互优化** · P2",
+  "deductions": [
+   "1. 【可用性-硬伤】ResultBox 双重钉高 300px（`ResultBox.vue:69`、`XmlFormatter.vue:65`；同构几何 M-01）",
+   "2. 【交互】错误定位半途而废：Chrome DOMParser 的 parsererror 文本自带 \"error on line X at column Y\"（`XmlFormatter.vue:20` 原样截取 160 字），但仅展示不可点击、不跳转输入区对应行",
+   "3. 【功能-疑似问题】formatXml 以 `/^<[^!?/][^>]*[^/]>$/` 判开标签（`jsEngine.ts:357`）：属性值以 `/` 结尾的标签（如 `<a href=\"/\">`）被误判自闭合，后续兄弟节点整体少缩进一级",
+   "4. 【功能-疑似问题】压缩路径仅 `>\\s+</`（`jsEngine.ts:347`）：不去注释、CDATA 内空白保护缺失，`<![CDATA[x > y]]>` 若含 `> <` 序列会被破坏",
+   "5. 【功能】无任何选项：缩进写死 2 空格（`XmlFormatter.vue:40`）、无属性每行模式（SOAP/Android 布局场景刚需）、无\"保留文本节点空白\"开关（XHTML 混排内容会被重排）",
+   "6. 【交互】粘贴合法 XML 不自动美化；无文件上传入口（Feed 场景多整文件）",
+   "7. 【灵魂】无快捷键、无美化前后体积对比；与 xml-to-json（`jsEngine.ts:395` 同族函数）无入口联动，用户需自行找工具",
+   "8. 【环境】Cookie 横幅首访遮挡底部结果区（M-01 截图证据）"
+  ],
+  "deduction1": "1. 【可用性-硬伤】ResultBox 双重钉高 300px（`ResultBox.vue:69`、`XmlFormatter.vue:65`；同构几何 M-01）",
+  "prescriptions": [
+   "输出区弹性高度",
+   "错误行跳转",
+   "自闭合误判修复校验",
+   "缩进选项",
+   "粘贴即美化"
+  ],
+  "hard": true,
+  "priority": "P2"
+ },
+ {
+  "file": "xml-to-json",
+  "score": 54,
+  "name": "XML 转 JSON",
+  "slug": "xml-to-json",
+  "mode": "A",
+  "benchmark": "Code Beautify XML→JSON ＋ freeformatter.com",
+  "dims": {
+   "func": 11,
+   "usab": 9,
+   "val": 12,
+   "iact": 10,
+   "ui": 7,
+   "soul": 5
+  },
+  "perf": 5,
+  "mob": 6,
+  "conclusion": "**交互优化** · P1（家族处方覆盖 + 口径披露补齐）",
+  "deductions": [
+   "1. 【可用性-家族】180px 钉高 + pending 不渲染（M-06；共性-根因 2，引用 pinyin-converter.md 处方 1-2）",
+   "2. 【功能·口径】同名重复子标签→JSON 数组的合并规则 UI 零披露——用户拿到 `[\"a\",\"b\"]` 数组无法预期，混合 text 节点时（`<p>hi<b>x</b></p>`）的 #text 键约定同样无说明",
+   "3. 【功能】命名空间（`<ns:tag xmlns:ns=\"…\">`）处理策略未说明：前缀保留还是剥离，转换结果直接取决于实现",
+   "4. 【灵魂】与 json-to-xml 往返不对称（本工具产 `@id`，对方把 `@id` 转非法标签 `<@id>`）——互链与提示双缺",
+   "5. 【灵魂】无 SOAP/配置文件示例空态；CDATA 内容转换行为未验证未披露"
+  ],
+  "deduction1": "1. 【可用性-家族】180px 钉高 + pending 不渲染（M-06；共性-根因 2，引用 pinyin-converter.md 处方 1-2）",
+  "prescriptions": [
+   "口径摘要",
+   "强制数组选项",
+   "家族整改",
+   "往返互链"
+  ],
+  "hard": true,
+  "priority": "P1"
+ },
+ {
+  "file": "yaml-to-json",
+  "score": 55,
+  "name": "YAML 转 JSON",
+  "slug": "yaml-to-json",
+  "mode": "A",
+  "benchmark": "onlineyamltools.com ＋ Code Beautify YAML Converter",
+  "dims": {
+   "func": 11,
+   "usab": 9,
+   "val": 12,
+   "iact": 10,
+   "ui": 7,
+   "soul": 6
+  },
+  "perf": 6,
+  "mob": 6,
+  "conclusion": "**交互优化** · P1（textDef 家族整改样板 pinyin-converter.md 的家族处方覆盖本工具；无个性 P0）",
+  "deductions": [
+   "1. 【可用性-硬伤·家族】双窗各钉 180px + pending 不渲染（`base.css:164-168`、`TextTool.vue:15`；M-06；共性-根因 2）——处方可一次性复用 pinyin-converter.md 处方 1-2，惠及 42 工具",
+   "2. 【功能】多文档 YAML（`---` 分隔的 ConfigList 场景）静默只转首档无提示（`yamlParse` 默认行为，`jsEngine.ts:104`）",
+   "3. 【功能】YAML 锚点/合并键（`<<: *base`）转换结果是否符合预期无任何提示——K8s ConfigMap 常用",
+   "4. 【灵魂】无错误行号：js-yaml 抛出的 YAMLException 含 mark（行:列），TextTool 的 catch 只 toast message（`TextTool.vue:41`），行号信息被丢弃",
+   "5. 【灵魂】无 K8s/CI 常用配置示例一键填入；placeholder 一句\"粘贴 YAML…\"过于冷淡"
+  ],
+  "deduction1": "1. 【可用性-硬伤·家族】双窗各钉 180px + pending 不渲染（`base.css:164-168`、`TextTool.vue:15`；M-06；共性-根因 2）——处方可一次性复用 pinyin-converter.md 处方 1-2，惠及 42 工具",
+  "prescriptions": [
+   "错误行号透传",
+   "家族整改",
+   "多文档披露",
+   "K8s 示例空态"
+  ],
+  "hard": true,
+  "priority": "P1"
+ }
+]

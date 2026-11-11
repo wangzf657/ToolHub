@@ -215,9 +215,57 @@ docs/优化文档/
 
 **注意**：本目录在 AGENTS.md 文档白名单之外，系用户 2026-11-11 特别指定，不入版本管理可再议。
 
-## 六、全站总览与优化路线图
+## 六、全站总览与优化路线图（2026-11-11 回填，520/520 档案 + 12 分类汇总完成）
 
-（待全部 520 份完成后回填：评分分布直方图、P0 快赢清单、模式级改造路线、与"领域最强"的差距地图。）
+### 6.1 评分分布（满分 100）
+
+| 区间 | <50 | 50~59 | 60~69 | 70~79 | 80+ |
+|---|---|---|---|---|---|
+| 数量 | 4 | 277 | 238 | 1 | 0 |
+
+- **全站均值 59.0 / 中位 59**；最高 photo-studio 71（全站唯一 70+）、最低 grammar-corrector 45
+- 各分类均分：工作室 64.5（正身）＞ 金融 61.8 ＞ 图片 60.2 ＞ 商业 59.4 ＞ 开发 59.2 ＞ 音频 59.0 ＞ PDF 59.3 ＞ SEO 58.8 ＞ 数据 58.4 ＞ 实用 58.3 ＞ 视频 58.1 ＞ **AI 54.7（全站最低）**
+- 七维失分率全站规律：**实用价值（~80% 达成）≫ 可用性（~55%）≫ 灵魂度（~38%，全站最弱）**——"能用但不贴心"是全站画像；结论分布：交互优化 ~257、需拓展 ~46、P0 级硬伤 63 档、阉割/301 合并 12 档
+
+### 6.2 全站杠杆改造清单（一处改惠及 N 工具，按惠及面排序）
+
+| # | 改造项 | 惠及面 | 一句话 |
+|---|---|---|---|
+| 1 | **CalcTool 空态守卫契约**（NaN→零值/点名式守卫 + 单值复制 + localStorage 记忆 + 预填样板） | 全站 67 个 calcDef | 消灭"¥0/0 年/100% 胜率/无限跑道"四类错误财务结论（样板：installment-rate 预填、black-scholes 点名守卫） |
+| 2 | **ResultBox/textarea 弹性高度**（`calc(100vh-…)` 下限 480px + 全屏切换） | 模式 D 32 项 + TextTool 18 项 + `.table-wrap` 全家族 | 消灭 60+ 处钉高；3/4 的可用性 P0 随之解套（样板处方见各档案） |
+| 3 | **TextTool pending 渲染 + 弹性双窗** | 42 个 textDef | 首用"点了没反应"冷启动劝退一次解决（样板：pinyin-converter.md 处方 1-2） |
+| 4 | **ImageToolBase 预览治理**（max-height + 按住看原图） | ~30 个图片工具 | 竖图推参数区出屏 + 效果不可核对双杀 |
+| 5 | **FfBase 挡门放行三选一**（error 兜底直进 ffmpeg/降级/明示不支持） | 12 个视频工具（4 个挡门 P0） | videoEngine.ts:13-31 onerror × v-if 两行结构性耦合 |
+| 6 | **AudioConvert 默认目标按 slug 路由化** | 6 个音频转换页（消 6 个 P0） | 4 个无损页默认有损输出证伪 desc（AudioConvert.vue:29） |
+| 7 | **registry desc/needModel 契约治理** | ~50 档案的登记层文案失实 | 零代码风险：QR Logo/photo-studio AI/colorize needModel/searchable-pdf 文字层/merge 自动归一/rotate 元数据等 20+ 例 |
+| 8 | **producer=ToolHub 盖章契约收口** | 9 个 PDF 写入路径 + studio/pdfText | 5 处直用 doc.save() 绕过 + metadata-editor 读取污染（@cantoo load 需 updateMetadata:false） |
+| 9 | **schema 六件套 tab 路由化** | 6 个 SEO 工具 | 5 个 URL 首屏表单与工具名不符（SchemaGenerators.vue:7） |
+| 10 | **撤销栈共享基建 + 工作室路由豁免侧栏** | 4 个工作室 + 4 组双注册 301 | 模式 E 唯一剩余短板；photo 中栏 400→≥750px |
+| 11 | **PageThumbs/结果网格样板推广** | merge/compress 等 7 个 PDF 盲盒 + 图片 imgcvt 自动 zip | convert 盲盒下载→预览先行（extract-images 三件套样板） |
+| 12 | **中文 NLP 基建**（停用词 ≥80/滑窗共享/否定窗口） | 10 个规则法 AI + 词频/密度 | AI 分类质量地板一次抬高 |
+
+### 6.3 阉割与 301 合并清单（12 项，交用户决策）
+
+add-text-to-image→add-watermark｜photo-editor→photo-studio｜video-editor→video-studio｜gif-to-png→gif-frame-extractor｜average-calculator→statistics-calculator｜calorie↔tdee 二选一｜number-to-words↔rmb-uppercase 合并｜html-minifier→html-formatter｜code-minifier↔CodeFormatter 压缩收敛｜take-home-pay→income-tax-calculator｜audio-transcribe→speech-to-text（或补真 whisper）｜translator→Bergamot WASM 或降级词典定位
+
+### 6.4 疑似功能缺陷登记（仅记录未修复，全量见各分类 _汇总.md §缺陷清单）
+
+高优先样例（均带 file:line，实测定性后修复）：invoice-generator 打印 TDZ 必崩｜timezone-converter 夏令时写死｜age-calculator 生日慢一天（toISOString UTC）｜unit-converter 交换数值膨胀｜event-countdown 春节误差 11 天｜batch-file-rename 重名静默覆盖｜passport-photo 二寸排版变形｜office-to-pdf 中文 helvetica 乱码｜compare-pdf 扫描件假"一致"｜split-video 60 段静默丢尾段｜remove-silence 音画失步｜change-speed 采样率硬编码｜forex-pip 货币对装饰 select 高估 150 倍｜sip 期初期末口径错位｜readability 中文评分恒 0｜keycode-lookup 筛选漏 keyCode 列｜crop-image/blur-region 触摸失效｜text-to-handwriting 长文截断｜er-diagram 删表连线错乱｜whiteboard 清空不可撤销｜social-insurance 数据停 2024
+数据时效双榜：正面 business-day（2025~2027 探针验证）/retirement（2024 决定精确）；反面 social-insurance（停 2024）/timezone/event-countdown
+
+### 6.5 与"领域最强"差距地图（总结论）
+
+- **已达标或接近**（可宣布"纯前端领域一线"）：photo-studio（vs Photopea 骨架）、svg-to-png、remove-watermark（MI-GAN 端侧样板）、entity-extractor 交互、eml-viewer 安全双保险、keycode-lookup 教育文案、retirement 口径、business-day 数据
+- **纯前端可追**（有明确路径，1~2 月改造）：JSON 家族→JSON Crack、正则双工具→regex101、cron→crontab.guru、CSS 三兄弟→cssgradient/shadows.brumm、md 预览联动→StackEdit、GIF→ezgif 质量法、SQL→DuckDB WASM、translator→Bergamot
+- **架构天花板**（诚实标注能力边界即可）：云端 AI（remove.bg 级抠图、DeepL 级翻译、ChatPDF 生成式）、爬站类（sitemap 真爬）、协作类（白板多人）、大数据量（ffmpeg.wasm 4K/超长视频）
+
+### 6.6 落地顺序建议
+
+1. **第 0 批（1 周内，零代码风险）**：杠杆 #7 registry 文案治理 + #8 盖章收口 + 阉割清单 301 落地
+2. **第 1 批（2~4 周，组件级杠杆）**：杠杆 #1~#3（CalcTool/ResultBox/TextTool 三壳）——预计全站均分 59→66+
+3. **第 2 批（1~2 月，家族专项）**：杠杆 #4~#10 按分类 P0 密度排序（视频挡门/音频默认目标/图片预览/SEO tab 优先）
+4. **第 3 批（季度）**：纯前端可追清单逐域攻坚 + 12 份 _汇总.md 的 P2 拓展项
+门禁建议：全站均分 ≥70、P0 清零、盲盒下载归零、灵魂度达成率 ≥55%
 
 ---
 

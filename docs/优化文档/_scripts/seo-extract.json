@@ -1,0 +1,565 @@
+{
+ "stat": {
+  "n": 13,
+  "avg": "58.8",
+  "max": 66,
+  "min": 50,
+  "sorted": [
+   "heading-structure-checker=66",
+   "serp-snippet-preview=65",
+   "utm-builder=64",
+   "hreflang-generator=63",
+   "sitemap-generator=62",
+   "schema-breadcrumb-generator=60",
+   "schema-article-generator=57",
+   "schema-product-generator=57",
+   "schema-localbusiness-generator=56",
+   "keyword-density-checker=55",
+   "schema-event-generator=55",
+   "schema-faq-generator=54",
+   "readability-checker=50"
+  ],
+  "p0": 1,
+  "p1": 10,
+  "p2": 2
+ },
+ "tools": [
+  {
+   "file": "heading-structure-checker",
+   "name": "标题结构检查",
+   "slug": "heading-structure-checker",
+   "head": [
+    "分类：SEO工具｜模式：B 变体（单列：textarea→解析按钮→自绘大纲＋notice 结果）｜组件：`src/tools/seo/components/HeadingStructure.vue`（169 行）｜注册：`src/tools/seo/registry.ts:50`",
+    "对标标杆：SEOmeta in 1 click 类浏览器插件的大纲视图＋ WAVE（wave.webaim.org，无障碍标题结构标杆）"
+   ],
+   "score": 66,
+   "dims": {
+    "func": 13,
+    "usab": 13,
+    "val": 12,
+    "iact": 11,
+    "ui": 8,
+    "soul": 9
+   },
+   "conclusion": "**交互优化** · P2",
+   "judge": "判据：功能正确、结果区自适应、空态有巧思，是 SEO 分类完成度最高的工具；剩余是\"联动定位＋自动解析\"级的顺手性打磨，无硬伤无重大拓展缺口。",
+   "family": "本工具与 sitemap-generator/serp-snippet-preview/schema 六件套同属\"SEO 工作台\"愿景（DEV-5b）；独有优势是**唯一的\"页面结构诊断\"入口**——大纲结果可直接喂给面包屑/Article schema 的命名参考。低成本互链：结果区挂\"为这些层级生成 Breadcrumb Schema\"（取层级名＋URL 假设）跳 schema-breadcrumb-generator。",
+   "deductions": [
+    "1. 【交互】问题提示与大纲脱节：notice 写\"第 3 个标题从 H2 跳级到 H4\"（:69），大纲行无序号、不可点击定位（:107-118 无 index/无 issue 高亮），用户要自己数行",
+    "2. 【交互】手动解析：按钮触发（:27-45）而非 watch 自动，改一版 HTML 要反复点击；对照分类内 sitemap-generator/serp-preview 的实时 computed，交互代际落后半代",
+    "3. 【功能】无重复标题检测：同一文本多级重复（CMS 模板常见）不在 issues 里；无标题长度提示（SERP 里 H1 过长影响摘要）",
+    "4. 【功能】无大纲结构导出（仅复制纯文本缩进 :76-78）：无 Markdown TOC/JSON 输出，与 markdown-toc（开发分类）天然互补却无桥接",
+    "5. 【可用性-轻】HTML 源码贴入门槛无辅助：无\"贴 URL\"提示说明为何不支持（notice 只说本地解析 :93，未解释 CORS 边界），部分用户会疑惑\"为什么不能直接查网址\"",
+    "6. 【功能-轻】仅识别 h1–h6 标签（:35），`role=\"heading\" aria-level` 的无障碍标题不识别——WAVE 场景下的盲区（低频，记录备查）"
+   ],
+   "benchmarks": [
+    "WAVE",
+    "SEOmeta in 1 click"
+   ],
+   "benchPriority": "- 借鉴优先级：**issue↔大纲双向联动 > watch 自动解析 > 重复/过长检测 > Markdown TOC 导出**。",
+   "prescriptions": [
+    "联动定位",
+    "自动解析",
+    "重复/超长检测",
+    "CORS 说明",
+    "TOC 导出"
+   ]
+  },
+  {
+   "file": "hreflang-generator",
+   "name": "hreflang 标签生成",
+   "slug": "hreflang-generator",
+   "head": [
+    "分类：SEO工具｜模式：B 变体（行编辑网格＋ResultBox 实时输出）｜组件：`src/tools/seo/components/HreflangGenerator.vue`（123 行）｜注册：`src/tools/seo/registry.ts:61`",
+    "对标标杆：ahrefs hreflang tags generator（对标库）＋ Google hreflang 文档口径"
+   ],
+   "score": 63,
+   "dims": {
+    "func": 12,
+    "usab": 12,
+    "val": 12,
+    "iact": 11,
+    "ui": 8,
+    "soul": 8
+   },
+   "conclusion": "**交互优化** · P1",
+   "judge": "判据：协议实现正确、互指文案是分类最佳；扣分集中在\"zh-Hant 缺位＋错误定位＋无推导\"三个单点，无结构性硬伤，属于补齐型改造。",
+   "family": "与 sitemap-generator 是天然搭档：hreflang 除 head 标签形态外还有 sitemap `xhtml:link` 形态（多语言大站官方推荐），两工具互链后可在 sitemap 侧提示该形态；与 serp-snippet-preview/schema 六件套同属\"SEO 工作台\"愿景（DEV-5b）。低成本动作：结果区挂\"多语言站还差 sitemap.xml→去生成\"互链（robots-txt-generator.md 处方 6 的反向同款）。",
+   "deductions": [
+    "1. 【功能-核心】不支持文字子标签：LANG_RE `^[a-z]{2,3}(-[A-Z]{2})?$`（:29）拒绝 `zh-Hant`/`zh-Hans`——Google hreflang 文档明确支持 BCP47 文字子标签，且\"简繁中文互指\"（zh-Hans-CN/zh-Hant-TW）正是中文多语言站最高频的 hreflang 场景，本工具做不到",
+    "2. 【功能】语言库封闭：20 种语言（:7）下拉无 sr/hr/uk/cs/da/fi/no/el/he/fa/bn 等，LANG_RE 本身允许 2-3 位小写但 UI 只能从下拉选——校验能力和选择能力不一致",
+    "3. 【交互】错误不定位：hasError 汇总一条 notice（:31,:78），多行时不知道哪行错；行内组合码 chip 虽红显（:65）但 URL 错误（非 http(s)）只红 input 边框（:62）无文字",
+    "4. 【功能】无重复组合检测：两行都选 zh-CN 时输出两条相同 hreflang 标签（:33-43 去重逻辑不存在），Google 视为配置错误",
+    "5. 【交互】无 URL 规则推导：填首页 URL＋路径模板（`/{lang}-{region}/`）一键生成全部行，多语言站 5+ 版本时要手填 5 行 URL",
+    "6. 【功能-轻】无 sitemap xhtml:link 形态输出：head 标签之外的第二种官方形态（多语言大站推荐），Tab 化可补",
+    "7. 【可用性-轻】ResultBox 钉 170px（:80），10+ 语言版本时标签区过矮内滚"
+   ],
+   "benchmarks": [
+    "ahrefs hreflang generator",
+    "Google hreflang 文档"
+   ],
+   "benchPriority": "- 借鉴优先级：**文字子标签支持（zh-Hant/zh-Hans）> 重复组合检测 > 错误行定位 > URL 规则推导 > sitemap 形态 Tab**。",
+   "prescriptions": [
+    "文字子标签",
+    "重复检测",
+    "错误定位",
+    "URL 推导",
+    "家族互链"
+   ]
+  },
+  {
+   "file": "keyword-density-checker",
+   "name": "关键词密度分析",
+   "slug": "keyword-density-checker",
+   "head": [
+    "分类：SEO工具｜模式：A（textDef 双栏，无选项）｜注册：`src/tools/seo/registry.ts:10-25`（textDef 内联）｜引擎：`src/lib/nlpEngine.ts:365-400`（keywordDensity，中文 n-gram 伪分词）",
+    "对标标杆：wordcounter.net（对标库内关键词密度标杆）＋ 站内实用工具 word-frequency-counter（同病异engine，见个性节）"
+   ],
+   "score": 55,
+   "dims": {
+    "func": 9,
+    "usab": 12,
+    "val": 11,
+    "iact": 10,
+    "ui": 7,
+    "soul": 6
+   },
+   "conclusion": "**交互优化 + 需拓展** · P1",
+   "judge": "判据：核心查询模式（目标词密度）缺失＋结果呈现弱（TSV 塞 textarea）＋承诺功能不存在（停用词开关），三处都是可修的明确差距；无布局级硬伤故不到 P0。",
+   "deductions": [
+    "1. 【功能-核心】无\"目标关键词密度查询\"模式：SEO 师第一诉求是\"查我这个词密度是否 0.5%~2.5%\"，本工具只能从 30 行列表里肉眼找（registry.ts:15-22 transform 无第二输入）——wordcounter.net 的 Keyword Density 即双模式",
+    "2. 【功能】描述与实现不符：注册表 desc 写\"可选过滤停用词\"（registry.ts:11），textDef `options: []` 无任何选项（:13-14），停用词过滤是 nlpEngine.ts:377 硬编码行为（英文 28 词，textEngine.ts:616-620）且不可关",
+    "3. 【灵魂】无伪分词披露：word-frequency-counter 主动标注简化口径，本工具对\"的了一个是\"类伪词霸榜保持沉默——同站同病不同诚实度",
+    "4. 【可用性-轻】结果以 TSV 文本塞 textarea（registry.ts:19-21），无表格控件、无条形、无排序切换，30 行后截断无提示总数",
+    "5. 【功能】密度口径未披露：`count*n/总词数`（nlpEngine.ts:396）把词组按字符长度加权，与业界常用\"出现次数÷总词数\"不同，无口径说明",
+    "6. 【交互】与 word-frequency-counter/word-counter 零互链：三页分析能力互补（密度/词频/字数）却互相不导流",
+    "7. 【性能】无防抖：每键触发 1+2+3 gram 三轮全量滑窗（nlpEngine.ts:372-394），万字号即卡"
+   ],
+   "benchmarks": [
+    "wordcounter.net",
+    "站内 word-frequency-counter"
+   ],
+   "benchPriority": "- 借鉴优先级：**目标词密度查询 > n-gram 选项化＋停用词开关 > 表格化输出＋条形 > 伪分词披露 > 三页互链**。",
+   "prescriptions": [
+    "目标词模式",
+    "表格化输出",
+    "选项兑现",
+    "披露",
+    "防抖"
+   ]
+  },
+  {
+   "file": "readability-checker",
+   "name": "可读性评分",
+   "slug": "readability-checker",
+   "head": [
+    "分类：SEO工具｜模式：A（textDef 双栏，无选项）｜注册：`src/tools/seo/registry.ts:30-49`（textDef 内联）｜引擎：`src/lib/nlpEngine.ts:348-361`（readability）",
+    "对标标杆：readable.com（对标库可读性标杆）＋ Hemingway Editor（hemingwayapp.com，逐句标色标杆）"
+   ],
+   "score": 50,
+   "dims": {
+    "func": 8,
+    "usab": 9,
+    "val": 8,
+    "iact": 11,
+    "ui": 7,
+    "soul": 7
+   },
+   "conclusion": "**需拓展** · P0（疑似功能缺陷优先修复，交用户决定，本轮不改代码）",
+   "judge": "判据：**疑似严重功能问题**——纯中文文本字数约 ≥20 时评分恒为 0 并标\"很难（专业）\"（证据见扣分 1），核心指标对主要受众失效；其余维度普通，修复后需重评。",
+   "deductions": [
+    "1. 【功能-疑似缺陷/硬伤级】中文评分塌陷：`avgWordLen = en ? enChars / en : cjk`（nlpEngine.ts:355）——无英文词时把**全文汉字总数**当\"平均词长\"，随后罚分 `max(0, avgWordLen-2)×4`（:357）：100 字中文单句罚分 (100-2)×4=392，score=100-句长罚-392→钳 0。实测推算：任何 ≥20 字左右的纯中文文本得分恒 0 且标\"很难（专业）\"（registry.ts:38 渲染该等级），中文文章可读性功能整体失效",
+    "2. 【功能】名实不符：keywords 标注 flesch（registry.ts:32），实现是自造线性公式（nlpEngine.ts:357）与 Flesch Reading Ease（206.835-1.015×句均词长-84.6×词均音节）无关，中文场景也无适配版（如按词均字数）",
+    "3. 【功能】无逐句/逐段标色：Hemingway 的核心价值是\"哪一句难读\"，本工具只给全文均值，用户知道分低不知道改哪句",
+    "4. 【功能】建议引擎单薄：仅 avgSentenceLen>25 一条触发（registry.ts:44），无词长/段落长/连接词密度等维度，且满分文本与 40 分文本建议相同",
+    "5. 【可用性-轻】结果纯文本行塞 textarea（registry.ts:37-45 join('\\n')），评分无色阶/仪表可视化，与\"可读性\"主题自相矛盾",
+    "6. 【交互】与 word-counter 零互链：字数/句数数据同源（nlpEngine），两页不导流（keyword-density-checker 同病）",
+    "7. 【灵魂】等级标签误导：score≤20 一律\"很难（专业）\"，正常中文文章被打此标签——引擎缺陷经 UI 放大成信任损伤"
+   ],
+   "benchmarks": [
+    "readable.com",
+    "Hemingway Editor"
+   ],
+   "benchPriority": "- 借鉴优先级：**修复中文评分缺陷 > 逐句标色（中文句长分级）> Flesch 或中文化公式＋名实一致 > 建议多维化 > word-counter 互链**。",
+   "prescriptions": [
+    "修复中文评分",
+    "等级口径",
+    "逐句标色",
+    "可视化",
+    "互链"
+   ]
+  },
+  {
+   "file": "schema-article-generator",
+   "name": "文章 Schema 生成",
+   "slug": "schema-article-generator",
+   "head": [
+    "分类：SEO工具｜模式：B 变体（Tab 表单×6＋双 ResultBox）｜组件：`src/tools/seo/components/SchemaGenerators.vue`（220 行，六件套共用）｜注册：`src/tools/seo/registry.ts:52-56`",
+    "对标标杆：technicalseo.com（Merkle Schema 生成器，对标库：12+ 类型＋验证标杆）"
+   ],
+   "score": 57,
+   "dims": {
+    "func": 10,
+    "usab": 11,
+    "val": 12,
+    "iact": 10,
+    "ui": 7,
+    "soul": 7
+   },
+   "conclusion": "**交互优化 + 需拓展** · P1",
+   "judge": "判据：产出正确可用，但相对 Google Article 富结果的实际要求（image/publisher.logo/datePublished）缺字段分级与完整度提示，验证闭环缺失；均为可追差距。",
+   "deductions": [
+    "1. 【功能】缺 publisher.logo 字段：Google Article 富结果文档明确建议 publisher 附 logo（Organization.logo），本工具 publisher 只收名字（:43）——有发布方无 logo 的输出在富结果竞争中先天不足",
+    "2. 【功能】author 仅 Person.name（:42）：无 url/sameAs（作者主页/E-E-A-T 信号）；现代实践普遍带 author.url",
+    "3. 【功能】无字段影响分级：image/datePublished 是 Google 推荐项、headline 是必备项，UI 星号只标 headline（:101），\"填哪些才值得\"无引导——technicalseo 每字段带说明文字",
+    "4. 【交互】mainEntityOfPage 与页面 URL 场景重复：填一次 url 即可同时推两处，现要求用户理解 schema 语义才知道填 :106 的\"页面 URL\"会同时生成 @id（:44）——反向问题：想只填其一做不到",
+    "5. 【交互】无验证直达（家族-2）：hint 只说\"可用 Google 富媒体测试工具验证\"（:195）无链接",
+    "6. 【可用性-轻】双 ResultBox 钉高（家族-3）：Article JSON 约 12 行在 190px 内勉强，字多即内滚",
+    "7. 【灵魂】时间仅 type=date（:103-104）：无 datetime，时效性内容（news）精确到时分才是实践口径"
+   ],
+   "benchmarks": [
+    "technicalseo.com",
+    "Google 搜索中心文档"
+   ],
+   "benchPriority": "- 借鉴优先级：**字段三级分级标注 > publisher.logo/author.url 字段 > 验证器直达 > datetime 支持**。",
+   "prescriptions": [
+    "字段补全",
+    "分级标注",
+    "验证直达",
+    "datetime",
+    "家族路由化"
+   ]
+  },
+  {
+   "file": "schema-breadcrumb-generator",
+   "name": "面包屑 Schema 生成",
+   "slug": "schema-breadcrumb-generator",
+   "head": [
+    "分类：SEO工具｜模式：B 变体（Tab 表单×6＋双 ResultBox）｜组件：`src/tools/seo/components/SchemaGenerators.vue`（220 行，六件套共用）｜注册：`src/tools/seo/registry.ts:60`",
+    "对标标杆：technicalseo.com（Merkle Schema 生成器，对标库）＋ Google 面包屑文档口径"
+   ],
+   "score": 60,
+   "dims": {
+    "func": 11,
+    "usab": 11,
+    "val": 13,
+    "iact": 10,
+    "ui": 7,
+    "soul": 8
+   },
+   "conclusion": "**交互优化** · P2",
+   "judge": "判据：六件套中产出质量最完整、门槛最低的一员，扣分集中在家族共享问题（落地 Tab/钉高/验证直达）与\"URL 推导\"级的锦上添花，无域专业缺口。",
+   "deductions": [
+    "1. 【可用性】落地 Tab 错位（家族-1）：URL 说面包屑，第一屏是 Article 表单——六 slug 中语义落差最明显的一个",
+    "2. 【功能】无\"从 URL 推导\"：粘贴 `https://site.com/blog/2026/post` 应可自动拆出 首页/博客/2026/文章 四层（站内 serp-preview crumbs 逻辑 SerpPreview.vue:25-34 已实现同款算法，复用即可），现要求逐层手填",
+    "3. 【灵魂】缺\"与页面可见导航一致\"提示：Google 明确要求 schema 面包屑须与页面实际显示的面包屑一致，工具无此提醒，产出可能与真实页面脱节",
+    "4. 【功能-轻】URL 校验缺失：任意字符串填入照常输出（:80 只滤 name 空），非 http(s) 的 item 会导致验证告警；中间层 URL 留空时输出无 item 的 ListItem（:82 条件仅\"末级可留空\"语义，中间层留空静默产生 item 缺失）——与 placeholder 承诺不符",
+    "5. 【交互】无验证直达（家族-2）；六 Tab 横排 chips 在窄屏挤压（:94-96）",
+    "6. 【交互-轻】与 heading-structure-checker 零打通：那边刚解析出页面层级大纲，这边要逐层重敲",
+    "7. 【可用性-轻】双 ResultBox 钉高（家族-3）：Breadcrumb JSON 短（5 层约 20 行），190px 略紧但伤害全家族最小"
+   ],
+   "benchmarks": [
+    "technicalseo.com",
+    "Google 面包屑文档"
+   ],
+   "benchPriority": "- 借鉴优先级：**从 URL 自动推导 > 可见导航一致性提示 > 中间层 URL 校验 > 面包屑视觉预览 > 落地 Tab 路由化**。",
+   "prescriptions": [
+    "落地 Tab 路由化",
+    "从 URL 推导",
+    "URL 校验",
+    "一致性提示",
+    "中间层留空说明"
+   ]
+  },
+  {
+   "file": "schema-event-generator",
+   "name": "活动 Schema 生成",
+   "slug": "schema-event-generator",
+   "head": [
+    "分类：SEO工具｜模式：B 变体（Tab 表单×6＋双 ResultBox）｜组件：`src/tools/seo/components/SchemaGenerators.vue`（220 行，六件套共用）｜注册：`src/tools/seo/registry.ts:59`",
+    "对标标杆：technicalseo.com（Merkle Schema 生成器，对标库）＋ Google 活动富结果文档口径"
+   ],
+   "score": 55,
+   "dims": {
+    "func": 9,
+    "usab": 11,
+    "val": 12,
+    "iact": 10,
+    "ui": 7,
+    "soul": 6
+   },
+   "conclusion": "**交互优化 + 需拓展** · P1",
+   "judge": "判据：基础骨架可用但活动域关键字段（attendanceMode/offers 配套）缺失造成\"状态能选线上、结构撑不起线上\"的能力矛盾；落地 Tab 错位（家族）直接受害。",
+   "deductions": [
+    "1. 【功能-核心】缺 eventAttendanceMode：Google 要求线上/混合活动必须声明 OfflineEventAttendanceMode/OnlineEventAttendanceMode/MixedEventAttendanceMode，本工具无此字段（:21,:73-78 全量无 attendanceMode）——选了\"改为线上\"状态（:168）却输出不了对应模式，富结果验证不通过",
+    "2. 【功能】location 结构退化：venue/address/city 拼成逗号字符串 `address: [address, city].join(', ')`（:76）——schema.org Place.address 支持 Text 但 Google 推荐 PostalAddress 对象；\"上海大剧院, 上海\"式字符串在严格解析下丢失省市层级",
+    "3. 【功能】offers 不完整：缺 availability（InStock/SoldOut，售票场景核心）、validFrom（开售时间）、无 url 必填引导（:77 仅 price 有值才带 url）——Google 活动富结果对 offers 的 complete 性有明确要求",
+    "4. 【可用性】落地 Tab 错位（家族-1）；双 ResultBox 钉高（家族-3）",
+    "5. 【功能-轻】无 performer/image/description：演出类活动的演员/海报是常见展示要素，字段缺席；endDate 可选但 Google 建议多日活动必填，无提示",
+    "6. 【交互】无验证直达（家族-2）：活动字段错误率在各类型中最高（时间格式/时区），最需要验证闭环",
+    "7. 【灵魂】时区问题未提：datetime-local 无时区字段，跨地区活动（线上全球）输出本地时间无 TZ 标注，Google 按发布机器时区解释易错——懂活动的工具应处理这一点"
+   ],
+   "benchmarks": [
+    "technicalseo.com",
+    "Google 活动文档"
+   ],
+   "benchPriority": "- 借鉴优先级：**attendanceMode 三态（与状态联动）> offers 补 availability/validFrom > location PostalAddress 化 > 时区处理 > 落地 Tab 路由化**。",
+   "prescriptions": [
+    "attendanceMode",
+    "offers 补全",
+    "location 结构化",
+    "落地 Tab 路由化",
+    "验证直达"
+   ]
+  },
+  {
+   "file": "schema-faq-generator",
+   "name": "FAQ Schema 生成",
+   "slug": "schema-faq-generator",
+   "head": [
+    "分类：SEO工具｜模式：B 变体（Tab 表单×6＋双 ResultBox）｜组件：`src/tools/seo/components/SchemaGenerators.vue`（220 行，六件套共用）｜注册：`src/tools/seo/registry.ts:28`",
+    "对标标杆：technicalseo.com（Merkle Schema 生成器，对标库：12+ 类型＋验证标杆）"
+   ],
+   "score": 54,
+   "dims": {
+    "func": 10,
+    "usab": 10,
+    "val": 10,
+    "iact": 10,
+    "ui": 7,
+    "soul": 7
+   },
+   "conclusion": "**交互优化 + 需拓展** · P1",
+   "judge": "判据：落地 Tab 错位是全家族结构性可用性问题（本 slug 受害最直感）；批量导入与政策披露是拓展项；产出质量本身合格。",
+   "deductions": [
+    "1. 【功能】无 Google 2023-08 政策披露：FAQ 富结果已收缩到权威政府/健康站，普通站长花时间填问答对收益存疑——诚实标注能力边界是本分类该有的专业底线（对照 serp-snippet-preview 的口径自白）",
+    "2. 【可用性】落地 Tab 错位（家族-1，本 slug 首屏即 Article 表单）：工具名/URL/面包屑说 FAQ，第一屏却是 headline/作者/发布时间",
+    "3. 【功能】无批量导入：已有 FAQ 页面的用户要逐条手敲 Q/A；technicalseo 支持逐条构建但竞品普遍可贴文本解析\"问？答。\"段落",
+    "4. 【交互】无 Rich Results Test 直达＋复制后的验证引导缺失（家族-2）：粘贴进网页后\"到底有没有效\"全靠用户自己找工具",
+    "5. 【可用性-轻】双 ResultBox 钉高（家族-3）：问答对多时 JSON 超出 190px 窗口内滚",
+    "6. 【灵魂】无问答对示例预填：空态只有一行空 Q/A（:19），比同组件 Article Tab（有 placeholder）更裸"
+   ],
+   "benchmarks": [
+    "technicalseo.com",
+    "Google 官方政策"
+   ],
+   "benchPriority": "- 借鉴优先级：**路由初始 Tab（家族-1 一处修六处好）> 政策披露 > 批量粘贴导入 > 验证器直达链接**。",
+   "prescriptions": [
+    "初始 Tab 路由化",
+    "政策披露",
+    "验证直达",
+    "批量导入",
+    "ResultBox 弹性高度"
+   ]
+  },
+  {
+   "file": "schema-localbusiness-generator",
+   "name": "本地商家 Schema 生成",
+   "slug": "schema-localbusiness-generator",
+   "head": [
+    "分类：SEO工具｜模式：B 变体（Tab 表单×6＋双 ResultBox）｜组件：`src/tools/seo/components/SchemaGenerators.vue`（220 行，六件套共用）｜注册：`src/tools/seo/registry.ts:58`",
+    "对标标杆：technicalseo.com（Merkle Schema 生成器，对标库）＋ Google 商家资料（Business Profile）字段口径"
+   ],
+   "score": 56,
+   "dims": {
+    "func": 9,
+    "usab": 11,
+    "val": 12,
+    "iact": 10,
+    "ui": 7,
+    "soul": 7
+   },
+   "conclusion": "**交互优化 + 需拓展** · P1",
+   "judge": "判据：字段面最宽的六件套成员，但最高频的营业时间字段停留在\"手写格式字符串\"，地址空壳节点是输出质量问题，均属可修的明确差距。",
+   "deductions": [
+    "1. 【功能-核心】营业时间手写门槛：openingHours 是单行 text input（:156），要求用户掌握 \"Mo-Sa 09:00-19:00\" 的缩写语法；technicalseo 用逐日×开关时间构建器；填错格式（中文/无空格）无校验照常输出——本地商家最核心字段的可信度全凭用户语法水平",
+    "2. 【功能】地址空壳节点：address 节点无条件展开（:65-68，不在 clean() 省略逻辑内），只填商家名时输出 `\"address\":{\"@type\":\"PostalAddress\"}` 全空节点，Rich Results Test 会报告警——与家族\"空字段自动省略\"的自身优点相悖",
+    "3. 【功能】缺 aggregateRating：本地商家富摘要的评分星展示依赖 aggregateRating（需配合评价来源合规），字段缺席",
+    "4. 【交互】经纬度无引导：lat/lng 裸文本（:153-154），无\"从高德/百度地图坐标拾取器获取\"指引链接，普通店主不可能手填坐标",
+    "5. 【功能-轻】addressCountry 自由文本（:151）：应为国家代码下拉（CN/TW/US…），ISO 3166 校验缺失；@type 恒为 LocalBusiness，无 Restaurant/Store/Hotel 子类型（Google 按子类型给不同展示）",
+    "6. 【可用性】落地 Tab 错位（家族-1）；13 字段无分组视觉，表单是一整块",
+    "7. 【交互】无验证直达（家族-2）；双 ResultBox 钉高（家族-3）"
+   ],
+   "benchmarks": [
+    "technicalseo.com",
+    "Google 本地商家文档"
+   ],
+   "benchPriority": "- 借鉴优先级：**逐日营业时间构建器 > address 空壳修复 > @type 子类型选择 > 国家下拉＋坐标指引 > 落地 Tab 路由化**。",
+   "prescriptions": [
+    "空壳修复",
+    "营业时间构建器",
+    "格式校验兜底",
+    "子类型",
+    "坐标指引"
+   ]
+  },
+  {
+   "file": "schema-product-generator",
+   "name": "商品 Schema 生成",
+   "slug": "schema-product-generator",
+   "head": [
+    "分类：SEO工具｜模式：B 变体（Tab 表单×6＋双 ResultBox）｜组件：`src/tools/seo/components/SchemaGenerators.vue`（220 行，六件套共用）｜注册：`src/tools/seo/registry.ts:57`",
+    "对标标杆：technicalseo.com（Merkle Schema 生成器，对标库）＋ Google Merchant Center 免费列表文档口径"
+   ],
+   "score": 57,
+   "dims": {
+    "func": 10,
+    "usab": 11,
+    "val": 12,
+    "iact": 10,
+    "ui": 7,
+    "soul": 7
+   },
+   "conclusion": "**交互优化 + 需拓展** · P1",
+   "judge": "判据：字段骨架正确但商品域的专业纵深（标识符/退货/运费/单评分提示）与验证闭环缺失；落地 Tab 错位是家族结构问题，本 slug 直接受害。",
+   "deductions": [
+    "1. 【功能】缺商品标识符字段：sku/gtin/mpn 是 Google 商品富结果与免费列表的强推荐项（购物类搜索几乎必查），本工具一概没有（:18 product 全量）——产出\"能过验证但拿不到完整富摘要\"的次品",
+    "2. 【功能】评分逻辑黑洞：rating 与 reviews 必须双填才输出 aggregateRating（:53 `&&`），只填评分时静默消失且无提示——用户以为带了评分，实际没带",
+    "3. 【功能】无 shippingDetails/hasMerchantReturnPolicy：Google 2024 起在商家文档反复强调退货与运费结构化数据影响展示，纯前端生成器也应提供可选字段",
+    "4. 【可用性】落地 Tab 错位（家族-1）：URL/标题说\"商品\"，第一屏是 headline/作者/发布时间",
+    "5. 【交互】无验证直达（家族-2）：商品类恰恰最需要 Rich Results Test（字段错误率高），hint 无链接（:195）",
+    "6. 【功能-轻】price 用 type=number（:117）：无法表达区间价/老价格（priceValidUntil 缺位）；币种是自由文本（:118）无 ISO 4217 下拉校验",
+    "7. 【可用性-轻】双 ResultBox 钉高（家族-3）：商品 JSON 约 15 行，190px 窗口内滚"
+   ],
+   "benchmarks": [
+    "technicalseo.com",
+    "Google 商品文档"
+   ],
+   "benchPriority": "- 借鉴优先级：**标识符三字段 > 单评分提示（配对填写引导）> 退货/运费可选节 > 验证器直达 > 落地 Tab 路由化**。",
+   "prescriptions": [
+    "标识符字段",
+    "评分配对提示",
+    "落地 Tab 路由化",
+    "验证直达",
+    "字段说明"
+   ]
+  },
+  {
+   "file": "serp-snippet-preview",
+   "name": "搜索结果预览",
+   "slug": "serp-snippet-preview",
+   "head": [
+    "分类：SEO工具｜模式：B 变体（三字段表单＋自绘 SERP 卡片实时预览）｜组件：`src/tools/seo/components/SerpPreview.vue`（148 行）｜注册：`src/tools/seo/registry.ts:27`",
+    "对标标杆：portent.com SERP preview（对标库）＋ metatags.io（预览标杆）；站内口径锚点：meta-tag-generator（互认，见家族节）"
+   ],
+   "score": 65,
+   "dims": {
+    "func": 12,
+    "usab": 13,
+    "val": 13,
+    "iact": 11,
+    "ui": 8,
+    "soul": 8
+   },
+   "conclusion": "**交互优化** · P1",
+   "judge": "判据：功能与诚实度是 SEO 分类最高水准，扣分集中在\"可及性\"（复制、互链、重置）与\"本地化\"（百度视图）——均是单点交互改造，无结构性硬伤。",
+   "family": "本工具是 SEO/开发两分类共 6 个 SEO 生成器中**字段质量口径最严的一个**（effLen＋像素＋双级判级，SerpPreview.vue:11-22），meta-tag-generator.md 扣分点 2 已裁定\"同字段两套标准，以本工具为锚点收敛\"。整合路径（DEV-5b）：一次录入 title/description → 本工具出 SERP 预览、meta 工具出基础标签、OG 工具出社交卡片——字段共享 localStorage 同步＋三页互链是第一步。",
+   "deductions": [
+    "1. 【功能】无百度视图：中文站长第一验证场景是百度移动端（标题 30 字、描述有官方字数建议），工具只有 Google 桌面/移动两视图——\"中文工具箱\"定位下的明显缺口",
+    "2. 【功能】站点名硬编码\"网站名称\"（:77）：Google 桌面视图现展示站点名（来自站点名结构化数据），这是 SERP 三要素之一却不可编辑，预览失真",
+    "3. 【交互】无一键复制 title/desc：调优完要手动划选，配 copy 按钮是同类工具标配（portent 支持）",
+    "4. 【交互】家族零联动：meta-tag-generator 与本工具字段重复录入且互不感知（对方档案扣分点 6 同源）；默认 ToolHub 品牌文案（:5-6）无\"重置空白\"——双陷阱叠加",
+    "5. 【口径】像素估算与自身渲染矛盾：估算按中文 12px 宽（:15），而 d-title 实际 font-size 20px（:127-129）即中文全角字宽≈20px，\"估算像素\"数字系统性低估约 40%；effLen≤60 的判级恰好兜住结论，但展示的 px 数值不可信",
+    "6. 【功能-轻】无关键词高亮模拟：真实 SERP 会把查询词加粗，portent 支持\"输入模拟查询词看加粗效果\"，本工具无此层",
+    "7. 【可用性-轻】crumbs 对中文 slug 的处理（decodeURIComponent＋连字符转空格，:29）对 `-%20` 混合路径失真，无手工覆写入口"
+   ],
+   "benchmarks": [
+    "portent.com SERP preview",
+    "metatags.io"
+   ],
+   "benchPriority": "- 借鉴优先级：**百度移动视图 > 像素口径修正（canvas 实测）> 一键复制 > 站点名/日期字段 > 与 meta/OG 工具字段共享**。",
+   "prescriptions": [
+    "百度视图",
+    "像素口径",
+    "一键复制",
+    "站点名可编辑",
+    "字段共享",
+    "重置空白"
+   ]
+  },
+  {
+   "file": "sitemap-generator",
+   "name": "XML 站点地图生成",
+   "slug": "sitemap-generator",
+   "head": [
+    "分类：SEO工具｜模式：B 变体（textarea＋选项行＋ResultBox 单列）｜组件：`src/tools/seo/components/SitemapGenerator.vue`（141 行）｜注册：`src/tools/seo/registry.ts:8`",
+    "对标标杆：xml-sitemaps.com（对标库内爬站云标杆）＋ 站内 robots-txt-generator（协议层成对工具，见家族节）"
+   ],
+   "score": 62,
+   "dims": {
+    "func": 11,
+    "usab": 12,
+    "val": 12,
+    "iact": 11,
+    "ui": 8,
+    "soul": 8
+   },
+   "conclusion": "**交互优化** · P1",
+   "judge": "判据：转换链路正确无硬伤，但\"Google 忽略字段不披露＋与 robots 工具零联动\"是可追的专业性差距；爬站能力受 CORS 架构天花板限制，应诚实标注而非沉默。",
+   "family": "与 developer 分类 robots-txt-generator（registry.ts:198）是协议层成对工具，对方档案处方 6 已承诺互链带域名跳转，本页目前无任何回链。另与 serp-snippet-preview/schema 六件套同属\"SEO 工作台\"愿景（DEV-5b 在 meta-tag-generator.md 已立整合路径）：sitemap→搜索控制台提交→结构化数据是同一条站长工作流，互链成本极低。",
+   "deductions": [
+    "1. 【功能】**实现路径是\"手动贴 URL 列表→XML\"**，无任何爬站能力——xml-sitemaps.com 输入域名即爬全站（云端架构，纯前端受 CORS 必墙），本工具连\"这是列表编译器不是爬虫\"的边界声明都没有（:81-84 notice 只讲行内语法）",
+    "2. 【功能】changefreq/priority 全局一刀切且 Google 官方已声明忽略 `<changefreq>`/`<priority>`（仅 `<lastmod>` 可验证时采用），工具照常输出六档频率选择却不披露，误导用户以为影响抓取",
+    "3. 【功能】无重复 URL 检测：同一 URL 贴两遍生成两段 `<url>`，sitemap 协议要求去重",
+    "4. 【功能】无 sitemap index：>5 万 URL 或分片站点需 index 文件，工具无此形态（列表场景低频，但缺位应写进提示）",
+    "5. 【交互】与 robots-txt-generator 零互链：两页各需填一次站点域名，无 query 传递",
+    "6. 【灵魂】lastmod 单日期全局共享（:100-102）：把全站 URL 标成同一天修改，真实站不成立，逐行支持（同 priority 行内语法）才有诚意",
+    "7. 【性能】数千行 URL 粘贴后 computed 逐键重算无防抖（:28-47），无条目数上限提示（协议上限 5 万条/50MB）"
+   ],
+   "benchmarks": [
+    "xml-sitemaps.com",
+    "Google 官方口径"
+   ],
+   "benchPriority": "- 借鉴优先级：**忽略字段披露 > URL 去重警示 > 与 robots 工具互链 > 行内 lastmod > sitemap index 模板**。",
+   "prescriptions": [
+    "诚实披露",
+    "去重警示",
+    "家族互链",
+    "行内 lastmod",
+    "防抖"
+   ]
+  },
+  {
+   "file": "utm-builder",
+   "name": "UTM 链接构建器",
+   "slug": "utm-builder",
+   "head": [
+    "分类：SEO工具｜模式：B 变体（表单＋ResultBox＋二维码区）｜组件：`src/tools/seo/components/UtmBuilder.vue`（140 行）｜注册：`src/tools/seo/registry.ts:26`",
+    "对标标杆：Google Campaign URL Builder（ga-dev-tools，对标库）＋ utm.io（云 SaaS 批量管理标杆，天花板标注）"
+   ],
+   "score": 64,
+   "dims": {
+    "func": 12,
+    "usab": 12,
+    "val": 13,
+    "iact": 11,
+    "ui": 8,
+    "soul": 8
+   },
+   "conclusion": "**交互优化 + 需拓展** · P1",
+   "judge": "判据：单条构建链路质量高于 Google 官方 Builder（编码正确＋二维码差异化），但批量与历史（utm.io 的核心价值）缺失使它停在\"一次性工具\"；补历史与冲突检测属拓展项。",
+   "family": "本工具是 SEO 分类里离\"营销\"最近的成员，与 serp-snippet-preview（title/description 共享录入）、schema 六件套（落地页结构化）同属\"SEO 工作台\"愿景（DEV-5b 整合路径，meta-tag-generator.md 已立）；短期互链成本最低的动作是结果区挂\"预览这条链接的 SERP 展示\"跳 serp-snippet-preview。二维码能力与实用工具 qr-code-generator 系列同引擎（qrEngine），家族内已是最小化复用。",
+   "deductions": [
+    "1. 【功能】无批量：utm.io/部分竞品支持 source×medium×content 组合矩阵一次产出多条，投放多渠道场景（同一落地页×5 渠道）要手动重复 5 次",
+    "2. 【功能】无历史记录：每次建完的链接关页即失，运营周报复盘\"上次给公众号配的什么参数\"无处可查——localStorage 存最近 20 条即可解",
+    "3. 【功能】UTM 参数静默覆盖：基础 URL 自带 utm_source 时 `sp.set()` 直接顶掉旧值（:33-37）无任何警示，埋点冲突无从察觉",
+    "4. 【交互】二维码不自动生成也不自动刷新：改参数后旧二维码仍挂在舞台（genQr 仅按钮触发 :50-67），拿错码扫错链是真实事故路径",
+    "5. 【功能】无命名规范引导：GA 对 utm_* 值大小写敏感（Spring_Sale≠spring_sale 会拆成两个 campaign），业界惯例全小写＋连字符，工具无提示无归一化选项",
+    "6. 【灵魂-轻】默认值 wechat/social/spring-sale/banner-top（:10-15）与真实值无视觉区分，新手易原样上线；无\"清空示例\"按钮",
+    "7. 【交互】source 无 datalist 预设：medium 有 4 个 chip 而 source（google/facebook/wechat/邮件…）全手敲，高频值反而没预设"
+   ],
+   "benchmarks": [
+    "Google Campaign URL Builder",
+    "utm.io"
+   ],
+   "benchPriority": "- 借鉴优先级：**历史记录 > 参数覆盖警示 > source 预设＋小写归一化 > 二维码自动刷新 > 批量矩阵导出 CSV**。",
+   "prescriptions": [
+    "覆盖警示",
+    "历史记录",
+    "source 预设",
+    "二维码自动刷新",
+    "命名规范提示"
+   ]
+  }
+ ]
+}

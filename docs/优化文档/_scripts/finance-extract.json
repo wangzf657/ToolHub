@@ -1,0 +1,931 @@
+{
+  "summary": {
+    "count": 20,
+    "mean": "61.8",
+    "max": 67,
+    "min": 54,
+    "byPriority": {
+      "P1": 19,
+      "P2": 1
+    },
+    "suspectedDefects": [
+      "dividend-calculator",
+      "irr-npv-calculator",
+      "sip-calculator",
+      "stock-average-calculator"
+    ],
+    "hardDefects": [
+      "options-payoff-calculator"
+    ],
+    "hardWounds": [],
+    "noteViolations": [
+      "crypto-profit-calculator",
+      "risk-reward-calculator"
+    ],
+    "dimMeans": {
+      "func": "11.3",
+      "usab": "12.6",
+      "val": "11.7",
+      "iact": "9.9",
+      "ui": "7.2",
+      "soul": "9.3",
+      "perf": "9.0",
+      "mob": "6.6"
+    },
+    "ranking": [
+      "installment-rate-calculator=67",
+      "options-payoff-calculator=66",
+      "black-scholes-calculator=65",
+      "dividend-calculator=64",
+      "renovation-loan-calculator=64",
+      "sharpe-ratio-calculator=64",
+      "fire-calculator=63",
+      "portfolio-rebalance-calculator=63",
+      "position-size-calculator=63",
+      "stock-average-calculator=63",
+      "balloon-loan-calculator=62",
+      "irr-npv-calculator=62",
+      "kelly-criterion-calculator=61",
+      "risk-reward-calculator=61",
+      "crypto-profit-calculator=60",
+      "auto-loan-calculator=59",
+      "sip-calculator=59",
+      "bond-ytm-calculator=58",
+      "cagr-calculator=58",
+      "forex-pip-calculator=54"
+    ]
+  },
+  "records": [
+    {
+      "file": "auto-loan-calculator",
+      "name": "车贷计算器",
+      "slug": "auto-loan-calculator",
+      "score": 59,
+      "dims": {
+        "func": 12,
+        "usab": 12,
+        "val": 10,
+        "iact": 9,
+        "ui": 7,
+        "soul": 9,
+        "perf": 9,
+        "mob": 7
+      },
+      "mode": "B（CalcTool 表单 + 结果行，calcDef 家族）",
+      "hasChart": false,
+      "conclusion": "**需拓展 + 交互优化** · P1",
+      "priority": "1",
+      "judge": "判据：无可用性硬伤；与汽车之家级标杆差在\"购车总成本\"决策维度，与站内贷款家族差在整合（三处重复、零互链）。",
+      "deductions": [
+        "1. 【功能】无金融方案对比：车贷核心决策是\"厂商金融 0 息但收服务费 vs 银行车贷 3%~5% 有贴息 vs 信用卡分期购车\"三方比价（registry.ts:373-412 单方案）——0 息方案的真实成本恰需 IRR 口径（站内 installmentIrr 引擎现成，finance.ts:247-264 未复用）",
+        "2. 【功能】杂费缺席：GPS 费/金融服务费/抵押上牌费是车贷落地价的固定组成，note 承认未计（:410）却不给输入字段——\"贷款 10 万落地多花 8000\"的体感算不出来",
+        "3. 【功能】提前还款未透出：引擎 amortize 已支持 prepay 参数（finance.ts:288、313-327 有完整的\"期限不变月供减少\"重算逻辑），车贷两年后结清是高频场景，UI 却无入口——引擎能力与产品面脱节",
+        "4. 【可用性】首付比写死 30%：车价参考行 loan/0.7（registry.ts:407 硬编码 0.7），无首付比例输入；两成首付（部分新能源厂商金融）场景参考值直接错 10 万级",
+        "5. 【实用价值】与站内贷款家族分裂：loan-calculator（实用工具，等额本息单模式）、mortgage、amortization 各自为政，本工具是其中唯一双模式却互不链接——用户搜\"车贷\"进来不知道还有明细表工具，搜\"贷款\"进来也找不到车贷特有字段",
+        "6. 【家族共性】无输入记忆（CalcTool.vue 无 localStorage）、结果不可单值复制（:55-66）；4S 店比价场景需抄月供数字",
+        "7. 【灵魂】无\"总持有成本\"视角：裸车+购置税+保险+利息的落地总价对比是购车决策的最终问法，工具止步于贷款三行"
+      ],
+      "flags": [],
+      "noNote": false,
+      "linkMentions": 5,
+      "rx": [
+        "首付比可调",
+        "杂费与总成本",
+        "0 息方案对比",
+        "提前还款",
+        "家族互链"
+      ],
+      "chartRx": false,
+      "emptyIssue": false
+    },
+    {
+      "file": "balloon-loan-calculator",
+      "name": "气球贷计算器",
+      "slug": "balloon-loan-calculator",
+      "score": 62,
+      "dims": {
+        "func": 12,
+        "usab": 12,
+        "val": 12,
+        "iact": 9,
+        "ui": 7,
+        "soul": 10,
+        "perf": 9,
+        "mob": 7
+      },
+      "mode": "B（CalcTool 表单 + 结果行，calcDef 家族）",
+      "hasChart": false,
+      "conclusion": "**需拓展 + 交互优化** · P1",
+      "priority": "1",
+      "judge": "判据：无可用性硬伤；\"三兄弟\"问题（auto/renovation/balloon 与 mortgage/loan 的关系）结论：三者各有真差异（双模式/手续费 IRR/尾付结构），非 SEO 克隆，但全部与 mortgage/loan/amortization 零互链，家族整合缺位。",
+      "deductions": [
+        "1. 【功能】无尾付比例敏感度：改一次尾付比例看一次结果，没有\"10%/20%/30%/40% 尾付的月供与利息总额\"并排小表——气球贷决策的第一问恰是\"尾付留多少合适\"",
+        "2. 【功能】无再融资测算：尾付到期是气球贷的生死题，\"到期筹不齐→再融资 N 年新月供多少\"（finance.ts:296-299 年金公式现成）是直接续接场景，工具止步于风险提示文案（:480）",
+        "3. 【口径】末期利息近似未给误差边界：totalInterest 用\"尾付单月利息\"估算（registry.ts:471 注释\"近似\"），note 只说\"估算\"（:483）未说明与逐月复利精确口径的偏差量级——金额大期限长时利息总额可差数百至千元级",
+        "4. 【可用性】风险提示行无视觉差异化：风险行 primary:false（:480）落入普通行样式，与\"对比等额本息\"这类中性信息混排——最重要的行最不显眼（CalcTool 结果行体系无 warn 样式，属家族级缺失）",
+        "5. 【交互】期限为自由数字输入（registry.ts:461 type number 默认 36）非 select：与 auto/renovation 的期数 select（:380,425）风格分裂，同家族两套输入范式",
+        "6. 【家族共性】无输入记忆、结果不可单值复制（CalcTool.vue:55-66）；与 mortgage/loan/amortization 零互链——气球贷用户大概率也想知道\"如果选等额本息逐期明细长什么样\"",
+        "7. 【灵魂】无场景化预设：气球贷常见于\"预期 3~5 年内换房/卖车\"人群，无\"预计 X 年后卖出\"输入联动尾付建议（卖出时点=尾付时点是该产品的使用前提）"
+      ],
+      "flags": [],
+      "noNote": false,
+      "linkMentions": 4,
+      "rx": [
+        "敏感度小表",
+        "再融资测算",
+        "风险行警示样式",
+        "口径量化",
+        "家族互链"
+      ],
+      "chartRx": false,
+      "emptyIssue": false
+    },
+    {
+      "file": "black-scholes-calculator",
+      "name": "期权定价计算器",
+      "slug": "black-scholes-calculator",
+      "score": 65,
+      "dims": {
+        "func": 13,
+        "usab": 13,
+        "val": 12,
+        "iact": 10,
+        "ui": 7,
+        "soul": 10,
+        "perf": 9,
+        "mob": 6
+      },
+      "mode": "B（CalcTool 表单 + 结果行，calcDef）",
+      "hasChart": false,
+      "conclusion": "**交互优化 + 需拓展** · P1",
+      "priority": "1",
+      "judge": "判据：无硬伤、专业口径诚实；但 IV 反推能力在引擎里已实现却未暴露（功能面明确缺口），Put 侧希腊字母缺失影响对冲用户（需拓展），期限单位与术语释义属交互优化。",
+      "deductions": [
+        "1. 【功能】Put 侧 Theta/Rho 缺失：引擎只计算 thetaCall/rhoCall（finance.ts:53-58），结果行标\"Theta（每日，Call）\"\"Rho（Call）\"（registry.ts:224、:226）——保护性看跌/领口策略用户拿不到 Put Theta（时间衰减主力），是希腊字母输出的半边缺口",
+        "2. 【功能】隐含波动率能力闲置：impliedVol 牛顿迭代已在引擎实现（finance.ts:63-84，bond-ytm/分期 IRR 均把求解能力暴露给了用户），本工具无\"由市价反推 IV\"入口——期权交易的高频问题是\"这个价对应多少 IV\"",
+        "3. 【交互】期限单位摩擦：以年为单位（registry.ts:208 placeholder\"如 0.5\"），交易者习惯 DTE 天数（30 天=0.0822 年）需手动换算，填 30 会被当 30 年算出荒谬结果且无提示",
+        "4. 【可用性】术语无释义：Delta/Gamma/Theta/Vega/Rho/d1/d2（registry.ts:222-227）全部裸输出，无一行中文解释（如\"Vega：波动率每升 1% 期权价变化\"）——CBOE 计算器每个希腊字母带定义；新手第一次打开即劝退",
+        "5. 【可用性】长结果折叠：8 行结果+6 字段在 1366×768 底部 2 行（Rho/d1d2）出折叠线（M-07 家族口径推算），主要结果在首屏但希腊字母尾部不可见且无锚点",
+        "6. 【功能】无策略联动：算出的 Call/Put 价值无法一键带入同分类 options-payoff-calculator 构建策略（两工具零互链零透传），定价与损益可视化断链",
+        "7. 【家族共性】无输入记忆、结果不可单值复制（CalcTool.vue 全文无 localStorage、:55-66）——比价不同行权价需反复改 strike",
+        "8. 【灵魂】适用范围限定不足：desc 写明\"欧式期权\"（registry.ts:202）但页面内 note（:230）只披露模型假设、未写\"仅适用欧式，美式提前行权溢价会被低估\"——深度 ITM Put 的美式溢价可观，页面内无边界警示（对照 income-tax 档案同款\"note 限定口径\"问题）"
+      ],
+      "flags": [],
+      "noNote": false,
+      "linkMentions": 2,
+      "rx": [
+        "Put 侧补全",
+        "IV 反推",
+        "天数切换",
+        "希腊字母释义",
+        "策略联动"
+      ],
+      "chartRx": false,
+      "emptyIssue": true
+    },
+    {
+      "file": "bond-ytm-calculator",
+      "name": "债券到期收益率",
+      "slug": "bond-ytm-calculator",
+      "score": 58,
+      "dims": {
+        "func": 11,
+        "usab": 13,
+        "val": 11,
+        "iact": 9,
+        "ui": 7,
+        "soul": 7,
+        "perf": 9,
+        "mob": 7
+      },
+      "mode": "B（CalcTool 表单 + 结果行，calcDef 家族）",
+      "hasChart": true,
+      "conclusion": "**需拓展 + 交互优化** · P1",
+      "priority": "1",
+      "judge": "判据：无可用性硬伤；相比标杆缺久期/凸性/收益率曲线三大功能纵深，\"需拓展\"为主。",
+      "deductions": [
+        "1. 【功能】无久期（Macaulay/修正久期）与凸性输出：`finance.ts:135-164` 返回值只有 ytm/currentYield/effectiveAnnual 三个字段——利率敏感度是债券风险管理的核心参数， Omnicalculator/东方财富债券页均披露；引擎在迭代中已有贴现结构，补久期是低成本高价值拓展",
+        "2. 【功能】无价格-收益率关系可视化：YTM 本质是\"定价方程的解\"，一条 price-yield 曲线 + 当前价格标注点能让用户秒懂\"买贵了收益率就低\"（SharpeRatio.vue:42-54 已有同类 chartEngine 实践可复用）",
+        "3. 【交互】无反向求解：只能\"价格→YTM\"，不能\"目标 YTM 4%→该以什么价格买\"——询价场景（经纪报价单上只有收益率）是真实高频方向",
+        "4. 【口径】无应计利息/净价脏价区分：全价口径下 YTM 与交易所净价报价存在偏差，note（:329）未披露此简化——国内债券现券报价惯例净价+应计利息",
+        "5. 【交互】无预填示例：价格空默认（:313），打开只有引导行；预填 950/1000/3.5%/5 年可让用户打开即见完整四行结果再改",
+        "6. 【可用性】\"判断\"行三态（折价/溢价/平价）无视觉差异（registry.ts:326 value 纯文字，CalcTool 无 per-row 语义色机制）——信息价值高但淹没在结果列表里",
+        "7. 【家族共性】无输入记忆、结果不可单值复制（CalcTool.vue:55-66）；比券场景需要把 YTM 数字抄给客户经理"
+      ],
+      "flags": [],
+      "noNote": false,
+      "linkMentions": 0,
+      "rx": [
+        "久期与凸性",
+        "价格-YTM 曲线",
+        "反向定价",
+        "预填示例",
+        "口径披露"
+      ],
+      "chartRx": true,
+      "emptyIssue": false
+    },
+    {
+      "file": "cagr-calculator",
+      "name": "年化复合增长率",
+      "slug": "cagr-calculator",
+      "score": 58,
+      "dims": {
+        "func": 9,
+        "usab": 14,
+        "val": 10,
+        "iact": 10,
+        "ui": 7,
+        "soul": 8,
+        "perf": 9,
+        "mob": 7
+      },
+      "mode": "B（CalcTool 表单 + 结果行，calcDef）",
+      "hasChart": false,
+      "conclusion": "**需拓展 + 交互优化** · P2",
+      "priority": "2",
+      "judge": "判据：无可用性硬伤且极简达标；但相比 Omnicalculator 缺反向计算与序列输入，功能纵深单薄（需拓展为主），边界引导为辅。",
+      "deductions": [
+        "1. 【功能】无反向计算：只能\"期初→期末\"正向；\"目标年化 10%、本金 10 万、5 年后该是多少\"或\"几年能翻番\"无法反推——Omnicalculator/cagrcalculator.net 类工具双向是标配",
+        "2. 【可用性】零值边界静默：begin≤0 或 years≤0 时 cagr() 返回 0（finance.ts:117），页面显示\"CAGR 0.00%\"而非引导；begin=0 时增长倍数 0.00×（registry.ts:123）——语义上\"没增长\"与\"无法计算\"被混为一谈",
+        "3. 【功能】无现金流失真警告：期间有加仓/分红时简单 CAGR 严重失真（如 5 年从 10 万到 15 万但中途追加 3 万，真实年化远低于 8.45%），本工具无任何提示；正确工具 irr-npv-calculator 同分类却零互链",
+        "4. 【灵魂】无说人话换算：增长倍数 2.50× 旁边没有\"约 X 年翻一番\"（ln2/ln(1+g)）——CAGR 的传播价值恰恰在\"几年翻倍\"的直觉",
+        "5. 【功能】无序列输入：只能算单段首尾；逐年净值批量算逐年/滚动 CAGR 场景缺失——同目录 SharpeRatio.vue 已有\"粘贴收益率序列\"输入先例可复用",
+        "6. 【家族共性】无输入记忆、结果不可单值复制（CalcTool.vue 全文无 localStorage、:55-66）",
+        "7. 【交互】分数年口径未披露：years 支持 0.5 步进（registry.ts:119）但 note 只写\"复利平滑\"，半年按 (end/begin)^(1/0.5) 年化外推的口径未说明",
+        "8. 【实用价值】算完即止无延伸：无\"按此增速存下去 10 年后是多少\"的前瞻联动（站内 compound-interest-calculator 可承接），页面亦无相关工具引导——CAGR 的常见用途恰恰是拿增速去做外推"
+      ],
+      "flags": [],
+      "noNote": false,
+      "linkMentions": 5,
+      "rx": [
+        "反向计算",
+        "零值边界引导",
+        "翻番说人话",
+        "IRR 互链",
+        "日期折算"
+      ],
+      "chartRx": false,
+      "emptyIssue": false
+    },
+    {
+      "file": "crypto-profit-calculator",
+      "name": "币圈盈亏计算器",
+      "slug": "crypto-profit-calculator",
+      "score": 60,
+      "dims": {
+        "func": 11,
+        "usab": 13,
+        "val": 11,
+        "iact": 10,
+        "ui": 7,
+        "soul": 8,
+        "perf": 9,
+        "mob": 7
+      },
+      "mode": "B（CalcTool 表单 + 结果行，calcDef）",
+      "hasChart": false,
+      "conclusion": "**需拓展 + 交互优化** · P1",
+      "priority": "1",
+      "judge": "判据：无可用性硬伤（M-07 家族口径首屏可达）；但相比币安/OKX 合约计算器缺杠杆/强平维度属功能面悬殊（需拓展），note 缺失违反金融类规约硬要求（交互优化优先项）。",
+      "deductions": [
+        "1. 【功能】无杠杆/合约维度：compute 全程现货口径（registry.ts:30-56），无杠杆倍数、无强平价（爆仓价）、无维持保证金率——币圈交易决策的高频问题是\"10 倍杠杆这次能扛到哪\"，本工具只回答现货盈亏",
+        "2. 【灵魂-规约】无 note 计算口径：registry.ts:22-57 的 calcDef 未提供 note 字段（违反 AGENTS.md\"金融工具需附计算口径\"硬要求；对照同家族 installment-rate-calculator registry.ts:363 的口径样板），\"单边手续费（%）\"实际按买卖双边各计一次（:38 be=buy×(1+fee×2)）只能靠 hint 侧写",
+        "3. 【可用性】空态显示全 0 结果：币数量模式下 buy/qty 全空 → Number('')=0 → \"持币数量 0.000000 / 保本卖出价 0.00\"照常展示（registry.ts:33-43），NaN 守卫（CalcTool.vue:25）不触发——打开即见误导性零值",
+        "4. 【功能】无币种语境与货币符号：无 BTC/ETH 币种选择，money() 输出纯数字无符号（finance.ts:187-189），\"投入美元\"模式（registry.ts:26）暗示 USD 但结果行不带 $，分享比价场景易误读",
+        "5. 【交互】ROI 只有持仓期百分比（:51）：无按持有天数折算年化，\"拿了一个月 +9.79%\"到底好不好缺乏参照",
+        "6. 【家族共性】无输入记忆、结果行不可单值复制（CalcTool.vue 全文无 localStorage、:55-66 仅展示）——反复试算不同卖价时全量重填",
+        "7. 【灵魂】无预填示例：五字段全空打开即见零值（扣 3 的另一面），预填一组 30000/33000/0.5 币/0.1% 示例可让用户打开即懂",
+        "8. 【可用性】两种结果态无状态标注：卖价留空=持仓态 3 行、填卖价=已平仓态 5 行（registry.ts:37-55），切换时结果行数与主结果含义双双改变，却无\"当前口径：持仓中/已平仓\"标注——截图分享时对方无从判断"
+      ],
+      "flags": [
+        "note规约违规"
+      ],
+      "noNote": true,
+      "linkMentions": 0,
+      "rx": [
+        "补 note 口径",
+        "杠杆模式",
+        "货币符号",
+        "空态守卫+预填",
+        "ROI 年化"
+      ],
+      "chartRx": false,
+      "emptyIssue": true
+    },
+    {
+      "file": "dividend-calculator",
+      "name": "股息收益计算器",
+      "slug": "dividend-calculator",
+      "score": 64,
+      "dims": {
+        "func": 12,
+        "usab": 13,
+        "val": 12,
+        "iact": 9,
+        "ui": 8,
+        "soul": 10,
+        "perf": 9,
+        "mob": 6
+      },
+      "mode": "B 变体（自定义 calc：参数表 + 统计瓦片 + 年度投影表）",
+      "hasChart": true,
+      "conclusion": "**交互优化 + 需拓展** · P1（复制按钮缺陷修复优先，交用户决定）",
+      "priority": "1",
+      "judge": "判据：无可用性硬伤；\"复制关键结果\"不写剪贴板属疑似功能缺陷（P1 修复项）；税率/派息频率相对 dividend.com 属功能纵深差距。",
+      "deductions": [
+        "1. 【交互-疑似功能缺陷】\"复制关键结果\"按钮仅调用 `toast.ok('期末年股息收入…累计…')`（DividendCalculator.vue:52-54 copyTip），**无任何 navigator.clipboard 写入**——名为复制实为提示，点击后剪贴板无内容；对照站内 TextTool/ResultBox 的复制实践（复制+1.5s 对勾反馈），疑似功能缺陷，交用户决定修复",
+        "2. 【交互】币种硬编码 `$`（DividendCalculator.vue:50 money 前缀写死）——A 股红利/港息场景全是\"¥ 语义、$ 显示\"；同目录 StockAverage.vue:40 同病灶，均无币种切换",
+        "3. 【功能】无股息税率：A 股红利税差别化（持股 >1 年免征、1 月~1 年 10%、<1 月 20%）、美股分红预扣 10%/30%——hint 声明\"DRIP 忽略税费与交易摩擦\"（:134）诚实但无开关，长期 DRIP 结果系统性偏乐观",
+        "4. 【功能】无派息频率：年度口径（schedule 按年循环 :35-43）——美股季度派息与 REIT 月派息是 DRIP 用户主场景，季付复利明显快于年付，本工具无法模拟；字段也无\"年股息率对应季付每期 X%\"换算",
+        "5. 【功能】无 DRIP 对照：勾选 DRIP 后看不到\"不开 DRIP 的期末股数/累计股息\"对照列——复利的价值必须通过对比才能被感知",
+        "6. 【交互】无 localStorage 记忆：刷新即回默认值（组件内 ref 无持久化）；对比同目录 StockAverage.vue:42-64 已有完整记忆实践，同一分类两种标准",
+        "7. 【可用性】移动端五列表格无降级：390px 下整表横向滚动，\"累计收入\"这一关键列可能被挤出可视区（对比 StockAverage ≤640px 有列隐藏策略——虽被我们记为缺陷，但至少有移动端策略）",
+        "8. 【功能】无成本收益率（YOC）视角：股息率按当前股价输入（DividendCalculator.vue:9），无\"按持仓成本价计算 YOC\"——长期持有者更关心成本口径的股息率（dividend.com 的核心指标），本工具需用户手动换算"
+      ],
+      "flags": [
+        "疑似缺陷",
+        "缺陷"
+      ],
+      "noNote": false,
+      "linkMentions": 0,
+      "rx": [
+        "复制修复（P1）",
+        "税率开关",
+        "派息频率",
+        "DRIP 对照列",
+        "币种与记忆"
+      ],
+      "chartRx": false,
+      "emptyIssue": false
+    },
+    {
+      "file": "fire-calculator",
+      "name": "财务自由计算器",
+      "slug": "fire-calculator",
+      "score": 63,
+      "dims": {
+        "func": 11,
+        "usab": 12,
+        "val": 13,
+        "iact": 10,
+        "ui": 7,
+        "soul": 10,
+        "perf": 9,
+        "mob": 7
+      },
+      "mode": "B（CalcTool 表单 + 结果行，calcDef）",
+      "hasChart": true,
+      "conclusion": "**需拓展 + 交互优化** · P1",
+      "priority": "1",
+      "judge": "判据：空态误导（\"0 年后达成\"）与轨迹截断属可用性扣分（交互优化）；通胀/图表/蒙特卡洛相对 firecalc 属功能悬殊（需拓展）。",
+      "deductions": [
+        "1. 【可用性】空态误导：三字段全空时 target=支出×100/4=0 → while 不进入 → years=0 → 显示\"预计达成时间 0 年后\"+目标金额 ¥0.00 primary（registry.ts:152、:158、:168-169），NaN 守卫（CalcTool.vue:25）不触发——打开即宣称\"0 年达成 0 元目标\"",
+        "2. 【可用性】轨迹截断：检查点只显示前 3 个（registry.ts:172 `points.slice(0, 3)` 固定输出 5/10/15 年），达成需 20+ 年时中间轨迹与达成年资产均不可见；达成年资产恰为目标值，却没有任何一行直接展示",
+        "3. 【功能】无通胀维度：收益 6% 为名义口径，无通胀率输入或\"实际购买力\"折算行——FIRE 社区核心争论（4% 法则含不含通胀缓冲）在本工具无处着落；note（:175）只披露存入时点简化未提通胀",
+        "4. 【功能】无资产曲线图：资产爬坡 vs 目标线的视觉是 FIRE 工具的灵魂（firecalc 首屏即图）；站内 chartEngine 现成（OptionsPayoff.vue:78、SharpeRatio.vue 已用），calcDef 壳未接",
+        "5. 【功能】无序列风险/蒙特卡洛：firecalc.com 用历史回报序列回测上千条路径给出成功率分布——本工具单一确定性路径掩盖\"收益顺序风险\"（退休初期熊市致命）；bootstrap 模拟纯前端可实现，标注为纯前端可逼近项而非架构天花板",
+        "6. 【灵魂】无储蓄率行：储蓄率=（收入−支出）/收入 是 FIRE 社区第一指标（决定达成年限的主变量），结果只给\"每年可存\"金额（:165）不给比率，用户需自算",
+        "7. 【家族共性】无输入记忆、结果不可单值复制（CalcTool.vue 全文无 localStorage、:55-66）——FIRE 假设调参（改收益/提取率反复试）场景每次重填",
+        "8. 【功能】退休前后一套支出口径：目标额与提款均用\"年支出\"单值（registry.ts:152、:164），无 FIRE 后支出变化建模（通勤/房贷结清/医疗上升分阶段）——firecalc 支持分阶段支出流，至少 note 应披露\"退休后支出假设不变\"这一简化"
+      ],
+      "flags": [],
+      "noNote": false,
+      "linkMentions": 0,
+      "rx": [
+        "空态守卫",
+        "资产曲线图",
+        "储蓄率行",
+        "提取率敏感度",
+        "通胀折算"
+      ],
+      "chartRx": true,
+      "emptyIssue": true
+    },
+    {
+      "file": "forex-pip-calculator",
+      "name": "外汇点值计算器",
+      "slug": "forex-pip-calculator",
+      "score": 54,
+      "dims": {
+        "func": 9,
+        "usab": 10,
+        "val": 10,
+        "iact": 8,
+        "ui": 7,
+        "soul": 10,
+        "perf": 9,
+        "mob": 7
+      },
+      "mode": "B（CalcTool 表单 + 结果行，calcDef 家族）",
+      "hasChart": false,
+      "conclusion": "**需拓展 + 交互优化** · P1（含两条疑似设计缺陷，交用户决定修复方式）",
+      "priority": "1",
+      "judge": "判据：可用性 10/20——不达硬伤线但\"按 UI 引导操作会得到错数\"属准硬伤；功能面相比 babypips 缺账户币种与货币对覆盖。",
+      "deductions": [
+        "1. 【可用性-疑似缺陷】选 USD/JPY 后保持默认 rate=1，结果\"每点价值 $1000\"（registry.ts:294-296：pipValue=0.0001×100000×1×1 再 ×100）——真实值（USDJPY≈150 时）约 $6.67，**高估 150 倍**；label\"直盘填 1\"（:290）在外汇术语里 USDJPY 正是直盘，按引导填 1 必错，无任何警告",
+        "2. 【功能-疑似缺陷】note 指引与代码双重补偿冲突：note 说\"JPY 对点差为 0.01\"（:304），用户照改 pipSize=0.01 后代码再 ×100（:295-296），双重补偿得 $100000/手的荒谬值——该 ×100 补偿假定 pipSize 保持 0.0001，与 note 指引互斥",
+        "3. 【功能】无账户币种换算：输出恒为 $（:298-301），人民币账户要自己再乘 USDCNH；babypips 标配\"账户币种\"下拉一键换算",
+        "4. 【功能】货币对 select 不联动 pipSize/rate：切换 EURUSD→GBPUSD 数值完全不变，select 沦为装饰（:284-288 仅取 includes('JPY')），用户自然预期\"选对即联动\"",
+        "5. 【交互】rate 需手工外源获取：工具不提供\"填 USDJPY 现价自动换算\"入口，用户要去别处查汇率再算倒数——换算链断在站内",
+        "6. 【家族共性】无输入记忆、结果行不可单值复制（CalcTool.vue:55-66 仅展示）；外汇比价场景复制数字到聊天/笔记高频",
+        "7. 【实用价值】6 个直盘预设无交叉盘（EUR/JPY、GBP/JPY 是高频交易对），pipSize/rate 全手填模式下预设价值归零"
+      ],
+      "flags": [],
+      "noNote": false,
+      "linkMentions": 3,
+      "rx": [
+        "联动修复",
+        "双重补偿消除",
+        "账户币种",
+        "交叉盘预设",
+        "互链"
+      ],
+      "chartRx": false,
+      "emptyIssue": false
+    },
+    {
+      "file": "installment-rate-calculator",
+      "name": "信用卡分期年化计算器",
+      "slug": "installment-rate-calculator",
+      "score": 67,
+      "dims": {
+        "func": 12,
+        "usab": 14,
+        "val": 13,
+        "iact": 10,
+        "ui": 7,
+        "soul": 11,
+        "perf": 9,
+        "mob": 7
+      },
+      "mode": "B（CalcTool 表单 + 结果行，calcDef 家族）",
+      "hasChart": false,
+      "conclusion": "**需拓展** · P1（功能纵深拓展为主，交互可用性已是家族样板级）",
+      "priority": "1",
+      "judge": "判据：可用性 14/20 无硬伤且预填实践值得全 calc 家族推广；相比标杆缺手续费模式变体与多期数对比，\"需拓展\"为主。",
+      "deductions": [
+        "1. 【功能】只有\"每期手续费\"一种模式：银行分期还有**一次性手续费**（首期一次收全期费用，提前还款不退）与\"首期免手续费\"营销变体（registry.ts:343-350 仅单费率字段）——不同模式 IRR 差异显著，工具不覆盖",
+        "2. 【功能】无提前结清/剩余本金场景：分期 6 期后想提前还清，剩余手续费怎么算、划算与否是账单分期的第二高频问题（installmentIrr 口径为全程持有，finance.ts:247-264 无提前结清路径）",
+        "3. 【功能】无多期数对比行：改一次期数看一次结果，没有\"3/6/12/24 期同本金 IRR 并排\"——决策问的恰是\"分几期最亏/最省\"",
+        "4. 【交互】无输入记忆：比价多家银行费率时每次刷新重填（家族共性，CalcTool.vue 全文无 localStorage）",
+        "5. 【实用价值】口径边界未覆盖\"最低还款/循环利息\"：信用卡年化的另一半场景（最低还款的循环息 ≈18%+）不在本工具内，页面也无相关工具互链",
+        "6. 【灵魂】无\"省下的钱能干嘛\"正激励：只有\"贵了多少\"的单向警示，无\"若把这 13% 年化用于定投 N 年\"的机会成本链接（站内 sip-calculator 现成）",
+        "7. 【可用性】期数与费率的联动提示弱：36 期 0.75% 等高期数高费率组合无\"真实年化已超 16%，高于多数信用贷\"类预警线"
+      ],
+      "flags": [],
+      "noNote": false,
+      "linkMentions": 4,
+      "rx": [
+        "多期数对比",
+        "一次性手续费模式",
+        "提前结清",
+        "预警线",
+        "机会成本互链"
+      ],
+      "chartRx": false,
+      "emptyIssue": false
+    },
+    {
+      "file": "irr-npv-calculator",
+      "name": "IRR / 净现值计算器",
+      "slug": "irr-npv-calculator",
+      "score": 62,
+      "dims": {
+        "func": 13,
+        "usab": 12,
+        "val": 12,
+        "iact": 10,
+        "ui": 7,
+        "soul": 8,
+        "perf": 9,
+        "mob": 6
+      },
+      "mode": "B 变体（自定义 calc：现金流表格输入 + 四指标卡片）",
+      "hasChart": true,
+      "conclusion": "**需拓展 + 交互优化** · P1（年化行缺失属\"承诺未兑现\"级输出缺口，优先修复）",
+      "priority": "1",
+      "judge": "判据：可用性 12/20 无硬伤但 hint 与输出不一致构成事实性误导；与标杆差距在可视化与日期口径，需拓展。",
+      "deductions": [
+        "1. 【可用性】年化 IRR 行缺失：hint 明说\"年化列仅在现金流按月填写时参考（×12 复利）\"（`IrrNpvCalculator.vue:129`），但 irrAnnual 计算后从未渲染（:55 赋值后模板无引用，死代码）——主卡只显示\"IRR（每期收益率）\"（:113-115），月度现金流用户被留在半路；疑似功能缺陷，交用户决定",
+        "2. 【功能】无 NPV-折现率曲线：IRR 的教科书可视化就是 NPV 曲线过零点（横轴折现率纵轴 NPV，曲线与零轴交点即 IRR）——有曲线才能解释\"多解/无解\"从何而来（:129 hint 提了多解却不给看到多解的工具）",
+        "3. 【功能】无 XIRR（真实日期口径）：期数均匀假设下，缴费日不规则的年金/项目现金流只能近似；Excel XIRR 是行业口径基准",
+        "4. 【交互】无输入记忆：flows 无 localStorage（金融组件仅 StockAverage.vue:42-64 有实践），IRR 评估往往数十期数据，刷新全丢",
+        "5. 【可用性】现金流形态不可视：正负流柱状图（每期一根、正绿负红）是最小成本的可视化，当前只有数字表格（:82-91）；输入负数才能算 IRR（:110）的规则对新用户也不直观——可视化可顺带教学",
+        "6. 【交互】期数重复/跳号无校验：period 手输可重复（:21 仅 sort），重复期会静默参与计算无提示",
+        "7. 【功能】无逐期折现明细表：NPV 只给总额（:117-119），无\"每期现值/累计现值\"展开——项目评估报告中要引用明细",
+        "8. 【家族共性】结果卡不可单值复制（复制 IRR% 到报告高频场景）"
+      ],
+      "flags": [
+        "疑似缺陷"
+      ],
+      "noNote": false,
+      "linkMentions": 0,
+      "rx": [
+        "年化行补齐",
+        "NPV 曲线",
+        "现金流柱状图",
+        "期数校验",
+        "输入记忆"
+      ],
+      "chartRx": true,
+      "emptyIssue": false
+    },
+    {
+      "file": "kelly-criterion-calculator",
+      "name": "凯利公式计算器",
+      "slug": "kelly-criterion-calculator",
+      "score": 61,
+      "dims": {
+        "func": 10,
+        "usab": 14,
+        "val": 10,
+        "iact": 11,
+        "ui": 7,
+        "soul": 9,
+        "perf": 9,
+        "mob": 8
+      },
+      "mode": "B（CalcTool 表单 + 结果行，calcDef）",
+      "hasChart": false,
+      "conclusion": "**交互优化** · P1（轻拓展：金额换算）",
+      "priority": "1",
+      "judge": "判据：无硬伤、公式正确且三档/判定说人话到位；主要缺口是越界值拦截与预填示例（交互摩擦），金额落地属小步拓展。",
+      "deductions": [
+        "1. 【可用性】越界值无拦截：胜率填 120 → kelly(1.2, b) 输出全凯利 >100%（registry.ts:187-196 无 winProb∈(0,100] 校验，finance.ts:122 直接代入公式），\"下注 108%\"照常展示；盈亏比填 0 被 `Number(v.ratio) || 1`（registry.ts:188）静默当作 1——用户以为填了 0 实际按 1 算",
+        "2. 【交互】无预填示例：两字段全空（registry.ts:184-185 仅 placeholder\"如 55/如 1.5\"），打开即见\"请先完整填写\"守卫行——两值即可出结果的工具应预填让用户打开即懂",
+        "3. 【灵魂】术语注释缺失：\"平均盈亏比（赢/输）\"（registry.ts:185）未说明是净赔率 b=赢时净收益÷输时净亏损——博彩用户把 1.91（含本金欧赔）误填为 1.91 会高估下注比例近一倍，字段 hint 一句话可防",
+        "4. 【功能】无金额换算：输出三档百分比但不接账户金额——用户需自己拿计算器乘；Wizard of Odds 版直接给下注金额，TradingView 系风控工具均以金额落地",
+        "5. 【功能】无动态视角：缺\"连败 n 次后剩余资金\"回撤表（凯利策略的核心风险叙事）、缺胜率-盈亏比二维矩阵（判断自己处于哪个象限）",
+        "6. 【功能】无负期望建议延伸：判定行只说\"不应下注\"（registry.ts:194），不提示\"盈亏比需 >q/p 才转正\"的改进方向（如 55% 胜率需 b>0.818）",
+        "7. 【家族共性】无输入记忆、结果不可单值复制（CalcTool.vue 全文无 localStorage、:55-66）；与 position-size-calculator（同为仓位管理）零互链",
+        "8. 【灵魂】三档之间无差距解读：全凯利与半凯利的数字并排（registry.ts:191-193）但无\"半凯利的资金波动约为全凯利 1/4、回撤深度显著更浅\"的量化对比——半凯利更稳妥这件事目前只靠一句 hint，没有数字支撑"
+      ],
+      "flags": [],
+      "noNote": false,
+      "linkMentions": 1,
+      "rx": [
+        "越界拦截",
+        "b 术语 hint",
+        "预填示例",
+        "金额换算",
+        "连败回撤"
+      ],
+      "chartRx": false,
+      "emptyIssue": false
+    },
+    {
+      "file": "options-payoff-calculator",
+      "name": "期权到期损益图",
+      "slug": "options-payoff-calculator",
+      "score": 66,
+      "dims": {
+        "func": 12,
+        "usab": 12,
+        "val": 13,
+        "iact": 11,
+        "ui": 8,
+        "soul": 10,
+        "perf": 9,
+        "mob": 6
+      },
+      "mode": "B 变体（自定义 calc：多腿编辑器 + 统计瓦片 + chartEngine 折线图）",
+      "hasChart": true,
+      "conclusion": "**需拓展 + 交互优化** · P1",
+      "priority": "1",
+      "judge": "判据：相比 OptionStrat 缺策略预设与到期前曲线属功能悬殊（需拓展）；图表高度/区间固定、导入闭环缺失属交互摩擦（交互优化）。",
+      "deductions": [
+        "1. 【功能】无策略预设：跨式/勒式/蝶式/价差需逐腿手搭——OptionStrat/optionvisualizer 类工具均有一键模板，新手第一障碍恰是\"不知道该搭几条腿、行权价怎么错开\"；预设还能顺带解决教学语境",
+        "2. 【功能】只有到期线：曲线按到期内在价值（legPnl :30-41 无时间项），无 T+0/到期前损益曲线——时间价值衰减这一期权核心直觉完全不可见（hint :184 已诚实披露，属已知边界而非隐藏缺陷）",
+        "3. 【可用性】图表与区间固定：chart-box 钉 380px（OptionsPayoff.vue:266，共性-根因 2 家族）；价格区间固定现价 ±40%（:44-47）不可调——远月深度虚值/末日轮策略的尾部在区间外，图上看不到真实风险",
+        "4. 【交互】导出无导入：参数 JSON 可导出（:109-117）但无导入入口——分享/复用闭环断一半，导出的 JSON 只能手工誊抄回表单",
+        "5. 【可用性】数量无校验：qty 仅 HTML min=1（:145，手输可绕过），0/负数直接进公式（:33 qty 线性乘）——填 0 后图表变平线、最大盈亏显示 $0.00 无任何提示",
+        "6. 【功能】无组合希腊字母与保证金视角：卖出腿的保证金占用、组合 Delta 净额不显示（OptionStrat 标配；实时行情属架构天花板，静态参数净 Delta 纯前端可实现）",
+        "7. 【可用性】多腿时图表被推下屏：每腿一行（~38px）+统计区，4 腿以上图表起点跌破 768 视口（M-07 家族口径推算），编辑与看图来回滚动",
+        "8. 【功能】无盈亏概率视角（POP）：OptionStrat 按现价与 IV 给\"到期落在盈利区间的概率\"——本工具只有确定性到期线；静态参数下用正态近似即可纯前端实现（IV 可接 blackScholes 引擎同款输入），是可逼近而非天花板项"
+      ],
+      "flags": [
+        "缺陷"
+      ],
+      "noNote": false,
+      "linkMentions": 0,
+      "rx": [
+        "策略预设",
+        "导入 JSON",
+        "区间可调",
+        "数量校验",
+        "图表弹性高度"
+      ],
+      "chartRx": true,
+      "emptyIssue": false
+    },
+    {
+      "file": "portfolio-rebalance-calculator",
+      "name": "组合再平衡计算器",
+      "slug": "portfolio-rebalance-calculator",
+      "score": 63,
+      "dims": {
+        "func": 12,
+        "usab": 12,
+        "val": 12,
+        "iact": 10,
+        "ui": 8,
+        "soul": 9,
+        "perf": 9,
+        "mob": 5
+      },
+      "mode": "B 变体（自定义 calc：多行持仓表 + 买卖清单表格）",
+      "hasChart": false,
+      "conclusion": "**需拓展 + 交互优化** · P1",
+      "priority": "1",
+      "judge": "判据：桌面无硬伤（清单首屏闭环）；与 portfoliovisualizer 的差距在策略纵深（带宽/费用/回测），移动端表格可用性差记缺陷交用户。",
+      "deductions": [
+        "1. 【交互】无输入记忆：holdings 无 localStorage 持久化（`PortfolioRebalance.vue:16-23` 仅初始值），季度再平衡场景每次重录全部持仓；同目录 StockAverage.vue:42-64 已有成熟实践未复用",
+        "2. 【功能】无交易费用与取整：清单给\"买入 3000 元\"精确到元（:61 fmt 取整到 0 位），未计申购/佣金费，也不支持按 100 份整数份额折算——ETF/股票按手交易时清单需二次换算",
+        "3. 【功能】无带宽策略：只要偏差超总市值 0.1% 即给动作（:48），与业界常用的\"目标±5% 才触发\"带宽再平衡不符——频繁小额调仓的建议对普通用户是噪音，也无\"惰性区间\"开关",
+        "4. 【可用性】偏差无图形化：当前占比 vs 目标配比只有数字列（:123-124），无对比条形/环形图；\"股 58%→50% 差 8 个点\"的幅度感靠读表",
+        "5. 【功能】无现金/新注资输入：加仓再平衡（新增资金买入低配资产、免卖出）是税务更优路径，工具不区分\"用新钱补\"与\"卖高买低\"",
+        "6. 【家族共性】无预设模板：60/40、股债现金 5/3/2 等经典配比无一键填充（示例 :16-20 已是 50/30/20 但无\"换个模板\"入口）",
+        "7. 【移动端-缺陷】7 列清单表 ≤640px 仅列宽 90px 收窄（`PortfolioRebalance.vue:167-169`），横向溢出，手机上无法舒适读取执行清单——疑似需卡片化重排，交用户决定",
+        "8. 【灵魂】报告无\"调整前后对比\"段：TSV 报告（:63-74）只有当前态+动作，无再平衡后占比确认行（执行完怎么核对）"
+      ],
+      "flags": [],
+      "noNote": false,
+      "linkMentions": 0,
+      "rx": [
+        "输入记忆",
+        "占比对比图",
+        "带宽阈值",
+        "新注资模式",
+        "移动端卡片化"
+      ],
+      "chartRx": true,
+      "emptyIssue": false
+    },
+    {
+      "file": "position-size-calculator",
+      "name": "仓位规模计算器",
+      "slug": "position-size-calculator",
+      "score": 63,
+      "dims": {
+        "func": 11,
+        "usab": 13,
+        "val": 13,
+        "iact": 10,
+        "ui": 7,
+        "soul": 9,
+        "perf": 9,
+        "mob": 7
+      },
+      "mode": "B（CalcTool 表单 + 结果行，calcDef）",
+      "hasChart": false,
+      "conclusion": "**交互优化 + 需拓展** · P1",
+      "priority": "1",
+      "judge": "判据：无硬伤（M-07 家族口径）；相比 TradingView 风险计算器缺杠杆/方向/保证金维度（需拓展），1% 默认与快捷档缺失属交互摩擦（交互优化）。",
+      "deductions": [
+        "1. 【功能】无杠杆/保证金换算：期货、合约与融资用户需自行折算保证金占用——TradingView 仓位计算器有保证金/杠杆字段，BabyPips 版有账户币种与手数换算；本工具结果只到\"股数+市值\"",
+        "2. 【功能】多空方向隐式：Math.abs(entry−stop)（registry.ts:98）使做空也得到正确股数，但 UI 无\"多/空\"标注——新手不知道做空时止损价应高于入场价，填反了结果照出且无提示",
+        "3. 【交互】无默认值与快捷档：riskPct 无默认（registry.ts:92 仅 placeholder\"如 1\"），行业惯例单笔 1% 风险应预填；无 0.5%/1%/2% 快捷 chips——对比敏感度最高的参数让用户手填",
+        "4. 【可用性】仓位超账户无预警：占账户比例行照常显示百分比（registry.ts:104），止损极近时 shares×entry 可远超账户总值（隐含杠杆），无红字\"该仓位需杠杆/超出账户\"提示",
+        "5. 【功能】无费用口径：佣金/滑点未计入每股风险，实际单笔亏损将略超预设风险；note（registry.ts:108）未披露此简化——金融口径规约的诚实性打折",
+        "6. 【家族共性】无输入记忆、结果不可单值复制（CalcTool.vue 全文无 localStorage、:55-66）——风控参数（账户/风险%）长期稳定却每次重填",
+        "7. 【灵魂】无 R 语言语境：结果给\"单笔最大亏损\"金额但无\"这是 1R，止损被打掉=亏 1R\"的交易心理框架注释——该品类教学价值的一半在 R 概念",
+        "8. 【功能】仅支持\"股数\"口径：无手数（期货/外汇）、张数（期权/可转债）、币数（加密）单位适配，money() 输出无货币符号（finance.ts:187-189）币种语境未声明——BabyPips 版按手数+账户币种换算，本工具只服务股票现货用户"
+      ],
+      "flags": [
+        "note规约违规"
+      ],
+      "noNote": false,
+      "linkMentions": 4,
+      "rx": [
+        "1% 默认+快捷档",
+        "多空方向",
+        "超账户预警",
+        "参数记忆",
+        "互链透传"
+      ],
+      "chartRx": false,
+      "emptyIssue": false
+    },
+    {
+      "file": "renovation-loan-calculator",
+      "name": "装修贷计算器",
+      "slug": "renovation-loan-calculator",
+      "score": 64,
+      "dims": {
+        "func": 13,
+        "usab": 12,
+        "val": 13,
+        "iact": 9,
+        "ui": 7,
+        "soul": 10,
+        "perf": 9,
+        "mob": 7
+      },
+      "mode": "B（CalcTool 表单 + 结果行，calcDef 家族）",
+      "hasChart": false,
+      "conclusion": "**需拓展 + 交互优化** · P1",
+      "priority": "1",
+      "judge": "判据：无可用性硬伤；跨模式对比是正确方向但基准硬编码削弱可信度，拓展方向为额度/放款场景纵深。",
+      "deductions": [
+        "1. 【灵魂】对比基准硬编码：利率模式对比行固定用 0.33%/期（registry.ts:447 内联字面量 `installmentIrr(loan, months, 0.33)`），而手续费率字段默认同为 0.33%（:424）——用户把费率改成银行实报的 0.5% 后切回利率模式，对比行仍是 0.33% 口径，两字段看似关联实则脱钩，需显式说明或联动",
+        "2. 【可用性】无关字段常驻：普通利率模式下\"每期手续费率\"字段仍显示（:424 无条件字段机制，CalcTool 不支持字段联动显隐），反之亦然——5 字段里常有 1 个与当前模式无关，新手会困惑该填哪个",
+        "3. 【功能】无额度测算：装修贷额度通常按房产价值或收入倍数封顶（多数银行 20~100 万），工具不回答\"我能贷多少\"前置问题",
+        "4. 【功能】无放款方式口径：装修贷多为分批放款/受托支付（钱不一次到手），名义费率相同但实际资金占用更久、真实年化更低——IRR 口径按全额期初发放（finance.ts:253-255 flows=[-principal]），note 未披露此简化（:450 只说\"本金等额摊还\"）",
+        "5. 【交互】模式切换无结果区过渡提示：切换 select 后结果行数变化（手续费 4 行 vs 利率 4 行+对比），无任何\"已切换为 X 模式\"反馈，用户可能没注意到主行含义变了（月供 vs 每期还款额）",
+        "6. 【家族共性】无输入记忆、结果不可单值复制（CalcTool.vue:55-66）；装修公司报价现场比价需抄数字",
+        "7. 【实用价值】与 installment-rate-calculator 口径重叠未互链：两者共用 installmentIrr 引擎、同讲\"手续费→IRR\"故事，一个面向信用卡一个面向装修贷，页面零互链零差异化说明——用户不知道该用哪个"
+      ],
+      "flags": [],
+      "noNote": false,
+      "linkMentions": 5,
+      "rx": [
+        "对比基准联动",
+        "字段显隐",
+        "口径披露",
+        "互链",
+        "额度参考"
+      ],
+      "chartRx": false,
+      "emptyIssue": false
+    },
+    {
+      "file": "risk-reward-calculator",
+      "name": "盈亏比计算器",
+      "slug": "risk-reward-calculator",
+      "score": 61,
+      "dims": {
+        "func": 10,
+        "usab": 13,
+        "val": 12,
+        "iact": 10,
+        "ui": 7,
+        "soul": 9,
+        "perf": 9,
+        "mob": 7
+      },
+      "mode": "B（CalcTool 表单 + 结果行，calcDef）",
+      "hasChart": true,
+      "conclusion": "**交互优化 + 需拓展** · P1",
+      "priority": "1",
+      "judge": "判据：空态\"保本胜率 100%\"误导属可用性扣分（交互优化优先项）；note 缺失违反金融口径规约；价格阶梯与仓位联动属拓展。",
+      "deductions": [
+        "1. 【可用性】空态误导：四字段全空 → entry=stop=0 → risk=0 → rr=0 → 显示\"盈亏比 1 : 0.00\"primary + \"保本胜率 100.0%\"（registry.ts:253-263，breakEven=100/(1+0)），NaN 守卫（CalcTool.vue:25）不触发——打开即宣称\"零风险保本胜率 100%\"，方向性误导",
+        "2. 【灵魂-规约】无 note 计算口径：registry.ts:241-270 calcDef 未提供 note 字段（违反 AGENTS.md 金融口径硬要求；对照同家族 installment-rate-calculator registry.ts:363 样板）——\"未含手续费/滑点/印花税\"\"保本胜率=1/(1+盈亏比)\"\"期望值=胜率×单股回报−败率×单股风险\"三项口径均未披露",
+        "3. 【交互】方向书写易误读：\"盈亏比（回报:风险）1 : 2.00\"（registry.ts:261）把 1 固定在风险位——业内更常见书写是\"2:1 R:R\"（回报值前置）或\"R 2.0\"，快读用户易把 1:2 与 2:1 记反",
+        "4. 【功能】无仓位联动：只回答\"值不值得做\"不回答\"做多大\"——entry/stop 与 position-size-calculator 完全同参，两工具零互链零透传，风控自检要手动抄价",
+        "5. 【功能】无费用与分批目标：佣金/滑点未计入单股风险（实际盈亏比低于显示值）；单一目标价，\"一半 1:1 一半 1:3\"分批止盈的加权 RR 无法算",
+        "6. 【交互】无默认值：四字段全空（registry.ts:245-249），预填一组 25.5/24/30 典型值可让用户打开即懂字段含义",
+        "7. 【可用性】三价位无视觉标尺：止损/入场/目标的距离关系全靠数字脑补——TradingView 多空工具用双色区块直观显示风险/回报面积，价格阶梯图是该品类标配视觉（chartEngine 站内现成）",
+        "8. 【功能】无做空语境：Math.abs（registry.ts:253-254）让\"止损在上方、目标在下方\"的做空单也\"碰巧\"算出正确盈亏比，但无多/空方向标注与校验——方向填反（做多却填止损高于入场）时同样照常输出"
+      ],
+      "flags": [
+        "note规约违规"
+      ],
+      "noNote": true,
+      "linkMentions": 3,
+      "rx": [
+        "空态守卫",
+        "补 note 口径",
+        "预填示例",
+        "价格阶梯图",
+        "仓位联动",
+        "R 倍数副表述"
+      ],
+      "chartRx": true,
+      "emptyIssue": true
+    },
+    {
+      "file": "sharpe-ratio-calculator",
+      "name": "夏普 / 索提诺比率",
+      "slug": "sharpe-ratio-calculator",
+      "score": 64,
+      "dims": {
+        "func": 12,
+        "usab": 12,
+        "val": 12,
+        "iact": 12,
+        "ui": 7,
+        "soul": 9,
+        "perf": 9,
+        "mob": 7
+      },
+      "mode": "B 变体（自定义 calc：多行粘贴 + 统计瓦片 + 折线图）",
+      "hasChart": true,
+      "conclusion": "**交互优化 + 需拓展** · P1",
+      "priority": "1",
+      "judge": "判据：无可用性硬伤（输入粘贴→结果图表一屏闭环）；与 Portfolio Visualizer 的差距在频率口径与基准对比，属功能纵深问题。",
+      "deductions": [
+        "1. 【功能】年化频率不可选：年化固定按日度 ×√252（`SharpeRatio.vue:33-34`、`finance.ts:177` 硬编码），月定投/月度基金收益用户需\"自行换算 ×√12\"（:115）——频率 select（日/周/月）是风险指标品类标配，Portfolio Visualizer 默认按月",
+        "2. 【可用性】年化值层级错位：每期夏普/索提诺进 stat-tile 主视觉（26px 大字 :103,108），年化值只在 notice 正文（:114）——最常被引用的\"年化夏普 1.5\"反而是小字，误读风险高",
+        "3. 【交互】无风险利率无来源提示：placeholder 仅\"如 2\"（:76），无\"可参考 10 年期国债收益率\"类指引——这是输入门槛最高的一个字段，新手指不通",
+        "4. 【功能】无基准对比：夏普 1.2 是否合格取决于对标资产，grade 阈值（≥2 优秀，:37）无口径出处说明；无\"对比沪深300/标普\"输入",
+        "5. 【数据容错】混入\"2.1%\"这类带百分号文本会被 parseFloat 静默过滤（:26-27），仅\"已解析 N 期\"可对照，无\"第 X 行解析失败\"提示——粘贴 Excel 列常带表头，静默丢弃有陷阱",
+        "6. 【家族共性】无 localStorage 记忆（金融组件仅 StockAverage.vue:42-64 有），粘贴的收益序列刷新即丢",
+        "7. 【功能】图表只有原始收益率折线（:47-53），无累计净值曲线（(1+r) 累乘）——评估策略\"赚钱形态\"看净值比看逐期波动直观",
+        "8. 【灵魂】示例序列无语境标注：预填的 10 期数据（:10-19）没有\"示例：某基金近 10 日收益\"说明，也无\"换成我的数据\"引导"
+      ],
+      "flags": [],
+      "noNote": false,
+      "linkMentions": 0,
+      "rx": [
+        "频率切换",
+        "年化瓦片化",
+        "利率来源指引",
+        "净值曲线 Tab",
+        "解析容错提示"
+      ],
+      "chartRx": true,
+      "emptyIssue": false
+    },
+    {
+      "file": "sip-calculator",
+      "name": "定投收益计算器",
+      "slug": "sip-calculator",
+      "score": 59,
+      "dims": {
+        "func": 10,
+        "usab": 13,
+        "val": 11,
+        "iact": 10,
+        "ui": 7,
+        "soul": 8,
+        "perf": 9,
+        "mob": 7
+      },
+      "mode": "B（CalcTool 表单 + 结果行，calcDef）",
+      "hasChart": true,
+      "conclusion": "**交互优化 + 需拓展** · P1",
+      "priority": "1",
+      "judge": "判据：note（月末定投）与实现（期初年金）口径错位属正确性问题必须优先收敛（P1）；通胀/图表/阶梯缺失相对天天基金属功能悬殊（需拓展）。",
+      "deductions": [
+        "1. 【灵魂-疑似功能问题】note 写\"按月末定投\"（registry.ts:82），但实现 fv=monthly×[(1+r)^n−1]/r×(1+r)（:73）是**期初年金（annuity-due）公式**——结果比月末口径高约一个月利率：2000/月×8%×10 年，月末口径应约 ¥365,900，本工具显示约 ¥368,300（差约 ¥2,400）。note 与公式必有一错，疑似功能问题，只记录交用户定夺，不代修",
+        "2. 【功能】无通胀调整：8% 为名义收益，无\"扣除通胀后的实际购买力\"行或开关——3% 通胀下 10 年期实际终值缩水约 1/4，FIRE 式长期定投场景预期会系统性偏高",
+        "3. 【可用性】空态三行零值：monthly 空 → Number('')=0 → 到期总值/本金/收益全 ¥0.00、占比\"—\"（registry.ts:73-79），NaN 守卫（CalcTool.vue:25）不触发；对照 black-scholes 的点名式守卫（registry.ts:215-217）少了引导",
+        "4. 【功能】无图表：本金 vs 总值堆叠面积图是定投工具标配视觉（天天基金/东方财富均有）；站内 chartEngine 现成（OptionsPayoff.vue:78、SharpeRatio.vue 已用），calcDef 壳未接",
+        "5. 【功能】缺进阶定投形态：无\"每年定投递增 X%\"（工资增长党刚需）、无一次性本金+月定投混合、无赎回费率扣减",
+        "6. 【交互】年化收益无语境：8% 默认值未注明\"近似宽基股指长期水平，债基/货币基金请下调\"——新手拿 8% 去算货基定投会踩坑",
+        "7. 【家族共性】无输入记忆、结果不可单值复制（CalcTool.vue 全文无 localStorage、:55-66）",
+        "8. 【功能】无目标终值反推：\"每月投多少 10 年后能有 100 万\"是定投话题的高频反问，本工具只能正向试算——天天基金定投计算器有目标反推入口，公式上仅是 fv 公式移项"
+      ],
+      "flags": [
+        "疑似缺陷"
+      ],
+      "noNote": false,
+      "linkMentions": 0,
+      "rx": [
+        "口径对齐（P1）",
+        "通胀调整",
+        "空态守卫",
+        "堆叠图",
+        "阶梯定投"
+      ],
+      "chartRx": true,
+      "emptyIssue": true
+    },
+    {
+      "file": "stock-average-calculator",
+      "name": "摊薄成本计算器",
+      "slug": "stock-average-calculator",
+      "score": 63,
+      "dims": {
+        "func": 10,
+        "usab": 12,
+        "val": 11,
+        "iact": 12,
+        "ui": 7,
+        "soul": 11,
+        "perf": 9,
+        "mob": 4
+      },
+      "mode": "B 变体（自定义 calc：多行录入表 + 实时统计 + 汇总表）",
+      "hasChart": false,
+      "conclusion": "**需拓展 + 交互优化** · P1（桌面无硬伤；移动端删除功能不可达记为缺陷交用户修复）",
+      "priority": "1",
+      "judge": "判据：可用性 12/20 达标（M-18 实测全要素首屏可见）；功能面相比东方财富摊薄工具缺卖出/费用维度，移动端存在功能缺失缺陷。",
+      "deductions": [
+        "1. 【移动端-缺陷】≤640px 媒体查询将 `.lot-row .icon-btn`（删除按钮）与 `.cell-val`（金额/占比列）一并 `display:none`（`StockAverage.vue:174-177`）——**移动端既看不到金额占比、也无法删除任何一笔**，误录后只能重置全部；疑似功能缺陷，交用户决定修复方式",
+        "2. 【功能】无卖出/减仓摊薄：只有买入 Lot（:9-12 interface 仅 price/qty），无法计算\"卖出 X 股后剩余持仓成本\"——摊薄/补仓话题里与买入同频的场景；东方财富成本工具支持买卖混合流水",
+        "3. 【功能】无手续费/佣金：无费率输入、无含费保本价——真实摊薄成本必须计入佣金（万 2.5 起过 5 元）与过户费，本工具算出的是理论均价",
+        "4. 【可用性】结果表仅 157px、无图表（M-18）：两笔数据时表格信息量单薄；无\"成本随加仓次数变化\"折线或瀑布示意，用户感受不到摊薄过程",
+        "5. 【交互】货币单位写死 `$`（`StockAverage.vue:40`）——中文金融工具默认美元，A 股场景每笔金额都是\"¥ 语义、$ 显示\"，需手动脑内换算；无币种切换",
+        "6. 【灵魂】无前瞻试算：\"如果现价 X 再加仓 Y 股，均价变多少\"需手动添加行污染正式数据（虽有 localStorage 兜底，但试算与真实数据混在一处）",
+        "7. 【交互】无导出：持仓流水不可导出 CSV，跨设备迁移只靠单机 localStorage"
+      ],
+      "flags": [
+        "疑似缺陷"
+      ],
+      "noNote": false,
+      "linkMentions": 0,
+      "rx": [
+        "移动端删除修复",
+        "币种切换",
+        "费率与保本价",
+        "卖出/减仓",
+        "试算模式"
+      ],
+      "chartRx": false,
+      "emptyIssue": false
+    }
+  ]
+}

@@ -1,0 +1,862 @@
+{
+ "stat": {
+  "n": 16,
+  "avg": "59.38",
+  "max": 68,
+  "min": 52,
+  "dimAvg": {
+   "func": "10.5",
+   "usab": "12.3",
+   "val": "11.6",
+   "iact": "9.6",
+   "ui": "7.2",
+   "soul": "8.2",
+   "mob": "6.5",
+   "perf": "8.7"
+  },
+  "sorted": [
+   "cash-flow-calculator=68",
+   "cohort-retention-calculator=68",
+   "mrr-calculator=64",
+   "break-even-calculator=62",
+   "freelance-rate-calculator=61",
+   "profit-margin-calculator=60",
+   "roi-calculator=60",
+   "burn-rate-calculator=59",
+   "cac-calculator=59",
+   "ltv-calculator=59",
+   "email-signature-generator=58",
+   "churn-rate-calculator=56",
+   "saas-pricing-calculator=56",
+   "rule-of-40-calculator=55",
+   "resume-builder=53",
+   "take-home-pay-calculator=52"
+  ],
+  "p0": [
+   "resume-builder"
+  ],
+  "p1": [
+   "break-even-calculator",
+   "burn-rate-calculator",
+   "cac-calculator",
+   "cash-flow-calculator",
+   "churn-rate-calculator",
+   "cohort-retention-calculator",
+   "email-signature-generator",
+   "freelance-rate-calculator",
+   "ltv-calculator",
+   "mrr-calculator",
+   "profit-margin-calculator",
+   "roi-calculator",
+   "rule-of-40-calculator",
+   "saas-pricing-calculator",
+   "take-home-pay-calculator"
+  ],
+  "p2": [],
+  "suspect": [
+   "burn-rate-calculator",
+   "cac-calculator",
+   "mrr-calculator",
+   "profit-margin-calculator",
+   "saas-pricing-calculator"
+  ],
+  "modes": {
+   "B": 11,
+   "自定义": 5
+  },
+  "custom": [
+   "cash-flow-calculator",
+   "cohort-retention-calculator",
+   "email-signature-generator",
+   "mrr-calculator",
+   "resume-builder"
+  ],
+  "calcDef": [
+   "break-even-calculator",
+   "burn-rate-calculator",
+   "cac-calculator",
+   "churn-rate-calculator",
+   "freelance-rate-calculator",
+   "ltv-calculator",
+   "profit-margin-calculator",
+   "roi-calculator",
+   "rule-of-40-calculator",
+   "saas-pricing-calculator",
+   "take-home-pay-calculator"
+  ]
+ },
+ "tools": [
+  {
+   "file": "break-even-calculator",
+   "name": "盈亏平衡点计算",
+   "slug": "break-even-calculator",
+   "score": 62,
+   "dims": {
+    "func": 11,
+    "usab": 14,
+    "val": 12,
+    "iact": 10,
+    "ui": 7,
+    "soul": 8,
+    "perf": 9,
+    "mob": 7
+   },
+   "head": [
+    "分类：商业SaaS｜模式：B（CalcTool 表单 + 结果行，calcDef 家族）｜组件：`src/components/common/CalcTool.vue`（117 行，67 工具共用）｜注册：`src/tools/business/registry.ts:96-121`",
+    "对标标杆：Omnicalculator（Break-Even Calculator：目标利润反推+成本收入交叉图）"
+   ],
+   "mode": "B（CalcTool 表单 + 结果行，calcDef 家族）",
+   "bench": "Omnicalculator（Break-Even Calculator：目标利润反推+成本收入交叉图）",
+   "conclusion": "**需拓展 + 交互优化** · P1",
+   "judge": "判据：无可用性硬伤、守卫实践全批最佳；相比 Omnicalculator 缺目标利润反推/交叉图/安全边际三大件（拓展差距明显）。",
+   "order": "整改优先序：目标利润反推 > 交叉图 > 空值守卫文案分流 > 安全边际率 > ceil 口径披露 > 三工具互链。",
+   "deductions": [
+    "1. 【功能】无目标利润反推：\"想赚 X 万要卖多少件\"是盈亏平衡的第一延伸问（(固定成本+目标利润)÷贡献毛利），本工具只回答保本（registry.ts:106-118）",
+    "2. 【功能】无安全边际率：缺\"预计销量\"输入，无法算 (预计−保本)÷预计——经营风险判断比保本点更常用；保本销量也无周期化表达（固定成本按月口径，:102 与 :114 的\"件\"之间缺\"保本销量/月\"语境）",
+    "3. 【功能】无盈亏平衡图：固定成本横线+总成本线+收入线的交叉图是该品类灵魂可视化，站内 chartEngine 已有成熟先例（CashFlowProjection.vue:73-87），本工具纯数字",
+    "4. 【口径】取整口径未披露：保本销量 Math.ceil（registry.ts:114）、保本收入按取整后件数计（:115），note（:119）只写公式——手算 166.7 件与工具显示 167 件对不上会引发不信任",
+    "5. 【可用性】守卫对\"空值\"误报：price/variable 未填时 cm=0，首屏即渲染\"售价不高于变动成本，无法盈利，请先调整定价或成本\"（registry.ts:107-110 对未填与真 0 同文案）——空态提示与业务警告混为一谈；price/variable 已填而 fixed 为空时才走 NaN 全局兜底（CalcTool.vue:25-28）",
+    "6. 【实用价值】与 saas-pricing-calculator（registry.ts:305-344，含盈亏平衡折扣行 :340）、profit-margin-calculator（:122-155）能力相邻但零互链——商业定价三兄弟各说各话",
+    "7. 【家族共性】无输入记忆、结果不可单值复制（CalcTool.vue:10、:55-66，见 loan-calculator.md）"
+   ],
+   "prescriptions": [
+    "目标利润反推",
+    "ceil 口径披露",
+    "交叉图",
+    "安全边际",
+    "互链"
+   ],
+   "benchmarks": [
+    "Omnicalculator（Break-Even）"
+   ],
+   "short": "- 短期（1 周）：note 补 ceil 口径；fixed 空态定向提示；与 saas-pricing/profit-margin 互链",
+   "mid": "- 中期（1 月）：目标利润反推字段与结果行；预计销量→安全边际率；chartEngine 交叉图",
+   "long": "- 远期：多产品组合保本（按销售额口径）；与 profit-margin/saas-pricing 合并\"定价工作台\""
+  },
+  {
+   "file": "burn-rate-calculator",
+   "name": "烧钱率与现金跑道",
+   "slug": "burn-rate-calculator",
+   "score": 59,
+   "dims": {
+    "func": 10,
+    "usab": 11,
+    "val": 12,
+    "iact": 10,
+    "ui": 7,
+    "soul": 9,
+    "perf": 9,
+    "mob": 7
+   },
+   "head": [
+    "分类：商业SaaS｜模式：B（CalcTool 表单 + 结果行，calcDef 家族）｜组件：`src/components/common/CalcTool.vue`（117 行，67 工具共用）｜注册：`src/tools/business/registry.ts:256-283`",
+    "对标标杆：baremetrics（现金/跑道指标面板标杆）＋ Omnicalculator（跑道计算器口径参照）"
+   ],
+   "mode": "B（CalcTool 表单 + 结果行，calcDef 家族）",
+   "bench": "baremetrics（现金/跑道指标面板标杆）＋ Omnicalculator（跑道计算器口径参照）",
+   "conclusion": "**交互优化** · P1（含疑似功能问题，两项均应优先修复：growth 字段失效、空态\"盈利，无限跑道\"谎报）",
+   "judge": "判据：判定行/耗尽月是家族最佳实践之一；但用户填增长率跑道纹丝不动属疑似功能问题，空态给出错误财务结论属可用性信任硬伤。",
+   "order": "整改优先序：growth 生效或下线 > 空态/负值守卫 > 判定行着色 > cash-flow 透传 > 融资情景。",
+   "deductions": [
+    "1. 【疑似功能问题】growth 字段死输入（registry.ts:264、:266-280）：字段\"月收入增长率（%，可选）\"出现在表单里，compute 只读 expense/revenue/cash 三个值——用户填 10% 期望跑道延长，数值纹丝不动；比 cac-calculator 的 void 死代码更恶劣（cac-calculator.md 扣分点 1 至少用户不可见，这里是活输入被静默忽略），暴露\"想做增长外推没做完就上线\"",
+    "2. 【可用性】空态谎报\"盈利，无限跑道\"：三必填全空时 Number('')=0→burn=0→非 burn>0 分支→\"现金跑道：盈利，无限跑道\"（:267-273）——未输入却得到\"盈利\"结论；BIZ 家族共性（NaN 守卫不拦 0，CalcTool.vue:25-28）在本工具后果最重（对照 break-even 定向守卫 registry.ts:108-110）",
+    "3. 【可用性】负值无校验：expense 填负（漏输负号/多删一位）→burn 为负→同样落\"盈利，无限跑道\"分支；revenue 填负则烧钱率虚增，均无拦截",
+    "4. 【口径】增长前提未披露：跑道公式假设\"收入支出恒定\"（:281 note 只写公式），而表单里就摆着增长率字段——口径矛盾；未区分净烧钱率与 gross burn（行业保守口径用总支出算 runway，note 未提）",
+    "5. 【功能】无情景模拟：融资到账/削减成本 X%/收入提速三种 founder 最常问的 what-if 都要靠手改数字反复试，cash-flow-calculator 的逐月编辑（CashFlowProjection.vue:104-165）恰是正解却零互链",
+    "6. 【美观】判定行无着色：三态结论（:278）纯文字，\"危险\"无红色、\"健康\"无绿色——同站 mrr-calculator 磁贴 ok/bad 着色（MrrCalculator.vue:131）已有实践",
+    "7. 【家族共性】无输入记忆、结果不可单值复制（CalcTool.vue:10、:55-66，见 loan-calculator.md）"
+   ],
+   "prescriptions": [
+    "growth 生效",
+    "空态守卫",
+    "判定行着色",
+    "cash-flow 透传",
+    "口径披露"
+   ],
+   "benchmarks": [
+    "baremetrics",
+    "Omnicalculator"
+   ],
+   "short": "- 短期（1 周）：三必填空态引导行；expense/revenue 负值校验；判定行按状态着色；删除 growth 字段或标注\"暂不参与计算\"",
+   "mid": "- 中期（1 月）：growth 生效（逐月模拟 cash 递减、burn 随收入收缩，跑道=首个月份 cash<0）；\"月收入/支出带去现金流预测 →\"透传链接；note 补恒定假设与 gross burn 口径",
+   "long": "- 远期：融资/削减情景按钮（跑道重算对比行）；与 cash-flow-calculator 合并\"现金与跑道工作台\""
+  },
+  {
+   "file": "cac-calculator",
+   "name": "获客成本与回收期",
+   "slug": "cac-calculator",
+   "score": 59,
+   "dims": {
+    "func": 10,
+    "usab": 13,
+    "val": 12,
+    "iact": 9,
+    "ui": 7,
+    "soul": 8,
+    "perf": 9,
+    "mob": 7
+   },
+   "head": [
+    "分类：商业SaaS｜模式：B（CalcTool 表单 + 结果行，calcDef 家族）｜组件：`src/components/common/CalcTool.vue`（117 行，67 工具共用）｜注册：`src/tools/business/registry.ts:187-213`",
+    "对标标杆：baremetrics（CAC/回收期指标面板标杆）＋ ProfitWell（blended/paid CAC 口径参照，云）"
+   ],
+   "mode": "B（CalcTool 表单 + 结果行，calcDef 家族）",
+   "bench": "baremetrics（CAC/回收期指标面板标杆）＋ ProfitWell（blended/paid CAC 口径参照，云）",
+   "conclusion": "**需拓展 + 交互优化** · P1（含疑似功能问题：死代码）",
+   "judge": "判据：相比 baremetrics 缺判定层与真口径 LTV（拓展差距）；死代码与 36 个月黑箱需清理披露（交互优化+疑似功能问题）。",
+   "deductions": [
+    "1. 【疑似功能问题】死代码残留（registry.ts:202-203）：`const ltv = ... churnPct ?? 3 ...; void ltv`——churnPct 根本不在字段列表（:192-197），按流失率的真实 LTV 口径写了却整体 void 掉，被 36 个月硬编码近似替代（:208）；口径决策未完成即上线的痕迹",
+    "2. 【口径】\"简单 LTV:CAC（按 36 个月）\"假设未披露（registry.ts:208）：月流失 5% 的业务真实期望生命周期仅 20 个月，36 月近似严重高估；与 ltv-calculator 的 1/churn 口径（registry.ts:171）同站不同标——用户在两个工具得到两个 LTV:CAC 无从判断；note（:211）只写 CAC 公式与回本健康线",
+    "3. 【功能】无健康判定行：比值与回本期算出后无\"≥3 且 <12 月 → 健康\"三态结论——同站 burn-rate（registry.ts:278）、rule-of-40（:296-299）都有判定行实践，本工具让用户自己查健康线",
+    "4. 【功能】渠道维度缺席：CAC=总投入÷新增客户只是 blended CAC；付费投放效率的真口径是 paid CAC（剔除内容/转介绍），连口径标注都没有",
+    "5. 【可用性】newCustomers 为空/0 时主结果\"¥0\"（registry.ts:199，CalcTool.vue:25-28 不拦 0）；spend 同空时空态无引导行",
+    "6. 【交互】与 ltv-calculator/churn-rate-calculator 零互链零透传——SaaS 指标家族愿景（LTV/CAC/Churn/MRR 互相引用）现状是三套口径各自为战",
+    "7. 【口径】\"每客户月收入\"（registry.ts:195）未限定是新客 cohort 口径还是全客户 ARPU 均值——用全客户均值会让老客收入摊薄新客回收期，回本月数失真",
+    "8. 【家族共性】无输入记忆（投放复盘高频回访场景每次重填）、结果不可单值复制（CalcTool.vue:10、:55-66）"
+   ],
+   "prescriptions": [
+    "判定行",
+    "churn 真口径",
+    "假设披露（若保留近似）",
+    "空态守卫",
+    "互链"
+   ],
+   "benchmarks": [
+    "baremetrics",
+    "ProfitWell"
+   ],
+   "short": "- 短期（1 周）：删除死代码或接 churn 字段复活真口径；36 月假设入 note；空态守卫",
+   "mid": "- 中期（1 月）：健康判定行（比值+回本双达标）；ltv-calculator 透传互链；月流失率可选字段",
+   "long": "- 远期：渠道拆分录入（付费/内容/转介绍）与 paid CAC；归入\"SaaS 指标面板\"（baremetrics 式整合）"
+  },
+  {
+   "file": "cash-flow-calculator",
+   "name": "现金流预测",
+   "slug": "cash-flow-calculator",
+   "score": 68,
+   "dims": {
+    "func": 15,
+    "usab": 13,
+    "val": 13,
+    "iact": 10,
+    "ui": 8,
+    "soul": 9,
+    "perf": 8,
+    "mob": 5
+   },
+   "head": [
+    "分类：商业SaaS｜模式：自定义（顶部参数 + 可编辑月度明细表 + canvas 现金曲线，单列流）｜组件：`src/tools/business/components/CashFlowProjection.vue`（全文 212 行）｜注册：`src/tools/business/registry.ts:181-186`｜图表：`src/lib/chartEngine`（renderChart）",
+    "对标标杆：baremetrics（现金/跑道指标面板整合标杆）＋ Omnicalculator（现金流预测器口径参照）"
+   ],
+   "mode": "自定义（顶部参数 + 可编辑月度明细表 + canvas 现金曲线，单列流）",
+   "bench": "baremetrics（现金/跑道指标面板整合标杆）＋ Omnicalculator（现金流预测器口径参照）",
+   "conclusion": "**交互优化** · P1",
+   "judge": "判据：无 M-19 级硬伤，68 分接近良好线；差距集中在持久化、跑道判定、移动端表格三项确定性改造，拓展项（增长建模/场景对比）为辅。",
+   "deductions": [
+    "1. 【交互】无场景持久化：cash0/defIncome/defExpense/rows 全部内存态（CashFlowProjection.vue:16-22），逐月手调后刷新即丢——本工具输入格 72+，丢失成本比 4 字段 calc 家族高一个量级",
+    "2. 【功能】无显式跑道判定：最低现金点磁贴（:152-156）给了金额与月份，但缺\"预计 X 月现金转负、距现在 N 个月\"判定文案；burn-rate-calculator 已有\"预计现金耗尽+健康状态行\"（registry.ts:276-278），两工具未互补",
+    "3. 【可用性】\"把默认值应用到所有月份\"无确认即覆盖（:34-37）：手调过 12 个月后点击，全部月度编辑静默清空，toast 在覆盖之后才出现——破坏性操作无二次确认",
+    "4. 【可用性-共性】明细表受 `.table-wrap` max-height 520px 钉死（base.css:362-367，共性-根因2），36 月视图在小窗内滚动；图表盒 300px 钉高（:210）——本工具图表是主输出，应优先享弹性高度",
+    "5. 【功能】无增长/季节性建模：月收入只能逐月手填或全量统一（:27、:34-37），burn-rate 有 growth 字段（registry.ts:264）本工具反而没有；无季节系数",
+    "6. 【功能】无场景对比与导入：乐观/悲观两套预测并排缺席；CSV 有导出（:94-99）无导入，闭环断半截",
+    "7. 【可用性】months 滑杆调小月数时直接 slice 截断 rows（:28），被截断月份的手调数据静默丢失且无撤销提示",
+    "8. 【交互】负现金月份无行动出口（如\"细算跑道 → burn-rate-calculator\"联动），红灯亮了但没给下一步"
+   ],
+   "prescriptions": [
+    "场景持久化",
+    "跑道判定磁贴",
+    "覆盖确认",
+    "增长率批量器",
+    "移动端降列"
+   ],
+   "benchmarks": [
+    "baremetrics",
+    "Omnicalculator"
+   ],
+   "short": "- 短期（1 周）：场景 localStorage 持久化；覆盖确认弹层；跑道判定磁贴；burn-rate 互链",
+   "mid": "- 中期（1 月）：月增长率%批量填充（复用未编辑行概念）；CSV 导入还原场景；≤560px 表格降列",
+   "long": "- 远期：A/B 场景对比（双曲线叠加）；与 burn-rate/mrr 合并\"现金与增长工作台\""
+  },
+  {
+   "file": "churn-rate-calculator",
+   "name": "流失率计算器",
+   "slug": "churn-rate-calculator",
+   "score": 56,
+   "dims": {
+    "func": 9,
+    "usab": 12,
+    "val": 11,
+    "iact": 9,
+    "ui": 7,
+    "soul": 8,
+    "perf": 9,
+    "mob": 7
+   },
+   "head": [
+    "分类：商业SaaS｜模式：B（CalcTool 表单 + 结果行，calcDef 家族）｜组件：`src/components/common/CalcTool.vue`（117 行，67 工具共用）｜注册：`src/tools/business/registry.ts:215-242`",
+    "对标标杆：baremetrics（Churn/留存指标面板标杆）＋ ProfitWell（logo churn vs dollar churn 双口径参照，云）"
+   ],
+   "mode": "B（CalcTool 表单 + 结果行，calcDef 家族）",
+   "bench": "baremetrics（Churn/留存指标面板标杆）＋ ProfitWell（logo churn vs dollar churn 双口径参照，云）",
+   "conclusion": "**需拓展 + 交互优化** · P1",
+   "judge": "判据：相比 baremetrics 缺周期切换/年化/净流失（拓展差距）；空态\"0.00% 完美留存\"属误导性输出需守卫（交互优化）。",
+   "order": "整改优先序：空态守卫 > 周期切换与年化换算 > 三态判定行 > ltv 透传互链 > 净流失口径。",
+   "deductions": [
+    "1. 【可用性】空态谎报完美留存：start 留空时 `start > 0` 为 false，churn 直接按 0 计算（registry.ts:229），主结果\"客户流失率 0.00%\"+\"客户留存率 100%\"——未输入却得到一个看似真实的\"零流失\"结论；BIZ 家族共性（NaN 守卫不拦 0，CalcTool.vue:25-28）在本工具表现最误导，对照 break-even 定向守卫实践（registry.ts:108-110）",
+    "2. 【口径】周期声明缺位：字段只写\"期内流失\"，note（:240）与健康线却按\"月流失率\"解读——用户拿季度/年度数据填入即被按月口径误判健康度；月→年化换算 1−(1−m)^12 与年→月反解 1−(1−y)^(1/12) 完全没有（无切换器也无换算行）",
+    "3. 【口径】与 LTV 家族口径无法互认：ltv-calculator 的 1/churn 口径要求月流失率（registry.ts:170），本工具无周期声明、无透传——cac-calculator（36 月近似）、ltv（1/churn）、本工具（无周期）三套口径同站分裂（cac-calculator.md 扣分点 2 已记），用户在三个工具得到三个互相矛盾的结论",
+    "4. 【可用性】边界无校验：lost 填负数→留存率 120%；lost > start→流失率 200% 照算渲染，垃圾进出无拦截（:229-233）",
+    "5. 【功能】无净流失口径：流失率未扣除回流客户（reactivation），baremetrics/ProfitWell 报 gross 与 net churn 双值；收入流失率也无扩张抵消的净收入留存视角（mrr-calculator 有 NRR，本工具未链接）",
+    "6. 【功能】无判定着色与阈值行：流失率算出后无\"健康/关注/危险\"三态结论——同站 burn-rate（registry.ts:278）、mrr-calculator 流失率磁贴着色（MrrCalculator.vue:131）均有实践",
+    "7. 【家族共性】无输入记忆、结果不可单值复制（CalcTool.vue:10、:55-66，见 loan-calculator.md）"
+   ],
+   "prescriptions": [
+    "空态守卫",
+    "周期切换与年化",
+    "三态判定行",
+    "边界校验",
+    "口径互认"
+   ],
+   "benchmarks": [
+    "baremetrics",
+    "ProfitWell"
+   ],
+   "short": "- 短期（1 周）：start/lost 空态引导行；lost 范围校验（0 ≤ lost ≤ start）；note 补\"输入期为月/请在月度数据上使用\"",
+   "mid": "- 中期（1 月）：周期选择器（月/季/年）+ 年化换算行\"折算年流失率 = 1−(1−月流失)^12\"；三态判定着色；与 ltv-calculator 透传月流失率",
+   "long": "- 远期：按月历史序列录入（多期对比）；与 mrr/cohort/ltv/cac 组成\"SaaS 指标面板\"（baremetrics 式整合）"
+  },
+  {
+   "file": "cohort-retention-calculator",
+   "name": "同期群留存分析",
+   "slug": "cohort-retention-calculator",
+   "score": 68,
+   "dims": {
+    "func": 14,
+    "usab": 13,
+    "val": 13,
+    "iact": 11,
+    "ui": 8,
+    "soul": 9,
+    "perf": 8,
+    "mob": 5
+   },
+   "head": [
+    "分类：商业SaaS｜模式：自定义（粘贴 CSV → 热力矩阵 + 平均留存曲线，单列流）｜组件：`src/tools/business/components/CohortRetention.vue`（全文 188 行）｜注册：`src/tools/business/registry.ts:250-253`｜图表：`src/lib/chartEngine`｜导出：`src/lib/officeEngine`（rowsToXlsx）",
+    "对标标杆：baremetrics（留存同期群面板标杆）＋ Amplitude/混同类型产品的 cohort 曲线对照（云）"
+   ],
+   "mode": "自定义（粘贴 CSV → 热力矩阵 + 平均留存曲线，单列流）",
+   "bench": "baremetrics（留存同期群面板标杆）＋ Amplitude/混同类型产品的 cohort 曲线对照（云）",
+   "conclusion": "**交互优化** · P1",
+   "judge": "判据：无 M-19 级硬伤、68 分贴近良好线；量纲失配守卫、粒度切换、弹性图表高度为确定性改造，逐群组曲线为拓展项。",
+   "deductions": [
+    "1. 【可用性】量纲失配零守卫（CohortRetention.vue:66）：工具假设输入为 0~100 的留存率%，notice（:108）只说\"留存率\"未声明\"首列应为 100、值域 0~100\"——用户粘贴绝对留存人数时热力色全钳最深、曲线轴爆表，输出完全失义且无任何警告；对照同站 break-even 的 cm≤0 定向守卫实践（registry.ts:108-110）",
+    "2. 【功能】无周期粒度切换：notice 写死\"第 0、1、2…月\"（:108），周队列/日队列产品无法使用，列头标签无法自定义单位",
+    "3. 【可用性-共性】热力表受 `.table-wrap` max-height 520px 钉死（base.css:362-367，共性-根因2）；图表盒 300px 钉高（:186）——本工具主输出恰是表格与曲线双可视化，应优先享弹性高度（对照 cash-flow-calculator.md 扣分点 4 同症）",
+    "4. 【美观】短群组行不满宽：数据行只渲染 values.length 个单元格（:139-144），行尾缺失月份无\"—\"占位，与 maxLen 宽的表头/均值行对照参差错位",
+    "5. 【交互】须手动点击\"生成\"：paste 后不自动解析（parse 仅由按钮触发，:118），对照站内 TextTool 家族 watch 自动执行的既省一步实践（CalcTool.vue:39-40 同理）",
+    "6. 【功能】平均曲线只有一条：无逐群组曲线叠加/对比模式——\"老群组曲线整体高于新群组\"正是留存恶化的第一信号，Amplitude 类面板的曲线对比是标配",
+    "7. 【交互】解析结果不入 localStorage：刷新丢输入与矩阵，复盘高频回访场景每次重贴",
+    "8. 【功能】无解读层：平均行算出后无\"第 N 月平均留存 X%，低于上群组同期 Y pp\"的自动洞察，颜色靠用户自读"
+   ],
+   "prescriptions": [
+    "量纲守卫",
+    "粒度切换",
+    "弹性高度",
+    "短行占位",
+    "曲线对比开关"
+   ],
+   "benchmarks": [
+    "baremetrics",
+    "Amplitude / 混同 cohort 图表惯例"
+   ],
+   "short": "- 短期（1 周）：量纲校验（首列≠100 或值>100 时 toast 警告并询问是否按最大值归一化）；短行补\"—\"占位；粒度选择（月/周改列头文案）",
+   "mid": "- 中期（1 月）：逐群组曲线叠加开关；颜色图例条（浅→深对应 0→100）；localStorage 场景保存；粘贴自动解析",
+   "long": "- 远期：从 mrr-calculator 档位数据反向生成留存输入；与 churn-rate/mrr 组成\"SaaS 指标面板\"的留存页签"
+  },
+  {
+   "file": "email-signature-generator",
+   "name": "邮件签名生成器",
+   "slug": "email-signature-generator",
+   "score": 58,
+   "dims": {
+    "func": 9,
+    "usab": 11,
+    "val": 12,
+    "iact": 11,
+    "ui": 7,
+    "soul": 8,
+    "perf": 9,
+    "mob": 7
+   },
+   "head": [
+    "分类：商业SaaS｜模式：自定义（左表单 + 右实时预览双栏，flex wrap）｜组件：`src/tools/business/components/EmailSignatureGenerator.vue`（全文 100 行）｜注册：`src/tools/business/registry.ts:345`｜复制链：ClipboardItem 富文本 → 纯文本降级（:45-53，设计文档 §八契约）",
+    "对标标杆：HubSpot Email Signature Generator（模板/社交图标标杆）＋ WiseStamp（签名模板库与图标行标杆）"
+   ],
+   "mode": "自定义（左表单 + 右实时预览双栏，flex wrap）",
+   "bench": "HubSpot Email Signature Generator（模板/社交图标标杆）＋ WiseStamp（签名模板库与图标行标杆）",
+   "conclusion": "**交互优化 + 需拓展** · P1",
+   "judge": "判据：暗色主题预览不可读属输出区可读性缺陷（交互优化）；社交图标/logo/模板库与 HubSpot/WiseStamp 差距属拓展（可与交互优化组合）。",
+   "deductions": [
+    "1. 【可用性】暗色主题预览不可读（EmailSignatureGenerator.vue:80、:97 + tokens.css:4-27）：签名 HTML 全部内联深色文字（姓名 #111827、正文 #374151、标签 #6b7280，:25-37）且表格未设背景色，preview-box 亦无白底——深色为站点默认主题（tokens.css:4 注释\"深色主题（默认）\"），首访用户看到的是深灰字压深蓝底，核心输出区（预览）近乎隐形",
+    "2. 【功能】社交图标行缺席（:26-32 rows 仅电话/邮箱/网址）：HubSpot/WiseStamp 的 LinkedIn/X/WhatsApp/网站图标行是商务签名标配，且图标行是\"风格个性化\"的主要载体——本工具连外链文字行外的任何社交维度都没有",
+    "3. 【功能】模板多样性不足：3 个\"风格\"实为同一模板的 3 种分隔变体（侧色条=嵌套表格左边框、分隔线、极简留白，:20-24），字体/排版/结构完全相同；WiseStamp 有数十套行业模板（法务/地产/电商）",
+    "4. 【交互】无持久化与导出：7 字段+风格全内存态（:8-15）刷新即丢；无\"下载签名 .html\"或\"复制 HTML 源码\"出口——手动改签名的用户没有抓手",
+    "5. 【交互】降级链两级而非三级：ClipboardItem 失败后直接 writeText 纯文本（:49-52），无 execCommand('copy') 中间层——非安全上下文（http）或 clipboard API 整体不可用时两级全败只弹\"复制失败\"，与设计文档声明的降级路径验证结论：富文本优先+纯文本降级属实，execCommand 层缺失",
+    "6. 【口径】纯文本降级残留 HTML 实体（:47）：row() 用 `&nbsp;` 排版标签与值间距（:27），剥标签正则 `/<[^>]+>/g` 不处理实体——纯文本产物含字面 \"&nbsp;\" 字符（如\"电话&nbsp;&nbsp;138-0000-0000\"），粘贴到纯文本编辑器可见",
+    "7. 【功能】字段固定无扩展：rows 数组硬编码三项（:28-32），不能添加地址/部门/slogan 行，也不能调整行序",
+    "8. 【美观】640px 断点自成体系（:99），与全站 900/760/560 断点碎片化并存（共性-根因5），跨工具切换布局时机不一"
+   ],
+   "prescriptions": [
+    "暗色预览修复",
+    "社交图标行",
+    "下载与源码",
+    "持久化",
+    "纯文本降级净化"
+   ],
+   "benchmarks": [
+    "HubSpot Email Signature Generator",
+    "WiseStamp"
+   ],
+   "short": "- 短期（1 周）：preview-box 固定白底或签名 HTML 补背景色；`&nbsp;` 实体替换为空格字符；localStorage 持久化；下载 .html 按钮",
+   "mid": "- 中期（1 月）：社交图标行（2~6 个可开关，SVG 内联 base64 保证邮件客户端兼容）；3~5 套行业模板预设；自定义附加行（+添加行）；execCommand 降级层",
+   "long": "- 远期：多签名管理（命名保存/切换）；vCard 联动（站内 vcard-generator 素材复用）；签名\"测试发送到我的邮箱\"指引页"
+  },
+  {
+   "file": "freelance-rate-calculator",
+   "name": "自由职业报价计算",
+   "slug": "freelance-rate-calculator",
+   "score": 61,
+   "dims": {
+    "func": 11,
+    "usab": 13,
+    "val": 12,
+    "iact": 10,
+    "ui": 7,
+    "soul": 8,
+    "perf": 9,
+    "mob": 7
+   },
+   "head": [
+    "分类：商业SaaS｜模式：B（CalcTool 表单 + 结果行，calcDef 家族）｜组件：`src/components/common/CalcTool.vue`（117 行，67 工具共用）｜注册：`src/tools/business/registry.ts:70-95`",
+    "对标标杆：Omnicalculator（Freelance Hourly Rate Calculator：含税率/可计费率/休假系数）＋ Upwork 市场费率指引（经验档区间参照，云）"
+   ],
+   "mode": "B（CalcTool 表单 + 结果行，calcDef 家族）",
+   "bench": "Omnicalculator（Freelance Hourly Rate Calculator：含税率/可计费率/休假系数）＋ Upwork 市场费率指引（经验档区间参照，云）",
+   "conclusion": "**需拓展 + 交互优化** · P1",
+   "judge": "判据：相比 Omnicalculator 缺税负/可计费率/休假三个关键系数（拓展差距明显）；无可用性硬伤，交互优化为辅。",
+   "deductions": [
+    "1. 【口径-硬伤】税负系数完全缺席（registry.ts:75-93）：\"目标年净收入\"未定义是税前还是到手；自由职业者自缴个税+社保通常占收入 10%~25%，公式（:84-85）无任何税后上浮系数——按\"到手 30 万\"报价会直接报低一个税档；note（:93）只字未提税，违反金融/商业 note 口径硬要求",
+    "2. 【口径】休假系数隐含未说明：weeks 默认 46（:79）≈52−6 周休假，note 未披露\"已预留约 6 周\"，用户不知道该不该改；标杆把 time off（假日/病假周）做成独立输入",
+    "3. 【口径】日薪=时薪×8（registry.ts:88）未披露：自由职业可计费日常为 6~7 小时（会议/返工占用），8 小时直接外推偏高",
+    "4. 【口径】利润率作用于\"收入+开销\"整体（:85）：利润实际=15%×总收入而非 15%×净收入目标，语义易误读——note 公式已披露故不算隐瞒，但缺一句人话解释",
+    "5. 【功能】缺报价区间与场景输出：无保守/标准/溢价三档（经验分层）、无周/月/项目价、无市场区间对照（可用静态区间表诚实实现）",
+    "6. 【可用性】空态无守卫：income 留空渲染 ¥0 主结果行（:82-85，CalcTool.vue:25-28 不拦 0）",
+    "7. 【交互】\"每周可计费小时\"默认 25（registry.ts:78）隐含约 50% 利用率假设（40 小时工作仅一半可计费）但无说明——新手把总工时当可计费工时填 40，时薪被系统性压低",
+    "8. 【家族共性】无输入记忆（比价复报场景每次重填）、结果不可单值复制（CalcTool.vue:10、:55-66）"
+   ],
+   "prescriptions": [
+    "税负系数",
+    "口径三披露",
+    "空态守卫",
+    "三档区间",
+    "周价/月价"
+   ],
+   "benchmarks": [
+    "Omnicalculator（Freelance Hourly Rate）",
+    "Upwork 费率指引"
+   ],
+   "short": "- 短期（1 周）：note 三披露（46 周含义/日薪 8h 口径/收入口径）；空态守卫；结果单值复制",
+   "mid": "- 中期（1 月）：税负率字段+税后上浮公式；保守/标准/溢价三档时薪；周价/月价行",
+   "long": "- 远期：报价单导出（PDF，复用打印方案）；静态市场区间对照表（按岗位/经验档）"
+  },
+  {
+   "file": "ltv-calculator",
+   "name": "客户终身价值 LTV",
+   "slug": "ltv-calculator",
+   "score": 59,
+   "dims": {
+    "func": 10,
+    "usab": 13,
+    "val": 11,
+    "iact": 9,
+    "ui": 7,
+    "soul": 9,
+    "perf": 9,
+    "mob": 7
+   },
+   "head": [
+    "分类：商业SaaS｜模式：B（CalcTool 表单 + 结果行，calcDef 家族）｜组件：`src/components/common/CalcTool.vue`（117 行，67 工具共用）｜注册：`src/tools/business/registry.ts:157-180`",
+    "对标标杆：baremetrics（LTV/Churn 指标面板标杆）＋ ProfitWell（订阅指标口径参照，云）"
+   ],
+   "mode": "B（CalcTool 表单 + 结果行，calcDef 家族）",
+   "bench": "baremetrics（LTV/Churn 指标面板标杆）＋ ProfitWell（订阅指标口径参照，云）",
+   "conclusion": "**需拓展 + 交互优化** · P1",
+   "judge": "判据：相比 baremetrics 缺 LTV:CAC 同屏与指标联动（拓展差距明显）；churn 边界失控属可用性缺陷需交互优化。",
+   "deductions": [
+    "1. 【功能】健康线不能自证（registry.ts:178）：note 写\"健康线为 LTV ≥ 3 × CAC\"，工具却没有 CAC 字段、没有比值行——baremetrics 面板的灵魂正是 LTV:CAC 同屏；cac-calculator 用 36 个月硬编码近似（registry.ts:208），两工具各自半截零互链，SaaS 指标家族（LTV/CAC/Churn/MRR 互引）愿景完全落空",
+    "2. 【可用性】churn=0 静默按 999 个月上限计算（registry.ts:170）：ARPU 100/毛利 80% 时主结果 ¥79,920，仅生命周期行小字提示\"极长\"——主数值荒谬且无行内警告",
+    "3. 【可用性】churn 负值无校验（registry.ts:168）：填 −3 得生命周期\"−33.3 个月\"、LTV 负值，垃圾进出无拦截",
+    "4. 【口径】简单口径局限未披露：公式假设\"月流失恒定、无扩容收入（expansion revenue）、无折现\"，note（:178）只写公式——baremetrics/ProfitWell 对口径简化均有明示",
+    "5. 【功能】无年/月流失率切换：年报口径（年流失 30%）需自行换算月率（≈2.9%），无切换器也无换算提示；无折扣率（折现 LTV）进阶口径",
+    "6. 【交互】与 churn-rate-calculator（registry.ts:214-242）零联动零透传：月流失率应可从兄弟工具一键带入",
+    "7. 【可用性】空态即触发护栏误报：churn 未填（Number('')→0）直接走\"极长（流失率过低）\"分支（registry.ts:168-175），首屏\"¥0 主结果+极长文案\"互相打架",
+    "8. 【家族共性】无输入记忆、结果不可单值复制（CalcTool.vue:10、:55-66，见 loan-calculator.md）"
+   ],
+   "prescriptions": [
+    "LTV:CAC 同屏",
+    "churn 校验",
+    "年/月切换",
+    "口径披露",
+    "互链"
+   ],
+   "benchmarks": [
+    "baremetrics",
+    "ProfitWell"
+   ],
+   "short": "- 短期（1 周）：churn 校验（0<x<50）；note 补口径局限；与 churn-rate/cac 互链",
+   "mid": "- 中期（1 月）：CAC 可选字段+LTV:CAC 三态判定行；年/月流失率切换器",
+   "long": "- 远期：折现 LTV（折扣率字段）；收入流失口径；与 churn-rate/mrr/cohort-retention 组成\"SaaS 指标面板\"（baremetrics 式整合）"
+  },
+  {
+   "file": "mrr-calculator",
+   "name": "MRR / ARR 计算器",
+   "slug": "mrr-calculator",
+   "score": 64,
+   "dims": {
+    "func": 13,
+    "usab": 13,
+    "val": 12,
+    "iact": 9,
+    "ui": 8,
+    "soul": 9,
+    "perf": 8,
+    "mob": 5
+   },
+   "head": [
+    "分类：商业SaaS｜模式：自定义（双 Tab：订阅档位表 + MRR 变动磁贴，单列流）｜组件：`src/tools/business/components/MrrCalculator.vue`（全文 209 行）｜注册：`src/tools/business/registry.ts:244-248`",
+    "对标标杆：baremetrics（MRR 分解指标面板标杆）＋ ProfitWell（新增/扩张/收缩/流失四分解口径参照，云）"
+   ],
+   "mode": "自定义（双 Tab：订阅档位表 + MRR 变动磁贴，单列流）",
+   "bench": "baremetrics（MRR 分解指标面板标杆）＋ ProfitWell（新增/扩张/收缩/流失四分解口径参照，云）",
+   "conclusion": "**交互优化** · P1（含疑似功能问题：NRR 口径把新增 MRR 计入留存，属高估留存的真实口径错误，应优先修复）",
+   "judge": "判据：无 M-19 级硬伤、预填与着色实践良好；NRR 口径错误是正确性问题（修复后 64→66+），持久化与导出为确定性改造。",
+   "deductions": [
+    "1. 【疑似功能问题-口径】NRR 把新增 MRR 算进留存率（MrrCalculator.vue:37-41）：`nrr = (start + netNew)/start` 而 netNew 含 newMrr（:37）——真实净收入留存率应剔除新客，只算 (扩张−收缩−流失)；按默认值验证：start 100000/new 5000/expand 2000/contract 800/churn 1200 时工具报 105.0%，真 NRR 是 100.0%，高估恰好 5 个百分点（=新客/期初）；代码注释自认\"近似\"（:40）但 UI 无披露，且 :137 的解释\"扩张能抵消流失\"在新客推高时失真",
+    "2. 【交互】零持久化：tiers 三档（:12-16）与 moves 五输入（:31-35）全内存态，月度复盘场景刷新即丢——对照 cash-flow-calculator 同类问题（cash-flow-calculator.md 扣分点 1）与站内 resume-builder 草稿自动保存实践（ResumeBuilder.vue:49-51）",
+    "3. 【功能】变动模式缺\"净增长率\"行：净新增 MRR ÷ 期初 MRR = MoM 增长率是 baremetrics 面板首屏第一指标，工具已有两个除数却没做这一行",
+    "4. 【功能】无变动瀑布图：新增/扩张/收缩/流失四分解的瀑布图是该品类的标准可视化（baremetrics/ProfitWell 均有），本工具只有 4 个输入格+1 个净额磁贴，分解维度\"看得见输入、看不见形状\"",
+    "5. 【功能】年付折算只有 hint（:108\"年付价÷12\"）没有输入支持：档位表无\"计费周期\"列，年付客户需手动换算再填",
+    "6. 【可用性-共性】档位明细表 table-wrap 520px 钉死（base.css:362-367，共性-根因2），档位多时小窗内滚",
+    "7. 【可用性】空档位行渲染 ¥0：添加档位默认 price/count=0（:17），表格出现\"MRR ¥0\"行无任何提示，与档位汇总合计行并列时干扰读数",
+    "8. 【家族共性】结果不可单值复制（MRR/ARR 主磁贴无复制按钮，:70-83）；工具与 churn-rate/ltv/cac 零互链，MRR 家族愿景（baremetrics 式指标面板）现状是两个孤立 Tab"
+   ],
+   "prescriptions": [
+    "NRR 修复",
+    "持久化",
+    "净增长率行",
+    "瀑布图",
+    "空档位守卫"
+   ],
+   "benchmarks": [
+    "baremetrics",
+    "ProfitWell"
+   ],
+   "short": "- 短期（1 周）：NRR 公式改为 (start+expand−contract−churn)/start 并在 hint 披露\"不含新增\"；tiers+moves 入 localStorage；磁贴加一键复制",
+   "mid": "- 中期（1 月）：净增长率行；四分解瀑布图（复用 chartEngine 柱状堆叠）；档位表\"计费周期\"列（月/年自动折算）；CSV 导出",
+   "long": "- 远期：按月历史录入与 MRR 趋势曲线；与 churn-rate/ltv/cac 组成\"SaaS 指标面板\""
+  },
+  {
+   "file": "profit-margin-calculator",
+   "name": "利润率计算器",
+   "slug": "profit-margin-calculator",
+   "score": 60,
+   "dims": {
+    "func": 11,
+    "usab": 12,
+    "val": 12,
+    "iact": 10,
+    "ui": 7,
+    "soul": 8,
+    "perf": 9,
+    "mob": 7
+   },
+   "head": [
+    "分类：商业SaaS｜模式：B（CalcTool 表单 + 结果行，calcDef 家族）｜组件：`src/components/common/CalcTool.vue`（117 行，67 工具共用）｜注册：`src/tools/business/registry.ts:122-155`",
+    "对标标杆：Omnicalculator（Margin/Markup Calculator：双口径对照与互转标杆）"
+   ],
+   "mode": "B（CalcTool 表单 + 结果行，calcDef 家族）",
+   "bench": "Omnicalculator（Margin/Markup Calculator：双口径对照与互转标杆）",
+   "conclusion": "**交互优化 + 需拓展** · P1（含疑似功能问题）",
+   "judge": "判据：¥∞ 属疑似功能问题应优先修复（P1 之首）；无 M-19 级可用性硬伤，拓展方向为三率纵深与阶梯表。",
+   "deductions": [
+    "1. 【疑似功能问题】目标毛利率 ≥100 时建议售价为\"¥∞\"（registry.ts:145 cost÷(1−100/100)=Infinity；money 的 toLocaleString 渲染为\"∞\"，CalcTool.vue:25-28 守卫正则匹配不到本地化符号而漏拦）——填 100 或 150 得到无穷售价，无任何拦截或解释",
+    "2. 【可用性】双模式优先级静默（registry.ts:134、:144）：售价与目标毛利率同填时静默走售价分支，用户以为在反推实际在正算；无\"已按售价优先计算\"提示",
+    "3. 【功能】无净利率：标题\"利润率计算器\"仅覆盖毛利/加价（desc :124 已限定），缺毛利/营业/净利三率对照；也无与毛利率反推对称的\"目标加价率反推\"",
+    "4. 【功能】无价格阶梯表：\"成本加价 20%/50%/100% 各对应售价与毛利率\"的对照表是定价决策更常用的形态，本工具只有单点计算",
+    "5. 【口径】note 双公式合格（registry.ts:154）但缺两者换算关系（加价率=毛利率÷(1−毛利率)）——知道\"是两个东西\"但不告诉\"怎么换算\"，防混淆半途而废",
+    "6. 【交互】\"验证毛利率\"行仅回显输入（registry.ts:149 pct(Number(v.targetMargin))），零信息占位，浪费结果区",
+    "7. 【可用性】cost 留空时输出\"单件利润 ¥100 / 毛利率 — / 加价率 — / 成本占比 0.00%\"半残行组（registry.ts:134-142，cost=0 走 '—' 分支），无\"请先填成本\"定向提示",
+    "8. 【家族共性】无输入记忆、结果不可单值复制（CalcTool.vue:10、:55-66，见 loan-calculator.md）"
+   ],
+   "prescriptions": [
+    "修复 ¥∞（疑似功能问题）",
+    "margin↔markup 换算行",
+    "双填冲突提示",
+    "价格阶梯表",
+    "删除冗余行"
+   ],
+   "benchmarks": [
+    "Omnicalculator（Margin/Markup）",
+    "Calculator.net 类 margin 工具"
+   ],
+   "short": "- 短期（1 周）：¥∞ 拦截；双填 hint；删除/替换回显行；note 补换算关系",
+   "mid": "- 中期（1 月）：目标加价率反推分支；价格阶梯表（3~5 档）；营业/净利率三率对照（需增费用字段）",
+   "long": "- 远期：与 break-even/saas-pricing 合并\"定价工作台\"（正反定价+平衡点+阶梯表一页）"
+  },
+  {
+   "file": "resume-builder",
+   "name": "简历生成器",
+   "slug": "resume-builder",
+   "score": 53,
+   "dims": {
+    "func": 9,
+    "usab": 8,
+    "val": 12,
+    "iact": 9,
+    "ui": 7,
+    "soul": 8,
+    "perf": 7,
+    "mob": 5
+   },
+   "head": [
+    "分类：商业SaaS｜模式：自定义（双栏表单+sticky A4 预览，≤900px 塌单列——`ResumeBuilder.vue:173-174`）｜组件：`src/tools/business/components/ResumeBuilder.vue`（全文 234 行）｜导出：window.print + body.print-resume CSS 隔离方案（:54-64、:222-231）",
+    "对标标杆：超级简历 wondercv / FlowCV（分步向导+模板库+实时预览标杆）＋ ResumeWorded（ATS 评分，云 AI，**架构天花板**）"
+   ],
+   "mode": "自定义（双栏表单+sticky A4 预览，≤900px 塌单列——`ResumeBuilder.vue:173-174`）",
+   "bench": "超级简历 wondercv / FlowCV（分步向导+模板库+实时预览标杆）＋ ResumeWorded（ATS 评分，云 AI，**架构天花板**）",
+   "conclusion": "**交互优化 + 需拓展** · P0（导出按钮 2.2 屏外，M-19 实测）",
+   "judge": "判据：可用性 8/20 触发硬伤红线——生成简历的终点动作（导出）恰恰藏在第 2 屏末尾；与 wondercv/FlowCV 的\"分步向导\"差距属需拓展（模板库/分区管理）。",
+   "order": "整改优先序：导出栏 sticky（P0，一周内可落地）→ 分步向导+示例填充（P1）→ 分区显隐/紧凑模板（P1）→ 启发式 ATS 检查（P2）。",
+   "deductions": [
+    "1. 【可用性-硬伤】\"打印 / 另存 PDF\"按钮位于表单列末尾（`ResumeBuilder.vue:129-132`），实测 top=1673、页面总高 2402（M-19）——用户填完最后一栏还要向上找按钮；全站唯一核心动作在 2 屏外的工具（共性-根因 4 极端案例）",
+    "2. 【可用性】A4 预览 `aspect-ratio: 210/297` + 字号 12.5px（:194-204）在 ~430px 列宽下缩印后正文仅 ~6px 等效，且 sticky 预览被 ToolPage 300px 侧栏进一步挤压（ToolPage.vue:158-168，共性-根因 3）——\"实时预览\"名存实亡",
+    "3. 【功能】无分步向导：wondercv 把\"基本信息→教育→工作→技能→预览导出\"拆成 5 步防挫败，本工具 2402px 长表单一屏到底（M-19），中途放弃率高",
+    "4. 【交互】工作要点超出 3 条被静默截断（`workPoints` `slice(0,3)`，ResumeBuilder.vue:39）——用户输入第 4 条后导出，发现内容丢了且无任何警告（疑似功能问题：应即时提示或放开上限）",
+    "5. 【功能】无模板/版式变化：仅 3 个主题色按钮（:123-127），无字体字号、无分区显隐（学生党隐藏工作经历都要靠留空）、无示例内容一键填充（空态=全白输入框劝退）",
+    "6. 【灵魂】超一页 A4 无分页提示——简历超过一页在 HR 场景是减分项，本工具既不提示也不提供\"精简模式\"",
+    "7. 【交互】教育/工作经历无拖拽排序、无\"复制上一条\"（多段经历重复输入公司格式时繁琐）",
+    "8. 【交互】电话/邮箱无格式校验（placeholder 提示而已），打印前只查姓名非空（:55-57）——导出的 PDF 里留一个残缺联系方式是简历场景的低级失误",
+    "9. 【功能】排版零可调：主题色仅改预览标题色（:19 `--rv` 注入），字号/行距/边距全部锁死，内容超一页时用户没有任何\"紧凑排版\"手段可用"
+   ],
+   "prescriptions": [
+    "导出栏 sticky",
+    "分步向导",
+    "示例一键填充",
+    "截断警告",
+    "分页提示",
+    "分区显隐",
+    "基础校验"
+   ],
+   "benchmarks": [
+    "超级简历 wondercv",
+    "FlowCV",
+    "ResumeWorded（云 AI）"
+   ],
+   "short": "- 短期（1 周）：导出按钮改 sticky 底栏或表单列顶部；预览列在本工具内收窄 ToolPage 侧栏（ studio 化处理或临时加宽）；内容超一页时预览角标提示\"超出 1 页\"",
+   "mid": "- 中期（1 月）：分步向导（el stepper 即可，数据结构不变）；2~3 套模板（经典/紧凑/技术型）+分区显隐开关；示例简历一键填充（学生版/社招版两套）",
+   "long": "- 远期：启发式 ATS 检查（数字占比/动词开头/长度）；docx 导出（复用 officeEngine）；多简历档案管理（localStorage 多份草稿切换）"
+  },
+  {
+   "file": "roi-calculator",
+   "name": "ROI / ROAS 计算器",
+   "slug": "roi-calculator",
+   "score": 60,
+   "dims": {
+    "func": 11,
+    "usab": 13,
+    "val": 12,
+    "iact": 10,
+    "ui": 7,
+    "soul": 7,
+    "perf": 9,
+    "mob": 7
+   },
+   "head": [
+    "分类：商业SaaS｜模式：B（CalcTool 表单 + 结果行，calcDef 家族）｜组件：`src/components/common/CalcTool.vue`（117 行，67 工具共用）｜注册：`src/tools/business/registry.ts:40-69`",
+    "对标标杆：Omnicalculator（投资/营销回报分场景计算器，口径严谨）＋ baremetrics（SaaS 指标互链参照）"
+   ],
+   "mode": "B（CalcTool 表单 + 结果行，calcDef 家族）",
+   "bench": "Omnicalculator（投资/营销回报分场景计算器，口径严谨）＋ baremetrics（SaaS 指标互链参照）",
+   "conclusion": "**交互优化 + 需拓展** · P1",
+   "judge": "判据：无可用性硬伤（家族外壳 M-07 可达）；但净利口径/ROAS 适用条件/年化公式三项披露缺失触碰金融口径硬要求，cost=0 矛盾输出需修复。",
+   "deductions": [
+    "1. 【口径】\"净利润\"命名过强（registry.ts:57）：profit=收入−成本，仅当成本含货品/履约/人力等全部相关支出时才等于净利；note（:67）未限定成本口径，毛利/净利混淆是 ROI 类工具经典坑（站内 profit-margin-calculator 已有双口径对照实践可参照）",
+    "2. 【口径】ROAS 无条件输出（registry.ts:59）：ROAS 只在\"投入=广告支出\"语境有意义；用户填总投资时该行仍是收入/成本，语义错误却无任何提示；note 只写公式未写前提",
+    "3. 【可用性】cost=0/空时矛盾输出（registry.ts:53-54）：利润为正而 ROI/ROAS 双 0，自相矛盾且无引导行——NaN 守卫（CalcTool.vue:25-28）不拦 0",
+    "4. 【口径】年化公式未披露（registry.ts:62）：年化=(收入/成本)^(12/月数)−1 等价于按总 ROI 复利折算，note（:67）只有 ROI/ROAS 两式；另 Math.max(1, cost) 在 cost<1 元时静默失真",
+    "5. 【功能】缺场景分流与解读：投资回报（持有期）与营销投放（ROAS+转化）是两类决策，标杆按场景分模板；结果区无\"利润率（净利/收入）\"行，无法判断回报规模",
+    "6. 【可用性】revenue 留空时渲染\"净利润 −¥10000 / ROI −100.00%\"整行负值（registry.ts:52-54 无空守卫），与\"未填写\"状态不可区分",
+    "7. 【家族共性】无输入记忆、结果不可单值复制（CalcTool.vue:10、:55-66，见 loan-calculator.md）",
+    "8. 【灵魂】无示例预填、无负 ROI 时的改善方向解读；与 cac-calculator/ltv-calculator 指标互链为零（SaaS 指标家族愿景落空）"
+   ],
+   "prescriptions": [
+    "口径三补",
+    "cost 守卫",
+    "利润率行",
+    "场景预设",
+    "指标互链"
+   ],
+   "benchmarks": [
+    "Omnicalculator",
+    "baremetrics"
+   ],
+   "short": "- 短期（1 周）：note 口径三补；cost 守卫；利润率行；示例预填",
+   "mid": "- 中期（1 月）：投资/投放场景切换（投放场景隐藏年化、突出 ROAS 健康线 3×）；与 cac-calculator 透传联动",
+   "long": "- 远期：多期录入与 ROI 趋势（复用 chartEngine）；归入\"投放效果工作台\""
+  },
+  {
+   "file": "rule-of-40-calculator",
+   "name": "Rule of 40 计算器",
+   "slug": "rule-of-40-calculator",
+   "score": 55,
+   "dims": {
+    "func": 8,
+    "usab": 13,
+    "val": 10,
+    "iact": 9,
+    "ui": 7,
+    "soul": 8,
+    "perf": 9,
+    "mob": 7
+   },
+   "head": [
+    "分类：商业SaaS｜模式：B（CalcTool 表单 + 结果行，calcDef 家族）｜组件：`src/components/common/CalcTool.vue`（117 行，67 工具共用）｜注册：`src/tools/business/registry.ts:285-304`",
+    "对标标杆：Omnicalculator（Rule of 40 计算器含基准参照标杆）＋ Bessemer Venture Partners（\"Efficiency Score\"基准发布方，云数据）"
+   ],
+   "mode": "B（CalcTool 表单 + 结果行，calcDef 家族）",
+   "bench": "Omnicalculator（Rule of 40 计算器含基准参照标杆）＋ Bessemer Venture Partners（\"Efficiency Score\"基准发布方，云数据）",
+   "conclusion": "**需拓展 + 交互优化** · P1",
+   "judge": "判据：相比 Omnicalculator 缺基准参照与口径选择属拓展差距；空态宣判\"未达标\"是误导性输出需守卫。",
+   "order": "整改优先序：空态守卫 > 基准参照行 > 象限解读 > 利润率口径选择 > 达标配色。",
+   "deductions": [
+    "1. 【可用性】空态宣判未达标（registry.ts:294-299）：两字段留空时 Number('')=0→score=0→\"Rule of 40 得分 0.0 / ✗ 未达标 / 还差 40.0%\"——BIZ 家族共性（NaN 守卫不拦 0，CalcTool.vue:25-28）的最讽刺案例：什么都没填就被判不及格（对照 break-even 守卫 registry.ts:108-110）",
+    "2. 【功能】无基准参照披露（registry.ts:302 note 仅公式）：任务核心差距——上市 SaaS 的 Rule of 40 分布（中位约 30~40、头部 >60，Bessemer/Battery/KeyBanc 年度报告口径）完全缺席，\"45 分在同行里什么位置\"无处可答；Omnicalculator 同类计算器附参照区间",
+    "3. 【功能】利润率无口径选择：note 提了\"可用 EBITDA 率或自由现金流率\"（:302）却让用户自己换算，无下拉选择也无分母声明（收入口径），EBITDA 与 FCF 口径得分可差 10+ 分",
+    "4. 【口径】增长率周期未声明：YoY 与\"近一季度年化\"结果不同（高增长公司差 5~15 分），note 只写\"收入增长率%\"",
+    "5. 【灵魂】解读行模板化（:299）：不指出短板在哪一侧——增长 60%/利润 −20%（Bessemer 所谓 growth-heavy，融资叙事最优）与增长 10%/利润 10%（双低，最危险）同分 40，解读文案却完全相同",
+    "6. 【美观】达标无着色：\"✓ 达标/✗ 未达标\"（:297）纯文本字符，无绿/红配色；得分行裸数字无单位（:296）与差距行带 % 不一致",
+    "7. 【家族共性】无输入记忆、结果不可单值复制（CalcTool.vue:10、:55-66，见 loan-calculator.md）；与 burn-rate/mrr 零互链——增长率应可从 mrr 变动透传、利润率语境应链 burn-rate"
+   ],
+   "prescriptions": [
+    "空态守卫",
+    "基准参照行",
+    "象限解读",
+    "口径选择",
+    "达标着色"
+   ],
+   "benchmarks": [
+    "Omnicalculator",
+    "Bessemer（Efficiency Score 年度报告）"
+   ],
+   "short": "- 短期（1 周）：空态引导行（\"请填写增长率与利润率\"）；达标/未达标着色；得分行补\"分\"单位；note 声明 YoY 口径",
+   "mid": "- 中期（1 月）：利润率口径下拉（EBITDA/FCF/经营利润）+ note 分母披露；基准参照行（\"上市 SaaS 中位约 35，头部 >60\"静态披露+来源注）；象限解读文案（按增长/利润相对 40 线分四象限）",
+   "long": "- 远期：季度序列录入与得分趋势；从 mrr-calculator 透传增长率、从财务输入透传利润率；归入\"SaaS 指标面板\""
+  },
+  {
+   "file": "saas-pricing-calculator",
+   "name": "定价与毛利计算",
+   "slug": "saas-pricing-calculator",
+   "score": 56,
+   "dims": {
+    "func": 9,
+    "usab": 12,
+    "val": 11,
+    "iact": 9,
+    "ui": 7,
+    "soul": 8,
+    "perf": 9,
+    "mob": 7
+   },
+   "head": [
+    "分类：商业SaaS｜模式：B（CalcTool 表单 + 结果行，calcDef 家族）｜组件：`src/components/common/CalcTool.vue`（117 行，67 工具共用）｜注册：`src/tools/business/registry.ts:306-344`",
+    "对标标杆：Omnicalculator（定价/毛利计算器口径严谨标杆）＋ profitmargin 兄弟工具 profit-margin-calculator（站内双向定价同构）"
+   ],
+   "mode": "B（CalcTool 表单 + 结果行，calcDef 家族）",
+   "bench": "Omnicalculator（定价/毛利计算器口径严谨标杆）＋ profitmargin 兄弟工具 profit-margin-calculator（站内双向定价同构）",
+   "conclusion": "**交互优化** · P1（含疑似功能问题：折扣\"折\"语义错位、target≥100 负定价无守卫）",
+   "judge": "判据：无 M-19 级硬伤；但折扣输入与\"打 X 折\"文案互相矛盾会产出错误报价，且全分类唯一无 note 的 calcDef 需补披露。",
+   "order": "整改优先序：折扣语义修正 > 补 note > 空态/越界守卫 > 方向自适应输入 > 兄弟互链分工。",
+   "deductions": [
+    "1. 【疑似功能问题-口径】折扣语义三方错位（registry.ts:317、:324、:330）：输入 label 是\"折扣（%）\"，公式按\"减让百分比\"算 `price×(1−discount/100)`（:324），结果行却写\"打 X 折后价格\"（:330）——用户按中文\"折\"心智填 8（打 8 折=按 80% 价），实际只减 8%；填 20 则结果行出现\"打 20 折后价格\"（中文\"折\"最大 9.9，不存在 20 折）；标签、公式、文案三者各自为政，报价场景会直接算错",
+    "2. 【可用性】空态 ¥0 主行（registry.ts:322-326）：cost 留空、模式\"按目标毛利→定价\"时 price=0/(1−0)=0，主结果\"建议定价 ¥0\"；BIZ 家族共性（NaN 守卫不拦 0，CalcTool.vue:25-28）",
+    "3. 【可用性】target≥100 负定价无拦截（registry.ts:323）：目标毛利率 120 时 price=cost/(1−1.2)=−5×cost，主行渲染\"建议定价 ¥−2,500\"垃圾；t=100 时除零得 Infinity 恰被 NaN 守卫兜住（CalcTool.vue:25）但引导语\"请先完整填写上方数值\"与真实原因（毛利 100% 无解）错位",
+    "4. 【口径】无 note：全工具唯一没有计算口径 note 的商业SaaS calcDef（对照 take-home :37、roi :67、profit-margin :154 均有）——定价公式、毛利分母（售价）、折扣方向全部零披露，AGENTS.md 金融/计算口径要求未满足",
+    "5. 【功能】与 profit-margin-calculator 重叠无分工：目标毛利反推售价、价格反推毛利率/加价率两能力一模一样（registry.ts:144-151 vs :322-341），本工具差异化仅折扣与平衡折扣，页面零互链零说明——用户不知该用哪个",
+    "6. 【交互】target 一字段两用（:316）：\"目标毛利率（%）或售价（按方向填）\"，方向切换后 placeholder/单位不变，用户需自己记住当前方向下该填什么",
+    "7. 【家族共性】无输入记忆、结果不可单值复制（CalcTool.vue:10、:55-66，见 loan-calculator.md）"
+   ],
+   "prescriptions": [
+    "折扣语义修正",
+    "补 note",
+    "空态与越界守卫",
+    "方向自适应输入",
+    "兄弟互链"
+   ],
+   "benchmarks": [
+    "Omnicalculator",
+    "profit-margin-calculator（站内）"
+   ],
+   "short": "- 短期（1 周）：折扣输入 label 改\"折扣减让（%）\"且结果行改\"减让 X% 后价格\"（或加\"折数\"输入模式 1~9.9）；补 note；cost 空态引导行",
+   "mid": "- 中期（1 月）：target 0~99 越界校验+毛利 100% 定向提示；按方向切换 target 的 placeholder/单位；与 profit-margin-calculator 互链并在双方 note 写明分工（本工具管折扣与保本线）",
+   "long": "- 远期：阶梯数量定价表；年付折扣系数（对标 SaaS 定价页惯例）；与 profit-margin 组合\"定价工作台\""
+  },
+  {
+   "file": "take-home-pay-calculator",
+   "name": "税后工资计算器",
+   "slug": "take-home-pay-calculator",
+   "score": 52,
+   "dims": {
+    "func": 8,
+    "usab": 13,
+    "val": 8,
+    "iact": 9,
+    "ui": 7,
+    "soul": 7,
+    "perf": 9,
+    "mob": 7
+   },
+   "head": [
+    "分类：商业SaaS｜模式：B（CalcTool 表单 + 结果行，calcDef 家族）｜组件：`src/components/common/CalcTool.vue`（117 行，67 工具共用）｜注册：`src/tools/business/registry.ts:12-39`（compute 内联，无独立引擎）",
+    "对标标杆：51 个税管家（分项扣除+累计预扣的国民参照）＋ Omnicalculator（口径严谨标杆）"
+   ],
+   "mode": "B（CalcTool 表单 + 结果行，calcDef 家族）",
+   "bench": "51 个税管家（分项扣除+累计预扣的国民参照）＋ Omnicalculator（口径严谨标杆）",
+   "conclusion": "**阉割（并入 income-tax-calculator）+ 交互优化** · P1",
+   "judge": "判据：与 income-tax-calculator（67 分）口径高度重叠且精度倒退，独立存在价值低；若保留必须换累进引擎并补五险一金联动，否则建议下架合并。",
+   "order": "整改优先序：并入 income-tax-calculator → 若保留：累进引擎替换 > 有效税率引导 > 空态守卫 > 五险一金透传。",
+   "deductions": [
+    "1. 【口径】\"有效税率\"把最难估的参数推给用户且默认 15% 无出处（registry.ts:19）：用户通常只知边际税率，填错即整页失真；note（:37）未提示\"有效税率=全年实缴个税÷税前总收入\"的取值口径",
+    "2. 【口径】税基顺序歧义：tax 按全额毛薪计算（registry.ts:25），社保公积金（:20）只在税后扣除——若用户误填边际税率，五险一金未先扣将系统性高估税额、低估到手；note 未披露此口径方向",
+    "3. 【可用性】空态无守卫：gross 留空渲染\"¥0\"主结果行（registry.ts:23-36，CalcTool.vue:25-28 的 NaN 守卫不拦 0）——对照 break-even 的定向守卫实践（registry.ts:108-110）",
+    "4. 【数据时效】本工具自身无政策年份数据（既非 2024 也非 2026），但其\"其他月度扣除\"依赖用户手填五险一金——上游 social-insurance-calculator 的城市常量停在 2024-07 口径（chinaPayroll.ts:128-139 `year` 字段），整条数据链最弱一环停在 2024",
+    "5. 【功能】与 income-tax-calculator 相比缺专项附加/年终奖/累进表三大件；站内三薪酬工具（个税/五险一金/税后工资）口径分裂零互链",
+    "6. 【口径】\"发放月数\"语义歧义（registry.ts:21、:31）：填 13/14 时\"每月到手\"= 年净÷月数（月均口径），与用户期望的\"月薪到手\"不是一回事，note 未说明",
+    "7. 【家族共性】无输入记忆、结果不可单值复制（CalcTool.vue:10、:55-66，见 loan-calculator.md）"
+   ],
+   "prescriptions": [
+    "有效税率引导",
+    "空态守卫",
+    "口径披露",
+    "透传联动",
+    "累进引擎（若保留）"
+   ],
+   "benchmarks": [
+    "51 个税管家",
+    "Omnicalculator"
+   ],
+   "short": "- 短期（1 周）：空态守卫；note 补有效税率取值口径；hint 加个税计算器链接并透传年薪",
+   "mid": "- 中期（1 月）：换 chinaPayroll.annualIncomeTax 累进引擎（chinaPayroll.ts:49-74），保留 13/14 薪发放月数作为差异化",
+   "long": "- 远期：并入 income-tax-calculator 组成\"薪酬工作台\"（税前→五险一金→个税→到手一条龙）"
+  }
+ ]
+}

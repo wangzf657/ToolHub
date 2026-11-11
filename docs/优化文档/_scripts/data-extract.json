@@ -1,0 +1,1061 @@
+{
+ "stat": {
+  "count": 18,
+  "avg": 58.22,
+  "median": 58.5,
+  "min": 53,
+  "max": 62,
+  "top5": [
+   "data-analysis-tool 62",
+   "excel-viewer 62",
+   "excel-to-csv 60",
+   "query-csv-with-sql 60",
+   "compare-csv-files 59"
+  ],
+  "bottom5": [
+   "epub-reader 53",
+   "chart-from-csv 54",
+   "parquet-to-csv 56",
+   "epub-converter 57",
+   "zip-password 57"
+  ],
+  "dist": {
+   "ge60": 4,
+   "mid55": 12,
+   "le54": 2
+  },
+  "p0": [
+   "csv-viewer 58"
+  ],
+  "p1": [
+   "chart-from-csv 54",
+   "compare-csv-files 59",
+   "data-analysis-tool 62",
+   "epub-reader 53",
+   "excel-pivot-table-online 59",
+   "merge-csv-files 58",
+   "parquet-to-csv 56",
+   "query-csv-with-sql 60",
+   "sqlite-viewer 58"
+  ],
+  "p2": [
+   "csv-to-excel 58",
+   "eml-viewer 59",
+   "epub-converter 57",
+   "excel-to-csv 60",
+   "excel-viewer 62",
+   "remove-duplicates-from-csv 59",
+   "split-csv-file 59",
+   "zip-password 57"
+  ],
+  "modes": {
+   "C": 15,
+   "E 变体": 1,
+   "C 变体": 2
+  },
+  "dimsAvg": {
+   "func": 11.72,
+   "usab": 10.67,
+   "val": 12.67,
+   "iact": 10.39,
+   "ui": 6.94,
+   "soul": 6,
+   "perf": 5.44,
+   "mob": 5.72
+  },
+  "keywords": {
+   "zeroInterlink": [
+    "csv-to-excel",
+    "data-analysis-tool",
+    "excel-to-csv",
+    "merge-csv-files",
+    "split-csv-file",
+    "zip-password"
+   ],
+   "silentCorrect": [
+    "chart-from-csv",
+    "compare-csv-files",
+    "excel-pivot-table-online",
+    "excel-to-csv",
+    "remove-duplicates-from-csv",
+    "split-csv-file",
+    "sqlite-viewer",
+    "zip-password"
+   ],
+   "encoding": [
+    "csv-to-excel",
+    "eml-viewer",
+    "epub-converter",
+    "epub-reader",
+    "excel-to-csv",
+    "parquet-to-csv"
+   ],
+   "engineNoUi": [
+    "chart-from-csv",
+    "eml-viewer",
+    "epub-converter",
+    "epub-reader",
+    "merge-csv-files",
+    "sqlite-viewer"
+   ],
+   "promises": [
+    "data-analysis-tool",
+    "parquet-to-csv",
+    "remove-duplicates-from-csv"
+   ]
+  }
+ },
+ "tools": [
+  {
+   "file": "chart-from-csv",
+   "name": "CSV 图表生成器",
+   "slug": "chart-from-csv",
+   "score": 54,
+   "dims": {
+    "func": 9,
+    "usab": 11,
+    "val": 12,
+    "iact": 10,
+    "ui": 7,
+    "soul": 5,
+    "perf": 5,
+    "mob": 6
+   },
+   "head": [
+    "分类：数据工具｜模式：C（粘贴 CSV → 类型 chips → 画布 → PNG）｜组件：`src/tools/data/components/ChartFromCsv.vue`（199 行）｜引擎：chartEngine（chart.js 懒加载，`src/lib/chartEngine.ts`）+ csvEngine｜注册：`src/tools/data/registry.ts`",
+    "对标标杆：Datawrapper（chart-builder 天花板）＋ LiveGap Charts（纯前端在线制表）"
+   ],
+   "mode": "C",
+   "conclusionBlock": [
+    "**需拓展 + 交互优化** · P1（列映射与导出形态是与标杆的结构性差距）",
+    "判据：相比 Datawrapper/LiveGap 缺失的不是细节而是能力面（列映射/图型/导出），标\"需拓展\"；粘贴即绘缺失标\"交互优化\"。"
+   ],
+   "conclusion": "**需拓展 + 交互优化** · P1（列映射与导出形态是与标杆的结构性差距）",
+   "judge": "判据：相比 Datawrapper/LiveGap 缺失的不是细节而是能力面（列映射/图型/导出），标\"需拓展\"；粘贴即绘缺失标\"交互优化\"。",
+   "deductions": [
+    "1. 【功能-代差】标签列钉死第一列、其余列全部作系列（`ChartFromCsv.vue:57-80`），无 X 轴/Y 轴列选择——Datastudio 内的 ChartPanel 反而有 xCol/yCols 多选（`studio/ChartPanel.vue:91-100`），独立工具反而更弱",
+    "2. 【功能】无横向柱状图——引擎参数 `horizontal` 已存在（`chartEngine.ts:36`）但 UI 未暴露，属\"有引擎无界面\"",
+    "3. 【功能】导出仅 PNG 位图（:104-120），无 SVG（矢量无损）、无交互式 HTML、无尺寸/DPI 选择——Datawrapper 导出 PNG/SVG/交互三件套是标配",
+    "4. 【可用性】画布 400px 固定（:192-194）不可放大；长标签（几十类目）横向挤压不可读",
+    "5. 【交互】粘贴数据后必须手动点\"生成图表\"（parse 仅由按钮触发 :134）；数据变化后无自动重绘",
+    "6. 【灵魂】空数据时 400px 空画布盒常驻占屏（:155-157）；导出文件名固定\"图表.png\"；无\"检测到 N 行 × M 列，将绘制 X 系列\"的预告",
+    "7. 【美观】饼图/环图不披露\"非数值项按 0 计\"的口径（parseFloat 失败静默归 0，:64-66）——数据正确性风险无提示",
+    "8. 【功能】注册 desc 只写\"柱状、折线或饼图\"（`registry.ts:8`），实现另有环形图第四种（:29）——文案与实现不同步，搜索命中面缩水"
+   ],
+   "prescriptions": [
+    "列映射",
+    "粘贴即绘",
+    "画布放大",
+    "横向柱",
+    "导出披露"
+   ],
+   "hits": {
+    "pinHeight": 0,
+    "zeroInterlink": 0,
+    "silentCorrect": 1,
+    "encoding": 0,
+    "engineNoUi": 1,
+    "promises": 0
+   },
+   "benchmarks": " - **Datawrapper**：一步一屏向导、20+ 图型、轴/注释/主题自定义、PNG/SVG/交互式导出、响应式嵌入代码。差距：**能力面代差**（云 SaaS 架构，标注天花板；纯前端可先补列映射+SVG 导出）。 - **LiveGap Charts**（纯前端）：手绘式编辑器、实时预览、多数据集管理、模板保存。差距：列映射与样式定制。 - **站内 DataStudio.ChartPanel**：列映射（X 轴 select + Y 多选 + 数值列自动识别）已实现于 `studio/ChartPanel.vue:32-43,91-100`——独立工具补映射是移植而非新开发。 - 借鉴优先级：**列映射（移植 ChartPanel 已有实现）> 粘贴即绘 > SVG 导出 > 横向柱/图题**。 "
+  },
+  {
+   "file": "compare-csv-files",
+   "name": "CSV 文件对比",
+   "slug": "compare-csv-files",
+   "score": 59,
+   "dims": {
+    "func": 13,
+    "usab": 11,
+    "val": 13,
+    "iact": 10,
+    "ui": 7,
+    "soul": 5,
+    "perf": 5,
+    "mob": 6
+   },
+   "head": [
+    "分类：数据工具｜模式：C（双文件载入 → 主键选择 → 差异 Tab 报告）｜组件：`src/tools/data/components/CompareCsv.vue`（249 行）｜引擎：csvEngine（diffCsvData `csvEngine.ts:243-270`）｜注册：`src/tools/data/registry.ts`",
+    "对标标杆：diffchecker.com（diff 交互标杆）＋ 站内 text-diff（`docs/优化文档/开发工具/` 文本对比家族，M-05 实测）"
+   ],
+   "mode": "C",
+   "conclusionBlock": [
+    "**交互优化** · P1（200 行静默截断是数据正确性风险，属可用性问题而非锦上添花）",
+    "判据：用户看到\"新增 300\"徽章但表里只有 200 行且无说明——差异报告的完整性存疑，必须补披露或分页。"
+   ],
+   "conclusion": "**交互优化** · P1（200 行静默截断是数据正确性风险，属可用性问题而非锦上添花）",
+   "judge": "判据：用户看到\"新增 300\"徽章但表里只有 200 行且无说明——差异报告的完整性存疑，必须补披露或分页。",
+   "deductions": [
+    "1. 【可用性-数据正确性】三类差异表各 `slice(0, 200)` 截断且**无\"仅显示前 200 条\"提示**（`CompareCsv.vue:142,155,168`）——徽章数与可见行数不一致，用户会误以为差异只有 200 条",
+    "2. 【数据正确性】diffCsvData 用 Map 以键收纳两表行（`csvEngine.ts:249-250`），**同一文件内的重复键行被静默合并**——主键不唯一的数据集对比结果不可信，UI 无任何警示",
+    "3. 【交互】关键列选择用原生 multiple select（:112），Ctrl+点击在 Mac 是 Cmd、触屏不可用——chip 点选或复选框列表是正解",
+    "4. 【可用性】修改 Tab 只有\"键值 | 列 | 旧值 | 新值\"四列（:165），丢失整行上下文，无法核对\"这一行其他字段是什么\"；无并排全行合并视图（diffchecker 行级对齐高亮）",
+    "5. 【功能】无忽略选项（忽略某列如\"更新时间\"列是对比真实数据的常见需求），无大小写/空格归一化开关",
+    "6. 【性能】对比按钮触发后主线程同步计算（:61-78），大文件期间 spinner 也冻结；无行数预警",
+    "7. 【灵魂】报告 CSV 中\"修改\"行只有 4 列而新增/删除行有 N 列（:84-88），列语义混杂未披露",
+    "8. 【可用性】两文件载入后无行列数徽章（对照 split-csv-file 载入即报\"共 N 行 × M 列\"），数据规模要对比后才知情；文件解析成功也无 toast 确认（:46-58 仅失败时提示）"
+   ],
+   "prescriptions": [
+    "截断披露",
+    "重复键警示",
+    "chip 选键",
+    "修改行上下文",
+    "忽略列"
+   ],
+   "hits": {
+    "pinHeight": 2,
+    "zeroInterlink": 0,
+    "silentCorrect": 1,
+    "encoding": 0,
+    "engineNoUi": 0,
+    "promises": 0
+   },
+   "benchmarks": " - **diffchecker.com**：行内字符级高亮、行号、统一/分屏双视图、复制差异块。差距：**修改行的上下文呈现**——对方让人\"看清哪里变了\"，本工具让人\"知道哪些行变了\"。 - **站内 text-diff**（M-05）：双输入 170px 的钉高前科说明 diff 家族通病；本工具差异区 520px 同族。 - **csvEngine.aggregate**（`csvEngine.ts:211-240`）：与 diffCsvData 同文件的聚合引擎已被 PivotTable/图表共用——对比结果的\"差异统计卡\"（三类计数分布）可零成本补上。 - 借鉴优先级：**截断披露/分页 > 修改行整行上下文 > chip 选键 > 忽略列**。 "
+  },
+  {
+   "file": "csv-to-excel",
+   "name": "CSV 转 Excel",
+   "slug": "csv-to-excel",
+   "score": 58,
+   "dims": {
+    "func": 12,
+    "usab": 11,
+    "val": 13,
+    "iact": 10,
+    "ui": 7,
+    "soul": 5,
+    "perf": 6,
+    "mob": 6
+   },
+   "head": [
+    "分类：数据工具｜模式：C（粘贴/文件双入口 → 预览表 → 下载）｜组件：`src/tools/data/components/CsvToExcel.vue`（138 行）｜引擎：csvEngine（Papa 懒加载）+ officeEngine（XLSX）｜注册：`src/tools/data/registry.ts`",
+    "对标标杆：convertcsv.com CSV→Excel ＋ 站内姊妹 json-to-excel（`docs/优化文档/开发工具/json-to-excel.md` 54 分）"
+   ],
+   "mode": "C",
+   "conclusionBlock": [
+    "**交互优化** · P2（功能对路的转换工具，补预览与编码边界）",
+    "判据：无硬伤级问题；260px 预览钉高属家族共性（共性-根因 2），个性问题集中在编码兜底。"
+   ],
+   "conclusion": "**交互优化** · P2（功能对路的转换工具，补预览与编码边界）",
+   "judge": "判据：无硬伤级问题；260px 预览钉高属家族共性（共性-根因 2），个性问题集中在编码兜底。",
+   "deductions": [
+    "1. 【可用性】预览表钉 260px（`CsvToExcel.vue:100`）——大 CSV 确认\"转换内容对不对\"要滚很久，且无\"已显示 N/全部\"截断提示",
+    "2. 【功能】分隔符自动嗅探失败无手动选择（逗号/分号/Tab），欧洲 CSV（分号）识别错时只能整页乱",
+    "3. 【功能】编码无选择：GBK/GB2312 中文 CSV（Excel 另存常见格式）以 UTF-8 读入即乱码，无 FileReader encoding 参数或 TextDecoder 换挡",
+    "4. 【交互】粘贴入口与文件入口结果互通但 UI 分离（两块区域），路径不清晰",
+    "5. 【灵魂】与 excel-to-csv 零互链；转换成功无\"已保留 N 列数字类型\"的类型保真披露"
+   ],
+   "prescriptions": [
+    "预览弹性",
+    "分隔符兜底",
+    "编码档",
+    "类型披露"
+   ],
+   "hits": {
+    "pinHeight": 4,
+    "zeroInterlink": 1,
+    "silentCorrect": 0,
+    "encoding": 1,
+    "engineNoUi": 0,
+    "promises": 0
+   },
+   "benchmarks": " - **convertcsv.com**：分隔符/引号/编码三选项齐全 + 转换前预览可改。差距：**编码兜底**。 - **站内 json-to-excel**（54 分）：同 family 问题（ResultBox 260px），整合路径一致。 - 借鉴优先级：**编码选择 > 分隔符手动兜底 > 预览弹性高度 > 类型保真披露**。 "
+  },
+  {
+   "file": "csv-viewer",
+   "name": "CSV 表格查看器",
+   "slug": "csv-viewer",
+   "score": 58,
+   "dims": {
+    "func": 11,
+    "usab": 9,
+    "val": 13,
+    "iact": 10,
+    "ui": 7,
+    "soul": 8,
+    "perf": 6,
+    "mob": 5
+   },
+   "head": [
+    "分类：数据工具｜模式：C（单列堆叠：粘贴区→拖放区→按钮→表格）｜组件：`src/tools/data/components/CsvViewer.vue`（224 行）｜引擎：`src/lib/csvEngine`（parseCsvAsync，PapaParse 主线程 :57-65）｜样式：全局 `.table-wrap { max-height:520px }`（base.css:362-367，共性-根因 2）",
+    "对标标杆：csvviewer.com（即时渲染+列统计）＋ Modern CSV（桌面，大文件虚拟滚动参照）"
+   ],
+   "mode": "C",
+   "conclusionBlock": [
+    "**交互优化** · P0（结果表格首屏外=可用性硬伤，M-16 实测）",
+    "判据：可用性 9/20 触发硬伤红线——\"查看器\"的输出（表格）恰恰是用户最需要看到却需要滚 2 屏才出现的东西；功能面差距（列统计/搜索）为次优先级。",
+    "整改优先序：结果区可达+弹性高度（P0）→ 输入区折叠 → 列统计/搜索（P1）→ 原始行号/文件名（P2）。"
+   ],
+   "conclusion": "**交互优化** · P0（结果表格首屏外=可用性硬伤，M-16 实测）",
+   "judge": "判据：可用性 9/20 触发硬伤红线——\"查看器\"的输出（表格）恰恰是用户最需要看到却需要滚 2 屏才出现的东西；功能面差距（列统计/搜索）为次优先级。",
+   "order": "整改优先序：结果区可达+弹性高度（P0）→ 输入区折叠 → 列统计/搜索（P1）→ 原始行号/文件名（P2）。",
+   "deductions": [
+    "1. 【可用性-硬伤】表格 top=648，1366×768 视口内不可见（实测锚点 M-16）：粘贴 textarea（min-height 180px，base.css:164-168）+ FileDrop（165px）+徽章行依次堆叠，结果区在两屏之外；解析完成后也无自动滚动/锚点跳转",
+    "2. 【可用性-硬伤】`.table-wrap` max-height 520px 钉死（`base.css:362-367`，共性-根因 2），41 行数据同屏仅 ~13 行、需滚 3 屏（M-16）；200 行/页的分页反而加剧\"窗口内长滚\"",
+    "3. 【交互】解析完成后粘贴区与拖放区原样保留占位（`CsvViewer.vue:108-129` 无折叠态），视觉重心不随任务阶段转移——csvviewer.com 解析后输入区即收起",
+    "4. 【功能】无列统计：csvviewer.com 每列头下显示均值/唯一值/空值数；对\"快速核对数据\"场景这是核心增值",
+    "5. 【功能】无搜索/过滤：找一行数据只能靠排序+肉眼扫；无单元格点击复制",
+    "6. 【灵魂】解析成功仅 toast\"解析成功：N 行 × M 列\"（:48），视口不移动、无\"已就绪，表格在下方\"引导；Ctrl+Enter 是唯一快捷键，排序/翻页无键盘支持",
+    "7. 【性能】parseCsvAsync 在主线程执行 PapaParse（`csvEngine.ts:57-65`），大文件解析期间按钮 spinner 卡住、无行级进度",
+    "8. 【交互】输出文件名不可自定义：上传模式取源文件名、粘贴模式固定\"数据\"（:13, :93-102），导出一堆\"数据.csv\"互相覆盖",
+    "9. 【交互】排序后 # 列显示的是排序后的新序号（`(page-1)*PAGE + ri + 1`，:157）而非原始行号——排序核对数据时无法回溯\"这是 CSV 第几行\"，Modern CSV/Excel 均保留原始行号"
+   ],
+   "prescriptions": [
+    "结果区可达",
+    "表格弹性高度",
+    "输入区折叠",
+    "列统计",
+    "搜索高亮",
+    "大文件解析进度",
+    "输出文件名",
+    "原始行号"
+   ],
+   "hits": {
+    "pinHeight": 4,
+    "zeroInterlink": 0,
+    "silentCorrect": 0,
+    "encoding": 0,
+    "engineNoUi": 0,
+    "promises": 0
+   },
+   "benchmarks": " - **csvviewer.com**：拖文件即渲染（零点击）、列头带类型图标与统计摘要、即时搜索高亮。差距：**\"打开即看\"零摩擦** vs 本工具\"粘贴→点按钮→滚动找表格\"三步+两次滚动。 - **Modern CSV（桌面）**：百万行虚拟滚动、列宽自适应、筛选行。差距：性能架构代差——但 200 行分页 + 表格弹性高度已能覆盖 Web 场景的 95%。 - 借鉴优先级：**结果区置顶（或解析后自动滚动）> 表格弹性高度 > 列统计 > 搜索框 > 解析后输入区折叠**。 "
+  },
+  {
+   "file": "data-analysis-tool",
+   "name": "数据分析工作台",
+   "slug": "data-analysis-tool",
+   "score": 62,
+   "dims": {
+    "func": 13,
+    "usab": 11,
+    "val": 14,
+    "iact": 11,
+    "ui": 7,
+    "soul": 6,
+    "perf": 5,
+    "mob": 5
+   },
+   "head": [
+    "分类：数据工具｜模式：E 变体（工作室两栏：290px 侧栏 + 1fr 主区，5 Tab）｜组件：`src/tools/editors/components/DataStudio.vue`（311 行）+ studio 四面板（DataTablePanel/ChartPanel/PivotPanel/SqlPanel，合计约 608 行）｜引擎：alasql + chartEngine + csvEngine｜注册：`src/tools/data/registry.ts`（与编辑器区 data-studio 同组件双注册）",
+    "对标标杆：Rows / Airtable（数据工作台天花板）＋ DuckDB WASM shell（SQL 探索）"
+   ],
+   "mode": "E 变体",
+   "conclusionBlock": [
+    "**需拓展 + 交互优化** · P1（补齐 Parquet 兑现与清洗面板；面板弹性高度）",
+    "判据：desc 与实现不符属功能缺陷（交用户决定修 desc 还是补能力）；作为旗舰工作台，面板高度不达工作室标准（对照 PhotoStudio 68vh 画布）。"
+   ],
+   "conclusion": "**需拓展 + 交互优化** · P1（补齐 Parquet 兑现与清洗面板；面板弹性高度）",
+   "judge": "判据：desc 与实现不符属功能缺陷（交用户决定修 desc 还是补能力）；作为旗舰工作台，面板高度不达工作室标准（对照 PhotoStudio 68vh 画布）。",
+   "deductions": [
+    "1. 【功能-疑似缺陷】desc 承诺\"打开 CSV/Excel/JSON/**Parquet**\"（registry.ts:12），但 FileDrop accept 列表无 .parquet（`DataStudio.vue:103`）且 loadFilesToDatasets 无 Parquet 分支（`dataShared.ts:12-42`）——拖入 parquet 会当文本解析报错；同款问题存在于编辑器区 data-studio 注册（editors/registry.ts:8）",
+    "2. 【可用性】五个面板高度 380~520px 钉死（SqlPanel.vue:152 / PivotPanel.vue:115 / DataTablePanel.vue:65 全局 520 / ChartPanel.vue:122 400px），对照工作室画布 52~74vh 标准（审计底稿 §四），主分析区没有\"工作台体量\"",
+    "3. 【功能】\"清洗\"承诺无着落：无列级筛选（只有全文关键字搜索 DataTablePanel.vue:17-21）、无去重/空值填充/类型转换",
+    "4. 【灵魂】空态无示例数据载入按钮（:154-157）——独立工具有\"载入示例\"（ChartFromCsv.vue:32），旗舰工作台反而没有",
+    "5. 【功能】导出仅当前数据集全量（:150 披露诚实），筛选/排序结果无法导出（SQL 面板可绕行但路径深）",
+    "6. 【灵魂】Tab 无联动记忆：透视配好切到图表再回来配置保留✓（v-if 销毁重建实际会丢——面板用 v-if 切换 :137-139，状态随组件销毁丢失）",
+    "7. 【美观】SQL 面板 textarea 120px（SqlPanel.vue:136）+ 结果 380px，编辑体验弱于独立 query-csv-with-sql（已有档案 63 分）——同一能力两个入口质量倒挂",
+    "8. 【交互】查询结果不能\"另存为新数据集\"继续分析（DuckDB/Rows 的\"结果即新表\"），SQL→透视→图表的探索链路断在 SQL 出口",
+    "9. 【灵魂】双注册入口（data-analysis-tool 与编辑器区 data-studio，同组件两 desc 均承诺 Parquet）互不链接、文案需双处同步——本批发现后建议档案与注册文案一并修正"
+   ],
+   "prescriptions": [
+    "Parquet 兑现",
+    "面板弹性",
+    "示例数据",
+    "Tab 状态保持",
+    "导出筛选结果",
+    "结果即数据集"
+   ],
+   "hits": {
+    "pinHeight": 2,
+    "zeroInterlink": 1,
+    "silentCorrect": 0,
+    "encoding": 0,
+    "engineNoUi": 0,
+    "promises": 1
+   },
+   "benchmarks": " - **Rows / Airtable**：列类型识别、公式列、视图记忆、协作。差距：**会话与视图持久化**（架构级，标注天花板）。 - **DuckDB WASM shell**：Parquet 直查 + 窗口函数。差距：Parquet 至少要在载入层兑现（hyparquet 已在 parquet-to-csv 验证可行）。 - 借鉴优先级：**Parquet 兑现（复用 ParquetViewer 装载逻辑）> 面板 vh 弹性 > 示例数据 > 列级筛选**。 "
+  },
+  {
+   "file": "eml-viewer",
+   "name": "EML 邮件查看器",
+   "slug": "eml-viewer",
+   "score": 59,
+   "dims": {
+    "func": 11,
+    "usab": 11,
+    "val": 12,
+    "iact": 11,
+    "ui": 7,
+    "soul": 7,
+    "perf": 6,
+    "mob": 6
+   },
+   "head": [
+    "分类：数据工具｜模式：C（文件载入 → 头部卡片 + 正文/附件）｜组件：`src/tools/data/components/EmlViewer.vue`（194 行）｜引擎：postal-mime（懒加载）+ DOMPurify（:48-50）｜注册：`src/tools/data/registry.ts`",
+    "对标标杆：mailbody / eml.tools（在线 .eml 预览）＋ Outlook Web 邮件阅读窗（呈现口径参照）"
+   ],
+   "mode": "C",
+   "conclusionBlock": [
+    "**交互优化** · P2（核心链路可靠，补原始头/日期格式化/附件汇总等打磨项）",
+    "判据：无硬伤；480px 双钉高属共性-根因 2 家族，个性短板集中在呈现细节而非能力缺失。"
+   ],
+   "conclusion": "**交互优化** · P2（核心链路可靠，补原始头/日期格式化/附件汇总等打磨项）",
+   "judge": "判据：无硬伤；480px 双钉高属共性-根因 2 家族，个性短板集中在呈现细节而非能力缺失。",
+   "deductions": [
+    "1. 【功能】无原始邮件头视图（postal-mime 已返回 header 列表却未展示，Message-ID/Received-SPF 是取证关键信息）——eml.tools 类工具的标配",
+    "2. 【可用性】HTML 正文 iframe 480px（`EmlViewer.vue:179-183`）+ 纯文本 pre 480px（:193 max-height）双钉高（共性-根因 2）；无\"新窗口打开/全屏\"出口，长 newsletter 只能小窗滚",
+    "3. 【交互】日期字段直接渲染 Date.toString()（:97）——\"Mon Nov 11 2025 14:30:00 GMT+0800\"英文长串，未本地化格式化（对比头部其他字段均为人工可读中文语境）",
+    "4. 【功能】附件无大小显示（postal-mime attachment.size 可用而未用，按钮只有文件名 :101-103）、无\"全部下载\"（多附件邮件要逐个点）、下载失败 toast 无具体附件名",
+    "5. 【可用性】解析超大邮件（50MB 附件级）无进度与预警（:86 仅 spinner 文案）；.msg 拒载发生在解析前✓但拖错文件后 FileDrop 状态不回显失败原因（只 toast 一闪）",
+    "6. 【灵魂】无邮件正文关键字搜索；无\"查看纯文本/HTML 切换\"（两种呈现互斥，:108-112 有 HTML 即不显示 text——文本版更适合复制引用）",
+    "7. 【美观】暗色模式下 iframe 白底与外框生硬相接；头部卡片无发件人头像/首字母占位",
+    "8. 【功能】无打印/另存 PDF 出口——取证留档的自然终点是\"原样存一份\"，当前只能截图"
+   ],
+   "prescriptions": [
+    "日期本地化",
+    "原始头面板",
+    "附件增强",
+    "正文弹性",
+    "文本视图",
+    "打印留档"
+   ],
+   "hits": {
+    "pinHeight": 6,
+    "zeroInterlink": 0,
+    "silentCorrect": 0,
+    "encoding": 1,
+    "engineNoUi": 1,
+    "promises": 0
+   },
+   "benchmarks": " - **eml.tools / mailbody 类**：原始头折叠面板、HTML/纯文本双视图切换、附件批量下载、打印/另存 PDF。差距：**取证视图与批量操作**。 - **Outlook Web 阅读窗**：附件卡片带类型图标+大小、日期相对化（今天 14:30）。差距：附件呈现与日期本地化。 - 借鉴优先级：**原始头面板 > 日期本地化 > 附件大小+全部下载 > 文本/HTML 切换**。 "
+  },
+  {
+   "file": "epub-converter",
+   "name": "EPUB 双向转换",
+   "slug": "epub-converter",
+   "score": 57,
+   "dims": {
+    "func": 11,
+    "usab": 10,
+    "val": 12,
+    "iact": 10,
+    "ui": 7,
+    "soul": 7,
+    "perf": 6,
+    "mob": 6
+   },
+   "head": [
+    "分类：数据工具｜模式：C（方向选择 → 文件载入 → 转换 → 下载）｜组件：`src/tools/data/components/EpubConverter.vue`（227 行）｜引擎：JSZip + 自实现 spine 解析（:44-85）+ fileExt（splitChapters `fileExt.ts:376-399` / buildEpub `fileExt.ts:402+`）｜注册：`src/tools/data/registry.ts`",
+    "对标标杆：Calibre（电子书转换天花板，桌面架构标注）＋ epub.js demo（纯前端参照）"
+   ],
+   "mode": "C",
+   "conclusionBlock": [
+    "**交互优化** · P2（功能链路完整，补预览可控性与元数据输入）",
+    "判据：无硬伤；10 行预览窗是主要摩擦点，属交互优化级而非能力缺失。"
+   ],
+   "conclusion": "**交互优化** · P2（功能链路完整，补预览可控性与元数据输入）",
+   "judge": "判据：无硬伤；10 行预览窗是主要摩擦点，属交互优化级而非能力缺失。",
+   "deductions": [
+    "1. 【可用性】转换结果预览只有 `rows=\"10\"` 的 readonly textarea（`EpubConverter.vue:197`）——长文本核对、复制部分内容、检查章节切分效果都不现实；应给 tab/分章预览",
+    "2. 【功能】反向方向无章节预览/编辑：splitChapters 切完直接打包（:111-116），用户看不到\"切出了哪些章、每章几段\"，错切（正则误匹配正文短行 `<60` 字符即标题 `fileExt.ts:382`）无从发现",
+    "3. 【功能】EPUB 元数据不可配：作者写死 'ToolHub'（`fileExt.ts:402` author 参数 UI 未暴露）、无封面图上传——导入 Kindle/微信读书后显示无作者无封面",
+    "4. 【功能】正向只有 TXT/MD，无 HTML 章节级导出（保留最小结构 h2/p 即可），喂博客/文档场景缺失",
+    "5. 【灵魂】反向正则不认英文 \"Chapter 1\"/\"CHAPTER I\"（`fileExt.ts:382` 仅中文数字+MD 标题），英文书会整本变单章，且无\"仅切出 1 章，请检查标题格式\"式预警（chapterCount 有展示但无告警阈值）",
+    "6. 【交互】方向切换后已选文件清空但书名保留（pick 清 outText/outBlob，:26-31）——切换方向后旧书名可能张冠李戴（正反向共用 bookTitle 语义不同：正向是输出文件名、反向是元数据题名）",
+    "7. 【可用性】反向打包无逐章进度（:111-116 busy 期间 progress 保持 0 直接跳 1）",
+    "8. 【功能】文件读取无编码选择（`file.text()` 默认 UTF-8，:111）——GBK 编码的网文 TXT 是中文场景最大存量，直读即乱码；数据家族\"编码兜底\"共性缺口（csv-to-excel 档案已登记同款）在电子书侧同样存在"
+   ],
+   "prescriptions": [
+    "预览弹性",
+    "章节预警",
+    "元数据",
+    "章节预览",
+    "方向切换状态",
+    "编码档"
+   ],
+   "hits": {
+    "pinHeight": 0,
+    "zeroInterlink": 0,
+    "silentCorrect": 0,
+    "encoding": 1,
+    "engineNoUi": 1,
+    "promises": 0
+   },
+   "benchmarks": " - **Calibre**：格式全家桶+元数据/封面编辑+章节结构探查（架构天花板，桌面；诚实标注）。纯前端可逼近的部分：章节预览树、作者/封面输入、HTML 导出。 - **epub.js demo**：正向解析能力参照（本工具自实现 spine 解析已覆盖其核心）。 - 借鉴优先级：**章节预览树（切分结果可视化+可调）> 作者/封面元数据 > 预览区弹性 > 英文标题告警**。 "
+  },
+  {
+   "file": "epub-reader",
+   "name": "EPUB 阅读器",
+   "slug": "epub-reader",
+   "score": 53,
+   "dims": {
+    "func": 10,
+    "usab": 11,
+    "val": 12,
+    "iact": 9,
+    "ui": 6,
+    "soul": 5,
+    "perf": 6,
+    "mob": 5
+   },
+   "head": [
+    "分类：数据工具｜模式：C 变体（文件载入 → 目录侧栏 + iframe 阅读区双栏）｜组件：`src/tools/data/components/EpubReader.vue`（258 行）｜引擎：epubjs（懒加载，iframe 渲染）｜注册：`src/tools/data/registry.ts`",
+    "对标标杆：thorium / readium（桌面阅读器标杆）＋ epub.js 官方 demo（纯前端天花板参照）"
+   ],
+   "mode": "C 变体",
+   "conclusionBlock": [
+    "**需拓展 + 交互优化** · P1（进度记忆/键盘翻页/夜间主题是阅读器的及格配置）",
+    "判据：缺进度记忆使工具只能\"临时翻一下\"，无法承担\"读书\"定位——相对 thorium/epub.js demo 的功能面差距属需拓展；交互单一路径属交互优化。"
+   ],
+   "conclusion": "**需拓展 + 交互优化** · P1（进度记忆/键盘翻页/夜间主题是阅读器的及格配置）",
+   "judge": "判据：缺进度记忆使工具只能\"临时翻一下\"，无法承担\"读书\"定位——相对 thorium/epub.js demo 的功能面差距属需拓展；交互单一路径属交互优化。",
+   "deductions": [
+    "1. 【灵魂-阅读器核心缺失】无进度记忆：不存 localStorage 位置（rendition.location 未持久化，全文无 storage 调用），每次打开从第一章重来",
+    "2. 【交互】翻页输入单一：仅两个按钮（`EpubReader.vue:145-148`），无键盘 ←→、无阅读区点击翻页、无触屏滑动——epub.js demo 均标配",
+    "3. 【状态】手动翻页后目录高亮不跟随当前章节（flip 不更新 current，:78-82 vs jump 才更新 :68-76），也无 rendition relocated 事件监听做位置同步",
+    "4. 【美观-暗色】阅读区固定白底（:242），暗色模式下形成刺眼亮块；无日/夜/羊皮纸主题切换（epubjs themes.register 现成能力未用）",
+    "5. 【可用性】阅读区 600px 固定（:53,:241）不随视口：1366×768 上面板 top≈250px，书区下半截出屏；也无全屏/放大模式",
+    "6. 【功能】无书内搜索、无书签、无滚动模式选项（paginated 写死 :53）、无进度百分比",
+    "7. 【交互】字号调节仅侧栏底部一组（:135-140），调节后未重绘当前页易截断（未调用 rendition.views 刷新的兜底）",
+    "8. 【交互】无\"回到书首/封底\"快捷，拖入新书替换前无确认（open 直接 close 旧书 :39），读到中途误拖文件即丢失位置"
+   ],
+   "prescriptions": [
+    "进度记忆",
+    "键盘翻页",
+    "目录同步",
+    "夜间主题",
+    "阅读区弹性",
+    "触屏滑动"
+   ],
+   "hits": {
+    "pinHeight": 1,
+    "zeroInterlink": 0,
+    "silentCorrect": 0,
+    "encoding": 1,
+    "engineNoUi": 1,
+    "promises": 0
+   },
+   "benchmarks": " - **thorium / readium**：进度同步、多主题、双页/滚动模式、书内全文搜索、注释书签。差距：**阅读连续性**（对方是\"管理藏书\"，本工具连\"读完一本书\"都支撑不了）。 - **epub.js 官方 demo**（纯前端天花板）：relocated 事件驱动目录高亮与进度、键盘翻页、themes 注册多主题、localStorage 位置恢复——全部为 epubjs 现成 API，属\"接了就有\"的差距。 - 借鉴优先级：**进度记忆 > 键盘+点击翻页 > relocated 目录同步 > 夜间主题 > 进度条**。 "
+  },
+  {
+   "file": "excel-pivot-table-online",
+   "name": "在线数据透视表",
+   "slug": "excel-pivot-table-online",
+   "score": 59,
+   "dims": {
+    "func": 11,
+    "usab": 12,
+    "val": 13,
+    "iact": 10,
+    "ui": 7,
+    "soul": 6,
+    "perf": 5,
+    "mob": 6
+   },
+   "head": [
+    "分类：数据工具｜模式：C（文件载入 → 行/列/值三区配置 → 透视表 → 导出）｜组件：`src/tools/data/components/PivotTable.vue`（283 行）｜引擎：csvEngine + officeEngine（聚合自实现 :56-134）｜注册：`src/tools/data/registry.ts`",
+    "对标标杆：PivotTable.js demo（透视交互标杆）＋ Excel 数据透视表（功能口径参照）"
+   ],
+   "mode": "C",
+   "conclusionBlock": [
+    "**交互优化 + 需拓展** · P1（补多字段/筛选/热力是标杆级缺口；静默归 0 是正确性问题）",
+    "判据：单行键×单列键的模型上限明显（Excel 透视表最基础的多层行标签即缺），标\"需拓展\"；非数值归 0 无披露属可用性。"
+   ],
+   "conclusion": "**交互优化 + 需拓展** · P1（补多字段/筛选/热力是标杆级缺口；静默归 0 是正确性问题）",
+   "judge": "判据：单行键×单列键的模型上限明显（Excel 透视表最基础的多层行标签即缺），标\"需拓展\"；非数值归 0 无披露属可用性。",
+   "deductions": [
+    "1. 【功能-代差】行/列/值三区各只支持 1 个字段（`PivotTable.vue:15-18`）——Excel/PivotTable.js 的\"多层行标签\"\"多值字段并排\"全缺，复合维度分析做不了",
+    "2. 【数据正确性】值列 parseFloat 失败静默归 0（:97-98）——把\"缺失数据\"与\"真 0\"混为一谈，平均值/求和被污染且无提示",
+    "3. 【功能】无筛选：不能先过滤\"仅 2024 年数据\"再透视；无维度值排序（rowKeys 按出现序 :83-100）， alphabetical/数值排序都不可选",
+    "4. 【可用性】行键/列基数无护栏：类别列 1000+ 取值时生成千行×千列表格卡死浏览器，无预警无截断",
+    "5. 【交互】无拖拽——PivotTable.js 的核心交互即拖字段入区，select 下拉在字段多时效率低（可接受但需以\"字段 chip 分区\"补偿）",
+    "6. 【灵魂】无示例数据（空态只有\"载入数据后开始配置透视表\" :241-245）；热力着色/条件格式（Excel 色阶）缺失，结果可读性靠裸数字",
+    "7. 【美观】长键值无 ellipsis/换行策略（:224-233），一个长类目即把整列撑爆"
+   ],
+   "prescriptions": [
+    "非数值披露",
+    "基数护栏",
+    "多行字段",
+    "占比显示",
+    "热力着色"
+   ],
+   "hits": {
+    "pinHeight": 1,
+    "zeroInterlink": 0,
+    "silentCorrect": 1,
+    "encoding": 0,
+    "engineNoUi": 0,
+    "promises": 0
+   },
+   "benchmarks": " - **PivotTable.js demo**：字段拖拽分区、多行/列/值字段、多聚合器并排、热力图渲染器、CSV/T SV 导出。差距：**多字段模型与渲染器选择**。 - **Excel 数据透视表**：值\"显示方式\"（占比/差异/累计）、切片器、分组。差距：占比类衍生指标（求和占比是运营周报刚需）。 - 借鉴优先级：**多字段行/列 > 值占比显示方式 > 基数护栏 > 热力着色**。 "
+  },
+  {
+   "file": "excel-to-csv",
+   "name": "Excel 转 CSV",
+   "slug": "excel-to-csv",
+   "score": 60,
+   "dims": {
+    "func": 13,
+    "usab": 11,
+    "val": 13,
+    "iact": 11,
+    "ui": 7,
+    "soul": 5,
+    "perf": 5,
+    "mob": 6
+   },
+   "head": [
+    "分类：数据工具｜模式：C（文件载入 → sheet 选择 → 预览 → 导出）｜组件：`src/tools/data/components/ExcelToCsv.vue`（135 行）｜引擎：officeEngine（readXlsx）+ csvEngine（rowsToCsv）｜注册：`src/tools/data/registry.ts`",
+    "对标标杆：convertcsv.com（Excel→CSV）＋ 站内姊妹 csv-to-excel（`docs/优化文档/数据工具/csv-to-excel.md` 58 分，反向对称口径）"
+   ],
+   "mode": "C",
+   "conclusionBlock": [
+    "**交互优化** · P2（功能对路的转换工具，补编码档与预览弹性）",
+    "判据：无硬伤级问题；520px 预览钉高属家族共性（共性-根因 2），个性缺口集中在输出编码与类型口径。"
+   ],
+   "conclusion": "**交互优化** · P2（功能对路的转换工具，补编码档与预览弹性）",
+   "judge": "判据：无硬伤级问题；520px 预览钉高属家族共性（共性-根因 2），个性缺口集中在输出编码与类型口径。",
+   "deductions": [
+    "1. 【可用性】预览表无本地高度约束，继承全局 `.table-wrap` 520px 钉高（`ExcelToCsv.vue:95`、`base.css:362-367`；共性-根因 2，实测同族 M-16），50 行预览也只能看约一半",
+    "2. 【功能】输出编码固定 UTF-8+BOM（`:46`、`:58`）——对接要求 GBK 的老系统需二次转码；与 csv-to-excel 档案登记的\"编码无选择\"呈**对称缺口**（对方缺分隔符、本方缺编码）",
+    "3. 【功能】单元格值按 readXlsx 返回字符串直接导出（`sheetCsv` :42），日期序列号/科学计数的呈现取决于读取端格式化，无\"原始值/显示值\"口径披露",
+    "4. 【交互】下载按钮在流内底部（:114-119，共性-根因 4）；大 xlsx 读取无进度百分比（:69）",
+    "5. 【灵魂】与 csv-to-excel 零互链（双向转换是同一工作流两半）；导出前无\"N 表 × 共 M 行\"统计卡",
+    "6. 【功能】无选择性导出：不能勾选部分工作表打包（多 sheet 工作簿常常只需其中两三张表，现在只能全有或单表）"
+   ],
+   "prescriptions": [
+    "预览弹性",
+    "编码档",
+    "操作可达",
+    "读取进度",
+    "互链",
+    "选择性打包"
+   ],
+   "hits": {
+    "pinHeight": 4,
+    "zeroInterlink": 1,
+    "silentCorrect": 1,
+    "encoding": 1,
+    "engineNoUi": 0,
+    "promises": 0
+   },
+   "benchmarks": " - **convertcsv.com**：sheet 选择+分隔符+输出编码（UTF-8/UTF-8 BOM/ASCII 等）三件套齐全。差距：**编码档选择**。 - **站内 csv-to-excel**（58 分）：对方有粘贴双入口与类型保真写入；本方有分隔符与诚实截断披露——两个档案处方合并即对称闭环。 - **站内 excel-viewer**（62 分档案）：同源 readXlsx 预览路径，其 460px 钉高已登记在案——本工具预览区应吸取同族教训而非复制取值。 - 借鉴优先级：**编码选择 > 预览弹性高度 > 操作按钮可达 > 统计卡**。 "
+  },
+  {
+   "file": "excel-viewer",
+   "name": "Excel 在线预览",
+   "slug": "excel-viewer",
+   "score": 62,
+   "dims": {
+    "func": 12,
+    "usab": 12,
+    "val": 13,
+    "iact": 11,
+    "ui": 7,
+    "soul": 7,
+    "perf": 6,
+    "mob": 6
+   },
+   "head": [
+    "分类：数据工具｜模式：C（FileDrop → sheet 切换 → 表格预览）｜组件：`src/tools/data/components/ExcelViewer.vue`（167 行）｜引擎：officeEngine（XLSX 解析）｜注册：`src/tools/data/registry.ts`",
+    "对标标杆：Google Sheets 预览（云天花板）＋ sqliteviewer.app 式即开即用"
+   ],
+   "mode": "C",
+   "conclusionBlock": [
+    "**交互优化** · P2（分页架构正确，补搜索与进度反馈）",
+    "判据：无硬伤；460px 预览+加载更多是数据工具家族内较优实现。"
+   ],
+   "conclusion": "**交互优化** · P2（分页架构正确，补搜索与进度反馈）",
+   "judge": "判据：无硬伤；460px 预览+加载更多是数据工具家族内较优实现。",
+   "deductions": [
+    "1. 【功能】无搜索定位：万行 sheet 找一个值只能 Ctrl+F 碰运气（页面 Ctrl+F 只搜已渲染 500 行）——数据查看器的核心诉求",
+    "2. 【可用性】大文件解析无进度反馈：XLSX 同步读入（officeEngine）期间页面冻结，>20MB 常见业务表无任何提示",
+    "3. 【功能】公式单元格只显示计算值，无\"显示公式原文\"切换（财务表对公式敏感）",
+    "4. 【交互】\"加载更多\"每次 +500 且无直接跳行输入（\"跳到第 5000 行\"不可达）",
+    "5. 【灵魂】空态 FileDrop 只有拖放（:67），无示例文件一键试玩；sheet 另存 CSV 用当前 sheet 名命名（:61 附近）但无\"全部 sheet 打 zip\"选项"
+   ],
+   "prescriptions": [
+    "客户端搜索",
+    "大文件预警",
+    "行跳转",
+    "公式原文"
+   ],
+   "hits": {
+    "pinHeight": 1,
+    "zeroInterlink": 0,
+    "silentCorrect": 0,
+    "encoding": 0,
+    "engineNoUi": 0,
+    "promises": 0
+   },
+   "benchmarks": " - **Google Sheets 预览**：即时滚动全量+搜索+筛选（云渲染）。差距：架构天花板，但站内可做客户端索引搜索逼近。 - **sqliteviewer.app**：表结构+数据双 Tab、行定位器。差距：行跳转。 - 借鉴优先级：**客户端搜索（对已解析数据建索引，纯前端可达）> 解析进度 > 行跳转 > 公式原文切换**。 "
+  },
+  {
+   "file": "merge-csv-files",
+   "name": "合并 CSV 文件",
+   "slug": "merge-csv-files",
+   "score": 58,
+   "dims": {
+    "func": 12,
+    "usab": 11,
+    "val": 13,
+    "iact": 10,
+    "ui": 7,
+    "soul": 5,
+    "perf": 4,
+    "mob": 6
+   },
+   "head": [
+    "分类：数据工具｜模式：C（多文件载入 → 表头对齐合并 → 预览 → 下载）｜组件：`src/tools/data/components/MergeCsv.vue`（121 行）｜引擎：csvEngine（mergeCsvData `csvEngine.ts:166-184`）｜注册：`src/tools/data/registry.ts`",
+    "对标标杆：convertcsv.com（CSV 合并）＋ 站内 split-csv-file（`docs/优化文档/数据工具/split-csv-file.md` 59 分，拆合互逆）"
+   ],
+   "mode": "C",
+   "conclusionBlock": [
+    "**交互优化** · P1（追加模式缺失改变工作流；全量渲染是确定性性能事故）",
+    "判据：补文件的\"替换\"语义违背用户直觉（丢一次操作全重来）；\"显示全部\"在大文件上是白屏冻结，属可用性问题。"
+   ],
+   "conclusion": "**交互优化** · P1（追加模式缺失改变工作流；全量渲染是确定性性能事故）",
+   "judge": "判据：补文件的\"替换\"语义违背用户直觉（丢一次操作全重来）；\"显示全部\"在大文件上是白屏冻结，属可用性问题。",
+   "deductions": [
+    "1. 【交互-硬伤级摩擦】再次拖放整体替换列表（`MergeCsv.vue:48`）而非追加，无\"追加/替换\"选择，也无已载入文件列表可管理（FileDrop 自带的 ↑↓/删除能力未接入，`FileDrop.vue:96-112`）——合并顺序实际不可控（label 写\"按列表顺序合并\" :70 但顺序=拖放瞬时顺序，事后不可调）",
+    "2. 【可用性-性能】\"显示全部 N 行\"把 `merged.rows` 全量塞进 v-for（:55,:95-97），10 万行 DOM 直接冻结页面，无护栏/分页/虚拟滚动",
+    "3. 【功能】只有\"堆叠拼接\"一种语义——无按键值去重合并（两份同 schema 数据合并去重是更高频的真需求）、无交集/差异模式（与 compare-csv-files 零互链）",
+    "4. 【可用性】每文件行数不显示（只有总数），来源列开启前后差异不预览；合并失败（列名大小写差异）无提示",
+    "5. 【灵魂】与 split-csv-file（拆分↔合并互逆）零互链——对方档案已单方面登记此问题，本侧确认仍无互链",
+    "6. 【性能】逐文件解析串行 for 循环（:41-46）无进度条，多 xlsx 大文件期间只有一句\"正在解析…\"",
+    "7. 【功能】列名对齐是精确字符串匹配（`csvEngine.ts:176` indexOf），列名前后空格/大小写差异即对不齐生成冗余列，且无\"近似列名未对齐\"提示",
+    "8. 【功能】JSON 分支仅收对象数组（:26-28），`{data:[...]}` 包装结构直接抛错，报错文案未说明\"需要什么形状的 JSON\""
+   ],
+   "prescriptions": [
+    "追加语义",
+    "渲染护栏",
+    "文件顺序",
+    "合并去重",
+    "互链",
+    "列名对齐披露"
+   ],
+   "hits": {
+    "pinHeight": 0,
+    "zeroInterlink": 1,
+    "silentCorrect": 0,
+    "encoding": 0,
+    "engineNoUi": 1,
+    "promises": 0
+   },
+   "benchmarks": " - **convertcsv.com**：合并时可选\"按表头对齐/按列位置对齐\"两种策略 + 去重开关。差距：**对齐策略与去重**（列名多一个空格就对不齐，本工具无兜底）。 - **站内 split-csv-file**（59 分）：拆分前实时预览每片行数——同款\"先看后做\"思路本工具已具备（100 行预览），但缺文件级管理。 - **站内 compare-csv-files**（本批 59 分）：同引擎家族（mergeCsvData/diffCsvData 相邻导出），合并前先对比、合并后去重的链路应互链成工作流。 - 借鉴优先级：**追加模式+文件管理 > 按位置对齐兜底 > 合并去重 > 统计卡**。 "
+  },
+  {
+   "file": "parquet-to-csv",
+   "name": "Parquet 查看转换",
+   "slug": "parquet-to-csv",
+   "score": 56,
+   "dims": {
+    "func": 11,
+    "usab": 10,
+    "val": 12,
+    "iact": 10,
+    "ui": 7,
+    "soul": 6,
+    "perf": 5,
+    "mob": 6
+   },
+   "head": [
+    "分类：数据工具｜模式：C（文件载入 → schema+预览 → 三格式导出）｜组件：`src/tools/data/components/ParquetViewer.vue`（167 行）｜引擎：hyparquet（纯 JS 列存解析，懒加载）｜注册：`src/tools/data/registry.ts`（needModel: true）",
+    "对标标杆：DuckDB WASM shell（Parquet 查询天花板）＋ parquet-viewer 在线工具"
+   ],
+   "mode": "C",
+   "conclusionBlock": [
+    "**交互优化** · P1（\"导出只是前 500 行\"必须让用户无法误读；schema 区弹性化）",
+    "判据：转换类工具的输出范围歧义属可用性问题（用户以为转了整个文件）；160px schema 钉高（共性-根因 2 家族点名）加重误读。"
+   ],
+   "conclusion": "**交互优化** · P1（\"导出只是前 500 行\"必须让用户无法误读；schema 区弹性化）",
+   "judge": "判据：转换类工具的输出范围歧义属可用性问题（用户以为转了整个文件）；160px schema 钉高（共性-根因 2 家族点名）加重误读。",
+   "deductions": [
+    "1. 【可用性-歧义】\"表格仅预览前 100 行，导出包含全部 {{ rows.length }} 行\"（`ParquetViewer.vue:147`）——rows.length≤500，**导出永远不是完整文件**但措辞让用户以为全量；徽章\"最多预览 500\"（:123）未与导出按钮关联说明",
+    "2. 【可用性】schema 区 `max-height:160px`（:132，审计底稿点名）——几十列 schema 要在 160px 窗口里滚屏",
+    "3. 【功能】无文件总行数/行组数展示（footer metadata 可算总行数却未读出，hyparquet parquetMetadataAsync 已在用 :50）——\"这个 parquet 有多大\"是打开文件第一问",
+    "4. 【功能】无列选择：宽表（100+ 列）只想看 5 列做不到，导出也只能全列",
+    "5. 【功能】编码支持窄且无扩展路径：gzip/brotli 压缩块直接失败（:74-76 只能报错），spark 写出的默认 gzip parquet 无法打开",
+    "6. 【交互】解析无进度/耗时；500 行截断无法换页看后续行（无 offset 跳读）",
+    "7. 【注册口径】registry.ts:16 标 `needModel: true`，但 hyparquet 纯 JS 免下载——与组件 notice\"无需下载任何模型\"（:111）自相矛盾，UI 可能出现多余下载提示（疑似注册口径问题，交用户决定）",
+    "8. 【功能】单文件入口：parquet 数据集普遍分片存储（part-0001/0002…），只能逐个拖入逐个导出，无多文件批量合并导出"
+   ],
+   "prescriptions": [
+    "导出范围明示",
+    "总行数",
+    "schema 弹性",
+    "分页读取",
+    "注册口径",
+    "批量入口"
+   ],
+   "hits": {
+    "pinHeight": 4,
+    "zeroInterlink": 0,
+    "silentCorrect": 0,
+    "encoding": 1,
+    "engineNoUi": 0,
+    "promises": 1
+   },
+   "benchmarks": " - **DuckDB WASM shell**：完整 Parquet 读取（全编码）、SQL 过滤投影下推、总行数即时统计。差距：**读数能力代差**（架构性，hyparquet 上限；诚实标注后可先补总行数）。 - **parquet-viewer 类在线工具**：schema 树可折叠、列显隐。差距：schema 呈现与列控制。 - 借鉴优先级：**总行数披露 > 导出范围明示 > schema 弹性 > 列选择**。 "
+  },
+  {
+   "file": "query-csv-with-sql",
+   "name": "SQL 查询 CSV",
+   "slug": "query-csv-with-sql",
+   "score": 60,
+   "dims": {
+    "func": 13,
+    "usab": 10,
+    "val": 13,
+    "iact": 12,
+    "ui": 7,
+    "soul": 8,
+    "perf": 6,
+    "mob": 5
+   },
+   "head": [
+    "分类：数据工具｜模式：C（文件加载 → SQL 编辑 → 结果表）｜组件：`src/tools/data/components/SqlQuery.vue`（309 行）｜引擎：alasql（懒加载）+ csvEngine｜注册：`src/tools/data/registry.ts`",
+    "对标标杆：DuckDB WASM Shell（本地 SQL 天花板）＋ sqlime.org"
+   ],
+   "mode": "C",
+   "conclusionBlock": [
+    "**交互优化** · P1（编辑区 96px/140px 是可用性硬伤级，但功能骨架是分类最佳）",
+    "判据：SQL 编辑框 + 错误条合计不到 250px，写复杂 JOIN 无法通览——与工具\"写 SQL\"的定位直接冲突。"
+   ],
+   "conclusion": "**交互优化** · P1（编辑区 96px/140px 是可用性硬伤级，但功能骨架是分类最佳）",
+   "judge": "判据：SQL 编辑框 + 错误条合计不到 250px，写复杂 JOIN 无法通览——与工具\"写 SQL\"的定位直接冲突。",
+   "deductions": [
+    "1. 【可用性-硬伤】SQL 编辑框 140px + 错误提示区 96px（`SqlQuery.vue:224,303`；共性-根因 2）——写 20 行 JOIN 查询时编辑框只显示 5~6 行，错误长信息被 96px 截断，定位\"编辑器\"体验不可接受",
+    "2. 【功能】无表结构预览：加载文件后看不到列名/类型/行数（要 SELECT * 手动探），DuckDB 的 DESCRIBE 是标配",
+    "3. 【交互】慢查询无取消按钮、无耗时统计（alasql 大表 JOIN 分钟级，用户只能干等刷新）",
+    "4. 【功能】结果 500 行预览上限（:173 toast 披露，诚实）但无\"下载全部\"与\"预览 500 行\"的界限说明在结果区（只在 toast 里一闪而过）",
+    "5. 【灵魂】无查询历史（localStorage 存最近 10 条）；表名注册规则（文件名→表名，去扩展名/中文字符处理）未在 UI 披露"
+   ],
+   "prescriptions": [
+    "编辑器弹性",
+    "表结构面板",
+    "耗时+取消",
+    "查询历史"
+   ],
+   "hits": {
+    "pinHeight": 1,
+    "zeroInterlink": 0,
+    "silentCorrect": 0,
+    "encoding": 0,
+    "engineNoUi": 0,
+    "promises": 0
+   },
+   "benchmarks": " - **DuckDB WASM Shell**：完整 SQL 方言+窗口函数+Parquet 直查+`.mode` 切换。差距：**方言能力代差**（架构性，alasql 上限如此，诚实标注）。 - **sqlime.org**：schema 面板+查询历史+自动补全。差距：编辑器辅助。 - 借鉴优先级：**编辑器弹性高度 > 表结构面板 > 查询历史 > 耗时+取消**。 "
+  },
+  {
+   "file": "remove-duplicates-from-csv",
+   "name": "CSV 去重",
+   "slug": "remove-duplicates-from-csv",
+   "score": 59,
+   "dims": {
+    "func": 12,
+    "usab": 10,
+    "val": 13,
+    "iact": 11,
+    "ui": 7,
+    "soul": 6,
+    "perf": 6,
+    "mob": 6
+   },
+   "head": [
+    "分类：数据工具｜模式：C（文件载入 → 依据选择 → 实时结果 → 下载）｜组件：`src/tools/data/components/CsvDedupe.vue`（132 行）｜引擎：csvEngine（dedupeRows `csvEngine.ts:141-163`）｜注册：`src/tools/data/registry.ts`",
+    "对标标杆：convertcsv.com（Remove Duplicate Lines/Rows）＋ 站内 text 去重（remove-duplicate-lines 文本家族）"
+   ],
+   "mode": "C",
+   "conclusionBlock": [
+    "**交互优化** · P2（功能语义基本对路，修口径披露与键选择交互）",
+    "判据：无硬伤；300px 钉高属家族共性（共性-根因 2），个性问题集中在 trim 口径与重复行不可见。"
+   ],
+   "conclusion": "**交互优化** · P2（功能语义基本对路，修口径披露与键选择交互）",
+   "judge": "判据：无硬伤；300px 钉高属家族共性（共性-根因 2），个性问题集中在 trim 口径与重复行不可见。",
+   "deductions": [
+    "1. 【可用性】结果表钉 300px（`CsvDedupe.vue:78`，审计底稿点名）+ 50 行截断（:84）——确认\"删掉的到底是不是重复\"需要反复滚动",
+    "2. 【灵魂-数据正确性】\"忽略首尾空格\"标签与实现不符：引擎把**所有连续空白归一为单空格再去首尾**（`csvEngine.ts:151` v.replace(/\\s+/g,' ').trim()），\"A  B\"（双空格）与\"A B\"会被判重——口径未披露，静默改变判定结果",
+    "3. 【功能】无\"保留末条\"选项（日志型数据\"最后一次出现\"才是有效记录的场景真实存在，`csvEngine.ts:155-161` 写死保留首条）",
+    "4. 【功能】**只给结果不给证据**：被移除的 K 行完全不可见、不可导出——\"找出重复项\"（保留全量+标记）是并列的真需求，convertcsv 两者都有",
+    "5. 【交互】键列 multiple select 需 Ctrl/Cmd+点击（:63），移动端/触屏基本不可用",
+    "6. 【灵魂】无\"重复分布\"统计（哪些键值重复最多 Top5），去重后与原表无 diff 视图对照",
+    "7. 【功能】仅文件入口无粘贴入口（对照 csv-to-excel 双入口）——几行小数据去重要先落盘成文件，跨过一道路障"
+   ],
+   "prescriptions": [
+    "口径披露",
+    "重复行导出",
+    "保留末条",
+    "键列 chip",
+    "预览弹性",
+    "粘贴入口"
+   ],
+   "hits": {
+    "pinHeight": 3,
+    "zeroInterlink": 0,
+    "silentCorrect": 1,
+    "encoding": 0,
+    "engineNoUi": 0,
+    "promises": 1
+   },
+   "benchmarks": " - **convertcsv.com**：去重 + \"仅显示重复行\"双输出、保留首条/末条开关、列选择同款。差距：**重复行视角与 keep-last**。 - **站内 remove-duplicate-lines**（文本家族）：同构语义，文本侧有行数统计；数据侧优势是列级键——两者互链可承接\"文本去重到数据去重\"的升级路径。 - **站内 dedupeRows 引擎**（`csvEngine.ts:141-163`）与 merge-csv-files 的\"合并后去重\"处方同源——去重能力应以本工具为唯一入口、引擎供家族复用。 - 借鉴优先级：**重复行导出/标记 > trim 口径披露 > keep-last > chip 选列**。 "
+  },
+  {
+   "file": "split-csv-file",
+   "name": "CSV 文件拆分",
+   "slug": "split-csv-file",
+   "score": 59,
+   "dims": {
+    "func": 13,
+    "usab": 11,
+    "val": 12,
+    "iact": 11,
+    "ui": 7,
+    "soul": 5,
+    "perf": 6,
+    "mob": 6
+   },
+   "head": [
+    "分类：数据工具｜模式：C（文件载入 → 拆分模式选择 → zip 打包下载）｜组件：`src/tools/data/components/CsvSplitter.vue`（166 行）｜引擎：csvEngine（splitCsv/parseCsvAsync）｜注册：`src/tools/data/registry.ts`",
+    "对标标杆：csvsplit.net ＋ 站内 split-pdf-by-size（`docs/优化文档/PDF工具/split-pdf-by-size.md` 65 分，严谨打包标杆）"
+   ],
+   "mode": "C",
+   "conclusionBlock": [
+    "**交互优化** · P2（预览先行是分类亮点，补表头开关与统计卡）",
+    "判据：无硬伤；表头处理是数据正确性风险点，优先补齐。"
+   ],
+   "conclusion": "**交互优化** · P2（预览先行是分类亮点，补表头开关与统计卡）",
+   "judge": "判据：无硬伤；表头处理是数据正确性风险点，优先补齐。",
+   "deductions": [
+    "1. 【功能·数据正确性】按行数拆分时每片是否带表头行无开关无披露（`splitCsv` 引擎行为 UI 不说明）——下游拼回时表头混入数据",
+    "2. 【功能】无按目标体积拆分（邮件 25MB 限制场景）——站内 PDF 家族 split-pdf-by-size.md 已示范\"逐页实测+贪心打包\"的严谨做法，CSV 侧空缺",
+    "3. 【灵魂】无统计卡：拆分前看不到\"将生成 N 片/每片约 X 行/预计总体积\"",
+    "4. 【交互】大文件解析（parseCsvAsync）无进度百分比；拆分+zip 无进度（100 万行秒级冻结）",
+    "5. 【灵魂】与 merge-csv-files 零互链（拆分↔合并是同一工作流的两半）；输出文件名规则（原名_001？）未披露"
+   ],
+   "prescriptions": [
+    "表头开关",
+    "统计卡",
+    "按体积拆分",
+    "进度条"
+   ],
+   "hits": {
+    "pinHeight": 0,
+    "zeroInterlink": 1,
+    "silentCorrect": 1,
+    "encoding": 0,
+    "engineNoUi": 0,
+    "promises": 0
+   },
+   "benchmarks": " - **csvsplit.net**：按行/按大小/按列三模式 + 表头开关。差距：**体积模式与表头开关**。 - **站内 split-pdf-by-size**（65 分）：逐单元实测体积+贪心打包+确定性达标。差距：同款严谨度未移植到 CSV。 - 借鉴优先级：**表头开关 > 按体积拆分（移植 PDF 家族算法）> 统计卡 > 进度条**。 "
+  },
+  {
+   "file": "sqlite-viewer",
+   "name": "SQLite 数据库查看器",
+   "slug": "sqlite-viewer",
+   "score": 58,
+   "dims": {
+    "func": 12,
+    "usab": 10,
+    "val": 13,
+    "iact": 10,
+    "ui": 7,
+    "soul": 6,
+    "perf": 5,
+    "mob": 5
+   },
+   "head": [
+    "分类：数据工具｜模式：C 变体（文件载入 → 表列表侧栏 + 数据/结构/SQL 主区）｜组件：`src/tools/data/components/SqliteViewer.vue`（279 行）+ SqlPreviewTable.vue（81 行）｜引擎：sql.js（wasm 约 1MB，懒加载，wasm 于 public/sqljs/）｜注册：`src/tools/data/registry.ts`（needModel: true，提示诚实）",
+    "对标标杆：sqliteviewer.app ＋ sqlime.org（schema 面板+导出标杆）"
+   ],
+   "mode": "C 变体",
+   "conclusionBlock": [
+    "**交互优化 + 需拓展** · P1（导出是能力缺口标拓展；SQL 输入与高度钉死标交互）",
+    "判据：查看器\"只能看不能取\"（无导出）与标杆 sqlime 的 schema+导出组合有明显能力差距；单行 input 直接限制复杂查询可用性。"
+   ],
+   "conclusion": "**交互优化 + 需拓展** · P1（导出是能力缺口标拓展；SQL 输入与高度钉死标交互）",
+   "judge": "判据：查看器\"只能看不能取\"（无导出）与标杆 sqlime 的 schema+导出组合有明显能力差距；单行 input 直接限制复杂查询可用性。",
+   "deductions": [
+    "1. 【功能-缺口】查询结果与表数据均无导出（`SqlPreviewTable.vue` 全文无下载逻辑）——\"打开 db 抽张表出来\"这一主场景断在最后一步；站内 query-csv-with-sql（63 分档案）同分类已有 CSV 导出，能力倒挂",
+    "2. 【可用性】SQL 输入是单行 `<input>`（`SqliteViewer.vue:164`）——粘贴含换行的多行查询被压平，JOIN/子查询书写体验受限；对照 SqlQuery 用 textarea（140px）尚且被档案点名",
+    "3. 【可用性】表列表 380px 钉高（:220，审计底稿点名）+ 结构表 180px（:177）+ 数据表 340px 三窗叠放，1366×768 下主数据区折叠线以下",
+    "4. 【功能】侧栏无行数/无视图与索引：sqlite_master 只筛 table（:62），VIEW 不显示；点表前不知道行数（要 SELECT count 自查）",
+    "5. 【功能】无分页：每表固定前 200 行（:92）、查询固定 500 行（:129），第 201 行起\"不存在\"，且 LIMIT 上限在结果区无披露（仅 chip\"前 N 行\" :172）",
+    "6. 【交互】无查询历史（localStorage）；错误信息原始 sqlite 消息直出，无中文翻译层",
+    "7. 【灵魂】无 schema 关系图/外键标注（PRAGMA foreign_key_list 未用）；打开后无\"库大小/引擎版本\"元信息卡",
+    "8. 【功能】结构表只有列名/类型/非空/主键四列（:97-103），缺默认值与外键列（PRAGMA 返回里 dflt_value 已有未取），排查约束仍需手写 SQL"
+   ],
+   "prescriptions": [
+    "结果导出",
+    "多行 SQL",
+    "行数披露",
+    "高度重排",
+    "视图支持",
+    "结构增强"
+   ],
+   "hits": {
+    "pinHeight": 2,
+    "zeroInterlink": 0,
+    "silentCorrect": 1,
+    "encoding": 0,
+    "engineNoUi": 1,
+    "promises": 0
+   },
+   "benchmarks": " - **sqliteviewer.app**：表结构树+行分页浏览。差距：分页与结构呈现方式（对方 schema 折叠树更省空间）。 - **sqlime.org**：schema 面板+查询历史+结果导出 CSV/JSON+自动补全。差距：**导出与历史**。 - 借鉴优先级：**结果导出 CSV > 多行 SQL textarea > 行数披露 > 分页 > 查询历史**。 "
+  },
+  {
+   "file": "zip-password",
+   "name": "ZIP 加密打包 / 解压",
+   "slug": "zip-password",
+   "score": 57,
+   "dims": {
+    "func": 12,
+    "usab": 10,
+    "val": 12,
+    "iact": 10,
+    "ui": 7,
+    "soul": 6,
+    "perf": 5,
+    "mob": 6
+   },
+   "head": [
+    "分类：数据工具｜模式：C（模式切换 → 文件/压缩包载入 → 打包或列表解压）｜组件：`src/tools/data/components/ZipPassword.vue`（291 行）｜引擎：@zip.js/zip.js（AES-256 strength 3，懒加载，useWebWorkers:false 主线程 :26-29）｜注册：`src/tools/data/registry.ts`",
+    "对标标杆：7-Zip / WinRAR（桌面加密压缩口径参照）＋ 站内 archive-extractor（`docs/优化文档/实用工具/archive-extractor.md` 57 分，解压侧重叠工具）"
+   ],
+   "mode": "C",
+   "conclusionBlock": [
+    "**交互优化** · P2（补弱密码警示与打包明细；与 archive-extractor 的边界需用户决策）",
+    "判据：无硬伤；功能重叠属站内 IA 问题（交用户决定：本工具聚焦加密打包、解压引导至 archive-extractor，或反之）。"
+   ],
+   "conclusion": "**交互优化** · P2（补弱密码警示与打包明细；与 archive-extractor 的边界需用户决策）",
+   "judge": "判据：无硬伤；功能重叠属站内 IA 问题（交用户决定：本工具聚焦加密打包、解压引导至 archive-extractor，或反之）。",
+   "deductions": [
+    "1. 【可用性-安全弱化】密码策略仅\"至少 4 位\"（`ZipPassword.vue:45-47`）无强度反馈——4 位纯数字密码对 AES-256 加密形同虚设，工具应警示\"弱密码使加密失去意义\"（加密工具的安全提示义务）",
+    "2. 【站内重复】解压模式与 archive-extractor 重叠（对方 desc 明确\"支持密码加密包\"且多格式 7z/rar）——两工具零互链（registry 互检确认），用户从\"加密打包\"完成后的自然下一步\"对方怎么解\"无引导",
+    "3. 【可用性】打包侧无文件明细：只有计数 chip（:187），看不到每个文件名/大小/总体积，误拖大文件无预警；打包完成 zip 命名规则（首文件名 :64）未披露",
+    "4. 【性能】主线程加密（:28 useWebWorkers:false），GB 级文件无进度条 UI 冻结——zip.js 支持 worker（配置路径即可），当前为规避路径问题牺牲了体验",
+    "5. 【功能】无压缩等级选择（zip.js 支持 level），加密包默认是否压缩无披露——\"加密后还有多大\"用户不可控",
+    "6. 【交互】解压错误二合一文案（:125,152）——密码错与文件损坏区分开是排查第一步（zip.js 可按异常类型判断）",
+    "7. 【可用性】条目列表 320px 钉高（:243）+ 平铺无目录层级——深层目录包丢失结构感（filename 全路径平铺展示）",
+    "8. 【可用性】无目标体积预警：加密打包常为邮件附件服务，打包完成才发现超 25MB 限制；文件选完即显示总体积可提前分流"
+   ],
+   "prescriptions": [
+    "密码强度警示",
+    "打包明细",
+    "进度反馈",
+    "错误分流",
+    "互链",
+    "体积预警"
+   ],
+   "hits": {
+    "pinHeight": 2,
+    "zeroInterlink": 1,
+    "silentCorrect": 1,
+    "encoding": 0,
+    "engineNoUi": 0,
+    "promises": 0
+   },
+   "benchmarks": " - **7-Zip / WinRAR**：密码强度无警示但压缩等级/加密算法（AES-256/ZipCrypto）可选、文件树平铺可切换、进度与取消。差距：**过程可控性**。 - **站内 archive-extractor**（57 分）：解压侧多格式+列表预览按需下载——同款交互本工具已复制，差异仅在加密支持；分流合并可减一个工具的维护面。 - 借鉴优先级：**密码强度警示 > 打包明细卡 > 进度条（开 worker）> 与 archive-extractor 互链/分流**。 "
+  }
+ ]
+}

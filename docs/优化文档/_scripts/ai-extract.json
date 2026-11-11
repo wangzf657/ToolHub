@@ -1,0 +1,675 @@
+{
+ "stat": {
+  "n": 15,
+  "avg": "54.7",
+  "max": 62,
+  "min": 45,
+  "sorted": [
+   "entity-extractor=62",
+   "image-classifier=61",
+   "sentiment-analyzer=61",
+   "text-similarity=60",
+   "emotion-detector=59",
+   "zero-shot-classifier=58",
+   "chat-with-pdf=57",
+   "question-answering=57",
+   "translator=55",
+   "image-caption=53",
+   "text-summarizer=50",
+   "keyword-extractor=49",
+   "object-detector=47",
+   "paraphraser=46",
+   "grammar-corrector=45"
+  ],
+  "p0": 2,
+  "p1": 12,
+  "p2": 2
+ },
+ "tools": [
+  {
+   "file": "chat-with-pdf",
+   "name": "与 PDF 对话",
+   "slug": "chat-with-pdf",
+   "score": 57,
+   "dims": {
+    "func": 10,
+    "usab": 13,
+    "val": 8,
+    "iact": 10,
+    "ui": 8,
+    "soul": 8,
+    "perf": 6,
+    "mob": 7
+   },
+   "head": [
+    "分类：AI工具｜模式：C（单列文件流：FileDrop→索引→提问→引用卡）｜组件：`src/tools/ai/components/ChatWithPdf.vue`（193 行）｜引擎：`src/lib/pdfEngine.ts` pdfPageTexts（:663-687）+ `src/lib/nlpEngine.ts` similarity/answerFromPassage（:472-479/:274-294，检索式）｜注册：`src/tools/ai/registry.ts:84`",
+    "对标标杆：ChatPDF / Humata（云生成式，架构天花板参照）"
+   ],
+   "conclusion": "**交互优化 + 需拓展** · P1",
+   "judge": "判据：检索式引用是真可用（页码可溯源），但与 ChatPDF 生成式综合存在代差且\"对话\"承诺虚位——需诚实标注 + 检索质量修复。",
+   "deductions": [
+    "1. 【灵魂-规约红线】\"对话\"名不副实：无多轮上下文、无改写式回答，实为\"单问→3 条引用句\"；面板 notice 有诚实说明但标题/desc（registry.ts:84\"上传 PDF 后用自然语言提问\"）未告知\"非生成式、不支持总结/跨句推理/追问\"",
+    "2. 【实用价值-疑似问题】疑问词规则正则缺陷：`/[先生|女士|博士|教授|总|经理|作者|创始人]/`（nlpEngine.ts:286）是字符类而非alternation——问句含\"谁\"时，句中出现\"先\"\"生\"\"士\"任一单字即 +2 分；`:289` `(位于|位于|在.+市|省|国|路|街)` 松散alternation使句含\"省\"字即 +2，含\"省\"的无关句可被顶成答案",
+    "3. 【实用价值】匹配无语义容错：similarity 基于中文 2-gram 集合（textEngine.ts:606-614）+仅 30 个英文停用词（:616-620），提问改写一个同义词即失配；0.02 阈值（ChatWithPdf.vue:66）过低，弱相关句也会凑满 Top3",
+    "4. 【交互】无问答历史：asked 只存最后一问（:23），上一轮引用被覆盖，无法对比多问结果",
+    "5. 【性能】句子 token 无缓存：sents 存原文（:39-41），每次提问 map 全量重算 similarity（:63-65），长文档卡顿且 ask 无 loading/busy 态",
+    "6. 【功能】引用不落地：无\"跳转到该页\"（PDF 本身未渲染，无法定位上下文），引用句只有孤句无前后文",
+    "7. 【功能】无导出：问答对无法复制/导出 Markdown（引用+页码本可一键成稿）",
+    "8. 【实用价值】长句切分依赖标点：splitSentences 仅按\"。！？!?；;\"与\". 大写\"切分（`nlpEngine.ts:11-17`），标点稀疏的 PDF（合同/条款示密集排版、英文小写句点无空格）会产出整段超长\"句子\"，引用卡变成整段糊墙",
+    "9. 【共性】提问行与引用卡受 266px 装饰层前缀挤压（共性-根因 1）"
+   ],
+   "prescriptions": [
+    "能力边界卡",
+    "正则修复",
+    "提问缓存",
+    "问答历史",
+    "引用上下文"
+   ],
+   "benchmarks": [
+    "ChatPDF / Humata"
+   ]
+  },
+  {
+   "file": "emotion-detector",
+   "name": "情绪识别",
+   "slug": "emotion-detector",
+   "score": 59,
+   "dims": {
+    "func": 10,
+    "usab": 13,
+    "val": 8,
+    "iact": 11,
+    "ui": 8,
+    "soul": 9,
+    "perf": 9,
+    "mob": 7
+   },
+   "head": [
+    "分类：AI工具｜模式：C 变体（单列：输入→即时结果，非文件流）｜组件：`src/tools/ai/components/EmotionDetector.vue`（103 行）｜引擎：`src/lib/nlpEngine.ts` detectEmotion（:205-214，六情绪词典计数法）｜注册：`src/tools/ai/registry.ts:92-96`",
+    "对标标杆：HF Spaces 情绪分类官方 demo（emotion 英文六类模型，transformers.js 同源天花板参照）"
+   ],
+   "conclusion": "**交互优化 + 需拓展** · P1",
+   "judge": "判据：实用 8/15（词典规模与否定缺失限制真实场景）+ 对标 HF 情绪模型存在能力代差，但 M 系实测无、代码上无可用性硬伤。",
+   "deductions": [
+    "1. 【实用价值-核心】无否定处理：detectEmotion 纯子串计数（`nlpEngine.ts:209`），\"不开心/不喜欢/不害怕\"全数正向命中；同文件 sentiment 已实现否定翻转（:171-172）却未复用",
+    "2. 【实用价值】词典约 66 词且口语向（nlpEngine.ts:191-198），组件里又另维护一份 EMO_WORDS 展示表（EmotionDetector.vue:11-18）——两处人工同步，书面语/网络新词覆盖弱",
+    "3. 【功能】与 desc 口径差：registry desc 称\"六类情绪及占比\"（registry.ts:93），实际彩条宽为 count/max（EmotionDetector.vue:56），数字列显示次数非百分比（:58）",
+    "4. 【功能】\"喜欢\"同时挂在喜悦与爱两词表（nlpEngine.ts:192,:196）一词双计；\"爱/笑/烦/怕\"单字子串误伤——\"可爱\"\"玩笑\"\"麻烦\"\"可怕\"均命中",
+    "5. 【灵魂】无能力边界披露：面板 notice 只说\"本地情绪词典\"（EmotionDetector.vue:36），未告知词表规模与局限，用户易误当模型输出",
+    "6. 【功能】无批量模式：客服\"一次贴 100 条评论逐条打标\"场景只能整段混计",
+    "7. 【交互】结果区无复制/导出（对比 TextTool 家族标配复制按钮）",
+    "8. 【实用价值】标点情绪信号全丢： detectEmotion 只数字典词（`nlpEngine.ts:205-214`），\"！！！\"“？？？”、全大写等强度信号不参与计分，感叹号密集的激动文本与平铺直叙同权",
+    "9. 【灵魂】六情绪固定不可配：产品/客服场景常需要\"满意/不满/中性\"业务标签，词典不可扩展也不可关停某类"
+   ],
+   "prescriptions": [
+    "否定翻转",
+    "占比口径",
+    "双计修复",
+    "结果导出",
+    "能力披露"
+   ],
+   "benchmarks": [
+    "HF Spaces 情绪分类 demo"
+   ]
+  },
+  {
+   "file": "entity-extractor",
+   "name": "实体识别抽取",
+   "slug": "entity-extractor",
+   "score": 62,
+   "dims": {
+    "func": 10,
+    "usab": 12,
+    "val": 10,
+    "iact": 11,
+    "ui": 8,
+    "soul": 11,
+    "perf": 7,
+    "mob": 7
+   },
+   "head": [
+    "分类：AI工具｜模式：C/D（单列输入 + 结果双栏 grid）｜组件：`src/tools/ai/components/EntityExtractor.vue`（全文 179 行）｜引擎：`src/lib/nlpEngine.ts`（extractEntities，:227-270，规则+词典）｜注册：`src/tools/ai/registry.ts:77-82`",
+    "对标标杆：Hugging Face Spaces NER demo（transformers.js 同源，纯前端天花板参照）＋ 站内 pii-scrubber（同规则族联动）"
+   ],
+   "conclusion": "**交互优化 + 需拓展** · P1",
+   "judge": "判据：无 P0 硬伤，交互组件是 AI 家族样板；但\"地名零实现+人名低召回\"使 desc 承诺（registry.ts:79\"识别…地点…\"）打折——补齐后可上探 70 分段。",
+   "deductions": [
+    "1. 【功能-核心】\"地名\"声明未实现：Entity 类型含'地名'、过滤 Tab 有其位（`nlpEngine.ts:219`、`EntityExtractor.vue:24`），但 extractEntities 全函数（`nlpEngine.ts:227-270`）无任何地名词典/规则——desc 宣传\"识别…地点…\"（`registry.ts:79`）与实现不符；至少应内置省市县词典",
+    "2. 【功能-核心】人名召回结构性偏低：候选需\"前字符是标点/空格\"（`nlpEngine.ts:260`）——\"他与张伟合作\"漏检张伟；仅支持 2 字名（candidate3 三字名逻辑被 `void` 弃置成死代码，:266-267）；\"张伟说\"因后接动词不在边界集漏检",
+    "3. 【功能】机构后缀表不一致：orgRe 只认 10 类后缀（:246），头部 ORG_SUFFIX（含委员会/基金会/协会/部/局/中心，:224）是未引用的死代码——\"教育部/红十字会/消费者协会\"漏检",
+    "4. 【可用性】实体列表 320px 钉高内滚（`EntityExtractor.vue:144-149`），50+ 实体时右侧憋屈；原文标注栏无高度上限，两栏高度失衡",
+    "5. 【交互】无导出与下游联动：实体列表不能一键复制/导出 CSV；识别出的邮箱/电话与站内 pii-scrubber（utility，同用正则规则族）天然构成\"提取→脱敏\"工作流，无互通入口",
+    "6. 【灵魂】能力边界披露半程：notice 只说\"本地规则+词典\"（:66），未提地名缺失与人名局限——用户以生僻人名漏检反推\"工具不准\"，实为边界未在面板内说清（家族口径）",
+    "7. 【功能】实体重叠取舍规则未告知：cleanEntities 按 start 排序跳过重叠（:12-22），百分比与金额交叉时的取舍对用户不可见",
+    "8. 【可用性】点击列表项不滚动定位：toggle 仅切换 activeId 高亮样式（`EntityExtractor.vue:35-36`），长文中对应标注 span 不会 scrollIntoView，联动高亮在长文下实际找不到位置"
+   ],
+   "prescriptions": [
+    "地名补齐",
+    "人名召回放宽",
+    "边界披露",
+    "列表导出",
+    "脱敏联动"
+   ],
+   "benchmarks": [
+    "HF Spaces NER demo",
+    "站内 pii-scrubber"
+   ]
+  },
+  {
+   "file": "grammar-corrector",
+   "name": "AI 语法纠错",
+   "slug": "grammar-corrector",
+   "score": 45,
+   "dims": {
+    "func": 7,
+    "usab": 12,
+    "val": 5,
+    "iact": 8,
+    "ui": 6,
+    "soul": 7,
+    "perf": 8,
+    "mob": 6
+   },
+   "head": [
+    "分类：AI工具｜模式：A（TextTool 双栏，textDef，自动执行）｜组件：`src/components/common/TextTool.vue`（全文 195 行）｜引擎：`src/lib/nlpEngine.ts`（grammarCheck，:489-521，13 条正则规则）｜注册：`src/tools/ai/registry.ts:45-65`",
+    "对标标杆：LanguageTool（开源+云）＋ Grammarly（云）｜中文场景：秘塔写作猫（云）"
+   ],
+   "conclusion": "**需拓展 + 交互优化** · P1（含 1 项疑似功能缺陷上报）",
+   "judge": "判据：实用价值 5/15——\"修正后\"损坏文本属功能缺陷（扣分点 1，按测试纪律只记录不修复）；能力面与\"语法纠错\"的名实差距同时存在。",
+   "deductions": [
+    "1. 【实用价值-疑似功能缺陷】修复替换长度用错：`fixed.slice(issue.index + issue.msg.length)` 把**消息文案长度**当匹配文本长度用（`registry.ts:58`）——推演用例\"我非常非常开心。\"：消息\"「非常非常」叠用\"长 8 字、实际匹配仅 4 字，输出成\"我非常\"（吞掉\"开心。\"3 字）；英文 i 规则消息约 14 字、匹配仅 3 字，破坏更大。**只记录不修复**",
+    "2. 【功能】\"语法\"名不副实：13 条规则全部是重复字/标点/空格/括号/英文 i 大写（`nlpEngine.ts:491-505`），零语法分析；的地得混用、主谓搭配、成语误写、时态一致等真语法问题一概不查",
+    "3. 【功能】规则自身粗糙：`/的的地/` 要求\"的的\"后必须紧跟\"地\"才命中（`nlpEngine.ts:492`），\"的的\"后接其他字漏检；`/。。|。。/` 两分支完全重复（:504）；\"括号未闭合\"的 suggestion 为空串=替换无效果",
+    "4. 【可用性】问题清单无定位：issues 内部有 index（`nlpEngine.ts:510`）但输出不展示位置与上下文片段（`registry.ts:62`），多处问题时用户逐字找错",
+    "5. 【灵魂-规约红线】能力边界标注不在面板内：desc\"检查重复字词、标点问题与英文大小写\"（`registry.ts:47`）措辞诚实但渲染在视口外 tool-about（`ToolPage.vue:99`，M-17 家族病灶）；面板内应标\"规则清理器，非语法分析\"",
+    "6. 【交互】无逐条采纳：LanguageTool 按句高亮+逐条\"采纳/忽略\"；本工具要么全修（且修坏）要么不修",
+    "7. 【灵魂】`registry.ts:61` `void paraphrase` 死代码混入 transform，实现仓促的信号（不影响功能，属代码卫生）"
+   ],
+   "prescriptions": [
+    "止损：替换正确化",
+    "问题定位",
+    "面板内诚实标注",
+    "规则库首轮扩充",
+    "逐条采纳"
+   ],
+   "benchmarks": [
+    "LanguageTool",
+    "Grammarly",
+    "秘塔写作猫"
+   ]
+  },
+  {
+   "file": "image-caption",
+   "name": "图像描述生成",
+   "slug": "image-caption",
+   "score": 53,
+   "dims": {
+    "func": 8,
+    "usab": 12,
+    "val": 6,
+    "iact": 9,
+    "ui": 7,
+    "soul": 11,
+    "perf": 9,
+    "mob": 7
+   },
+   "head": [
+    "分类：AI工具｜模式：C（单列文件流：FileDrop→分析→结果卡）｜组件：`src/tools/ai/components/ImageCaption.vue`（192 行）｜引擎：`src/lib/imageEngine.ts` paletteFrom + 组件内启发式分析（:28-92，颜色统计+边缘密度）｜注册：`src/tools/ai/registry.ts:103`（needModel: true）",
+    "对标标杆：HF Spaces BLIP 官方 demo（transformers.js 同源天花板参照）"
+   ],
+   "conclusion": "**需拓展 + 交互优化** · P1（另登记 1 项口径缺陷交用户决定）",
+   "judge": "判据：实用 6/15（alt 输出名不副实）+ 功能缺图片预览；诚实度样板但工具本体价值薄弱。",
+   "deductions": [
+    "1. 【口径缺陷-疑似问题】needModel 徽章撒谎：注册表 needModel: true（registry.ts:103）触发 ToolPage.vue:67\"（部分能力首次使用需下载模型）\"徽章，本工具纯像素统计零下载——入口承诺与实现矛盾（面板诚实说明反而自证了徽章是错的）",
+    "2. 【可用性】无图片预览：结果区只有文件名+尺寸+色板（:131-146），用户无法边看图边核对\"描述是否靠谱\"——对照 remove-watermark 的画布验收标准，这是 AI 输出类工具的验收底线",
+    "3. 【实用价值-核心】alt 文本模板化：alt 仅由色调/亮度/尺寸拼出（:90），HTML 规范里 alt 是\"图片内容等价描述\"；对真正需要 alt 的无障碍/SEO 用户，输出不可用，而标题与 keywords（\"无障碍\"）把它当核心卖点",
+    "4. 【功能】描述内容贫瘠：description 由 4 个统计量拼模板句（:89），任意两张同色调图输出相同描述——\"生成\"名不副实",
+    "5. 【灵魂】BLIP\"本站已预留\"（:122）但无预约/上线提示，承诺悬空",
+    "6. 【交互】busy 态仅一行文字（:127）无骨架/进度；连续换图无历史记录可回看",
+    "7. 【灵魂】口径魔术数未披露：暖/冷判定阈值 r-b>18（ImageCaption.vue:74）、偏亮>165/偏暗<85（:77）、边缘密度 0.18/0.08（:78）——三组阈值无任何说明，同类图判\"暖\"还是\"中性\"用户无从预期",
+    "8. 【共性】结果卡在折叠线下（共性-根因 1）；无弹性高度（共性-根因 2）"
+   ],
+   "prescriptions": [
+    "口径对齐",
+    "预览回显",
+    "alt 可编辑",
+    "诚实升级",
+    "BLIP 端侧"
+   ],
+   "benchmarks": [
+    "HF Spaces BLIP demo",
+    "Cloudinary/alt 生成类云服务"
+   ]
+  },
+  {
+   "file": "image-classifier",
+   "name": "图像分类识别",
+   "slug": "image-classifier",
+   "score": 61,
+   "dims": {
+    "func": 12,
+    "usab": 8,
+    "val": 12,
+    "iact": 10,
+    "ui": 8,
+    "soul": 11,
+    "perf": 7,
+    "mob": 6
+   },
+   "head": [
+    "分类：AI工具｜模式：C（单列文件流：FileDrop→推理→双栏结果）｜组件：`src/tools/ai/components/ImageClassifier.vue`（121 行）｜引擎：transformers.js Xenova/mobilevit-small（:26-34，hf-mirror 镜像 + 进度回调）｜注册：`src/tools/ai/registry.ts:106`（needModel: true）",
+    "对标标杆：Google Lens（云）＋ HF Spaces ViT 分类 demo（同源天花板参照）｜站内正面样板：remove-watermark（67 分）"
+   ],
+   "conclusion": "**交互优化** · P0",
+   "judge": "判据：模型真实、下载预告与进度达标，是站内真模型工具第二好底子；但下载失败路径静默（错误不可见不可恢复）属可用性硬伤，必须优先修。",
+   "deductions": [
+    "1. 【可用性-硬伤】模型加载失败静默：loadModel catch 调 model.fail 存错误（ImageClassifier.vue:37-40）后 throw，onFiles catch 因 model.error.value 已置而跳过 toast（:56）——而模板只渲染 loading 态（:75-78），**model.error 全站 grep 无任何渲染点、无重试按钮**：hf-mirror 不可达/网络失败时进度条消失、界面无任何提示，用户只能重新拖图盲试",
+    "2. 【可用性】失败后状态残留：results 已清空（:47）但 previewUrl 已设置（:50），失败时页面呈现\"有图无结果+模型推理中…\"（:92）永久悬挂文案",
+    "3. 【交互】Top-K 改动不重跑：select 改 3/5/10（:96-98）仅影响下一次拖图，当前结果不变且无提示",
+    "4. 【功能】英文标签无中文映射：ImageNet-1k 类目英文名直出（:85 标题已自嘲），中文用户\"gateway 是什么\"需自行查译——映射表（约 1000 行常量）或 ILSVRC 中文对照是纯前端可解",
+    "5. 【功能】无批量：相册多图逐张拖；CSV 导出只覆盖单图 Top-K",
+    "6. 【交互】20MB 自动下载无二次确认（remove-watermark 同款问题，对标样板处方 3）",
+    "7. 【性能】无 device 显式配置与 WebGPU 尝试（:29-34），transformers.js 默认 WASM；V1.1 设计文档 §九.4 亦提示 hf-mirror 链路需真机回归——镜像唯一无备选",
+    "8. 【灵魂】\"下载完成后浏览器会缓存，下次直接离线推理\"（:77）承诺了缓存态，但 useModel 状态机（useModel.ts:8-13）无持久化标记，UI 永远无法显示\"已缓存/可离线\"——用户无从验证承诺达成",
+    "9. 【灵魂】模型推理中\"…\"（:92）无耗时预期文案（对比 remove-watermark\"几秒到几十秒\"）"
+   ],
+   "prescriptions": [
+    "错误可见可恢复（P0）",
+    "失败态清理",
+    "Top-K 即时重跑",
+    "中文标签映射",
+    "下载体验对齐 remove-watermark"
+   ],
+   "benchmarks": [
+    "Google Lens",
+    "HF Spaces ViT demo"
+   ]
+  },
+  {
+   "file": "keyword-extractor",
+   "name": "关键词提取",
+   "slug": "keyword-extractor",
+   "score": 49,
+   "dims": {
+    "func": 10,
+    "usab": 10,
+    "val": 9,
+    "iact": 8,
+    "ui": 6,
+    "soul": 6,
+    "perf": 6,
+    "mob": 6
+   },
+   "head": [
+    "分类：AI工具｜模式：A（TextTool 双栏，textDef）｜组件：`src/components/common/TextTool.vue`（全文 195 行）｜引擎：`src/lib/nlpEngine.ts`（extractKeywords，:62-97，句级 TF-IDF + 中文 2-6 字滑窗）｜注册：`src/tools/ai/registry.ts:21-31`",
+    "对标标杆：MonkeyLearn Keyword Extractor（云）＋ 站内 word-frequency-counter（同一基础设施对照）"
+   ],
+   "conclusion": "**交互优化 + 需拓展** · P1",
+   "judge": "判据：可用性 10/20 + 灵魂 6/20；引擎侧（滑窗+包含去重+IDF，`nlpEngine.ts:84-95`）是全家族最好的中文实现，输在\"结果呈现纯文本、可解释性为零\"。",
+   "deductions": [
+    "1. 【实用价值-核心】虚词一票否决误杀正词：中文候选词**任意位置**含停用字符即被过滤（`nlpEngine.ts:124-128`），\"中国/国内/因为/认为/行为/作为/说明/后来\"等含\"中/为/来/说\"的常用词全部出局——中文关键词召回率结构性受损",
+    "2. 【可用性】权重数值不可解释：score=count×log(1+N/df)×min(2.5,len/2)（`nlpEngine.ts:84`）的原始值直接输出，无归一化、无条形图，用户无法判断\"4.23 算高算低\"",
+    "3. 【可用性】手动执行：number 选项致 auto=false（`TextTool.vue:47`），粘贴后必须点\"立即转换\"（:131），改提取数量也需重跑——同家族 M-17 已实测",
+    "4. 【功能】无句子级回溯：关键词不附带出处句，MonkeyLearn 类产品点击关键词可见上下文；本工具无法验证\"为什么提取它\"",
+    "5. 【灵魂-规约红线】能力诚实标注不在面板内：\"TF-IDF 算法在本地运行\"（registry.ts:22）渲染在视口外 tool-about——与 text-summarizer 同病（M-17 确认的家族教训）",
+    "6. 【灵魂】空态无示例文本预填（placeholder 仅\"粘贴文本…\"），而 sentiment/question-answering 同家族均已有预填实践",
+    "7. 【功能】与 word-frequency-counter 重复度偏高：共享词频基础设施却无差异化配置（排除词/最小词长/导出），两工具间也无互通入口",
+    "8. 【功能】无排序切换：结果固定按权重降序（`nlpEngine.ts:87`），无法按出现顺序/词长查看，也无法强制保留指定词"
+   ],
+   "prescriptions": [
+    "权重可视化",
+    "自动执行",
+    "正词召回修复",
+    "出处回跳",
+    "面板内诚实标注"
+   ],
+   "benchmarks": [
+    "MonkeyLearn Keyword Extractor",
+    "站内 word-frequency-counter"
+   ]
+  },
+  {
+   "file": "object-detector",
+   "name": "图像物体检测",
+   "slug": "object-detector",
+   "score": 47,
+   "dims": {
+    "func": 7,
+    "usab": 11,
+    "val": 5,
+    "iact": 9,
+    "ui": 7,
+    "soul": 8,
+    "perf": 8,
+    "mob": 6
+   },
+   "head": [
+    "分类：AI工具｜模式：C（单列文件流：FileDrop→检测→列表+标注图）｜组件：`src/tools/ai/components/ObjectDetector.vue`（257 行）｜引擎：组件内网格显著性+连通域（:34-131，16×16 能量图 BFS 合框）｜注册：`src/tools/ai/registry.ts:104`（needModel: true，desc 称\"端侧模型\"）",
+    "对标标杆：HF Spaces YOLOS/DETR 官方 demo（transformers.js 同源天花板参照）"
+   ],
+   "conclusion": "**需拓展** · P1（另登记 1 项 desc 口径缺陷交用户决定）",
+   "judge": "判据：实用 5/15（输出物与工具名承诺不符）+ 功能面单薄；面板诚实但入口误导，属\"预期落差\"型低分。",
+   "deductions": [
+    "1. 【实用价值-核心，疑似问题】入口 desc 虚标：registry desc\"检测并标注照片中的常见物体（端侧模型，首次需下载）\"（registry.ts:104）+ needModel: true 触发 ToolPage.vue:67 下载徽章——实际实现是显著性检测零下载（ObjectDetector.vue:34-131），面板诚实说明（:193-196）直接推翻入口承诺，与 image-caption 的 needModel 问题同根但性质更重（desc 明确承诺\"常见物体\"）",
+    "2. 【实用价值】显著性算法语义盲：能量=梯度+通道方差（:63-78），阈值=均值+0.55σ（:83-85）——纯色背景上一朵云、一张纹理地毯都能触发成框；结果对\"找物体\"问题无回答能力",
+    "3. 【功能】框标签只有\"#1\"（:147-153）无任何语义信息，用户无法区分\"框=主体还是噪声\"",
+    "4. 【可用性】标注图 460px 钉死（:254，共性-根因 2 家族自建舞台版）：4000px 宽图缩到 460px 后框位置无法逐像素核对，无点击放大",
+    "5. 【交互】无框编辑：显著性天然误框，却不能删框/拖框/合并，唯一出路是换图",
+    "6. 【功能】无置信度：能量分被丢弃（:130 只留几何），连\"框的显著强度\"都不展示，排序依据不可见",
+    "7. 【灵魂】口径魔术数未披露：16×16 网格、阈值 0.55σ、过滤 cells<3（ObjectDetector.vue:39,:85,:120）三参数无说明，用户无法预期\"什么图会出几个框\"",
+    "8. 【灵魂】DETR\"需下载约 100MB\"提示（:194）给了模型体积预告却无升级路径入口，承诺悬空（同 image-caption 扣分 5）"
+   ],
+   "prescriptions": [
+    "口径对齐",
+    "标注图放大",
+    "框编辑",
+    "显著强度",
+    "YOLOS 端侧"
+   ],
+   "benchmarks": [
+    "HF Spaces YOLOS/DETR demo",
+    "Canva/稿定的\"主体识别\""
+   ]
+  },
+  {
+   "file": "paraphraser",
+   "name": "AI 文本改写",
+   "slug": "paraphraser",
+   "score": 46,
+   "dims": {
+    "func": 7,
+    "usab": 11,
+    "val": 5,
+    "iact": 9,
+    "ui": 6,
+    "soul": 8,
+    "perf": 8,
+    "mob": 6
+   },
+   "head": [
+    "分类：AI工具｜模式：A（TextTool 双栏，textDef，自动执行）｜组件：`src/components/common/TextTool.vue`（全文 195 行）｜引擎：`src/lib/nlpEngine.ts`（paraphrase，:330-344；SYNONYMS :298-328，中 17 组+英 10 组）｜注册：`src/tools/ai/registry.ts:66-77`",
+    "对标标杆：QuillBot（云，架构天花板）＋ 站内 text-summarizer（同引擎家族对照）"
+   ],
+   "conclusion": "**需拓展** · P1",
+   "judge": "判据：实用价值 5/15——27 组词典撑不起\"改写\"品类，叠加英文词边界缺陷；若不补词典与 diff 能力，建议降级并入 text-summarizer 或更名\"同义词替换\"。",
+   "deductions": [
+    "1. 【实用价值-核心】词典规模与改写深度双缺：27 组词（中文 17 组多为\"非常/但是/因为\"类虚词副词，英文 10 组单词，`nlpEngine.ts:298-328`）+ 零句式重组（:342 注释弃权）——输出与原文重合率超 95%，降重场景直接失效",
+    "2. 【实用价值-疑似缺陷】英文无词边界：`new RegExp(from, 'g')` 直拼（`nlpEngine.ts:334-336`），good 命中 goodwill、make 命中 maker、fast 命中 breakfast——英文输入越改越错",
+    "3. 【可用性-硬伤级】无 diff 高亮：替换结果无任何标记（输出纯文本，`TextTool.vue:126`），用户无法知道\"改了哪里、改了什么\"——改写类产品的第一可解释性需求缺席，且站内 developer/TextDiff 已有 diff 引擎未复用",
+    "4. 【灵魂-规约红线】诚实标注不在面板内：\"本地同义词库驱动\"仅存于视口外 tool-about（家族共性，同 M-17 确认的 text-summarizer 病灶）；面板内应标\"词典替换，非生成式改写\"",
+    "5. 【功能】替换选择与上下文无关：同义词按全局计数器轮转选取（`tos[idx % tos.length]`，`nlpEngine.ts:339`），同一词多处出现会被替换成不同说法，语体一致性无法保证",
+    "6. 【交互】无替换统计：\"本次替换 7 处\"类反馈缺失，用户连效果强弱都要自己数",
+    "7. 【功能】中文替换无边界保护：\"使用\"命中\"使用说明书\"→\"运用说明书\"（无词性/词边界概念），中英两侧都存在误替换",
+    "8. 【功能】幅度档位不可预测：轻微/适中/大幅的替换取舍由全局计数器 idx 决定（`nlpEngine.ts:337-339`），\"轻微\"档替换哪几处既不可预测也不可指定，用户无法控制保留哪些原词"
+   ],
+   "prescriptions": [
+    "diff 高亮",
+    "词边界修复",
+    "替换计数行",
+    "面板内诚实标注",
+    "多候选切换"
+   ],
+   "benchmarks": [
+    "QuillBot",
+    "站内 text-summarizer"
+   ]
+  },
+  {
+   "file": "question-answering",
+   "name": "文本问答抽取",
+   "slug": "question-answering",
+   "score": 57,
+   "dims": {
+    "func": 9,
+    "usab": 12,
+    "val": 7,
+    "iact": 10,
+    "ui": 8,
+    "soul": 11,
+    "perf": 7,
+    "mob": 7
+   },
+   "head": [
+    "分类：AI工具｜模式：C（单列堆叠自定义面板）｜组件：`src/tools/ai/components/QuestionAnswering.vue`（全文 114 行）｜引擎：`src/lib/nlpEngine.ts`（answerFromPassage，:274-294，词面匹配+问型先验）｜注册：`src/tools/ai/registry.ts:84-89`",
+    "对标标杆：ChatPDF / Humata（云生成式，架构天花板）＋ HF transformers.js 抽取式 QA 模型（纯前端天花板参照）"
+   ],
+   "conclusion": "**交互优化 + 需拓展** · P1",
+   "judge": "判据：无 P0 硬伤；失分在检索质量（家族停用词病灶+问型先验缺陷）与\"整句当答案\"的粒度——两者均为规则法内可修项。",
+   "deductions": [
+    "1. 【实用价值-核心】共享家族停用词病灶：问句与句子都走 tokenizeWords 2-gram 伪分词 + 仅约 30 个英文虚词的 STOPWORDS（`nlpEngine.ts:275-283`；`textEngine.ts:606-620`），\"是谁/这个问题/的答案\"类中文虚词 2-gram 参与匹配——与 M-17 已确认的 text-summarizer 同病",
+    "2. 【可用性】答案=整句：answer 与 sentence 返回同一字符串（`nlpEngine.ts:292-293`），问\"谁创立\"返回整句\"项目由张伟在 2024 年创立，最初只有 10 个小工具…\"而非\"张伟\"——ChatPDF 类产品的最小答案片段体验缺失",
+    "3. 【功能-疑似缺陷】\"谁\"类问型先验是字符类不是或组：`/[先生|女士|博士|教授|总|经理|作者|创始人]/`（`nlpEngine.ts:286`）按**单字符**命中（含\"生/总/作/者/经\"任意一字），句子含\"生活/作品\"即无条件 +2 虚增得分；:289 位置先验\"省|国|路|街\"单字命中同样过宽（含\"中国\"的任何句 +2）",
+    "4. 【功能】无 top-3 候选与置信度：score 仅内部使用（:290），用户看不到\"为什么是这句、第二候选是哪句\"——抽取式 QA 的可信度全靠单句高亮支撑太薄",
+    "5. 【交互】答案卡无复制按钮：answer 卡（`QuestionAnswering.vue:64-70`）无复制动作，ResultBox 的复制范式未复用",
+    "6. 【交互】改资料不刷新答案：answer 依赖提问快照 asked/hasAsked（:15,:17-26），编辑资料后旧答案仍显示，易被误读为\"新资料包含此答案\"",
+    "7. 【灵魂】空资料提问的边界提示粗糙：空资料提交会显示\"没有从资料中找到与「」相关\"（:19-22 拼出空引号），应直接提示\"请先粘贴资料\"",
+    "8. 【功能】无未命中兜底：best.score≤0 即返回 null（`nlpEngine.ts:292`），此时不展示资料中得分最高句作参考——其实引擎有中间分数可降级输出，组件只给了\"换种问法\"一句话（:71-73）"
+   ],
+   "prescriptions": [
+    "候选与置信度",
+    "最小答案片段",
+    "先验修复",
+    "复制与失效提示",
+    "停用词修复联动"
+   ],
+   "benchmarks": [
+    "ChatPDF / Humata",
+    "HF transformers.js 抽取式 QA 模型"
+   ]
+  },
+  {
+   "file": "sentiment-analyzer",
+   "name": "情感倾向分析",
+   "slug": "sentiment-analyzer",
+   "score": 61,
+   "dims": {
+    "func": 11,
+    "usab": 12,
+    "val": 8,
+    "iact": 11,
+    "ui": 8,
+    "soul": 11,
+    "perf": 8,
+    "mob": 7
+   },
+   "head": [
+    "分类：AI工具｜模式：C（单列堆叠自定义面板）｜组件：`src/tools/ai/components/SentimentAnalyzer.vue`（全文 155 行）｜引擎：`src/lib/nlpEngine.ts`（sentiment，:153-187；词典 :133-144，正词约 55/负词约 65）｜注册：`src/tools/ai/registry.ts:39-44`",
+    "对标标杆：百度智能云情感倾向分析（云）＋ HF transformers.js 情感模型（纯前端天花板参照）"
+   ],
+   "conclusion": "**交互优化** · P1",
+   "judge": "判据：无 P0 硬伤（实时、首屏、面板内诚实标注三要素齐）；失分集中在词典覆盖与上下文规则的引擎质量——按\"规则法天花板\"口径不苛责架构，但方面名词抵消属可修的真缺陷。",
+   "deductions": [
+    "1. 【实用价值-核心】方面名词无条件正分：POS_WORDS 含\"续航/拍照/音质/性价比/售后\"等名词（`nlpEngine.ts:134`），\"续航差\"=差(-1)+续航(+1)=0 判中性、\"拍照不行\"翻转后 -1+1=0——评价类文本最常见句式恰好失真；名词应仅在无形容词共现时作弱信号",
+    "2. 【功能】词典规模约 120 词 vs 行业中文情感词典数千至数万词（HowNet/BosonNLP 量级）：\"不行/一般/坑爹/翻车现场\"等口语变体大量缺席（NEG_WORDS 仅\"一般般/踩雷\"等，:138-142）；规模是纯前端可改进项，非架构天花板",
+    "3. 【功能】无批量模式：运营场景常需一次贴几十条评价逐条打分，当前只有单文本+逐句表（`SentimentAnalyzer.vue:65-82`），需手动逐次粘贴",
+    "4. 【可用性】输入窗 130px + 逐句表 520px 钉死（`base.css:362-367` 共性-根因 2），长评/多句在双重小窗里滚",
+    "5. 【灵魂】推理不透明：否定翻转与程度加强在 :171-174 静默生效，正负词 chips 不标注\"被'不'翻转\"\"被'非常'加强\"，用户无法校验分数成因",
+    "6. 【灵魂】词库内置\"好评好评\"这类脏词条（`nlpEngine.ts:134` 末尾），暴露词典无审校流程，也是\"规则词典质量\"诚实度的一处瑕疵",
+    "7. 【交互】归一化 score/6、阈值 ±0.08（:180-183）无口径说明；0.17 与 0.25 对用户无意义，应配套\"弱/中/强倾向\"分级文案",
+    "8. 【功能】逐句表不可下钻：表格仅有 #/句子/倾向/分数四列（`SentimentAnalyzer.vue:70-79`），单句的正负词命中明细要靠滚动回上方 chips 区自行对照"
+   ],
+   "prescriptions": [
+    "方面名词弱化",
+    "推理标注",
+    "批量模式",
+    "强度分级",
+    "口径说明"
+   ],
+   "benchmarks": [
+    "百度智能云情感倾向分析",
+    "HF transformers.js 情感模型"
+   ]
+  },
+  {
+   "file": "text-similarity",
+   "name": "文本相似度对比",
+   "slug": "text-similarity",
+   "score": 60,
+   "dims": {
+    "func": 11,
+    "usab": 12,
+    "val": 9,
+    "iact": 9,
+    "ui": 8,
+    "soul": 11,
+    "perf": 6,
+    "mob": 7
+   },
+   "head": [
+    "分类：AI工具｜模式：D（双栏输入 + 自定义统计结果）｜组件：`src/tools/ai/components/TextSimilarity.vue`（全文 119 行）｜引擎：组件内 n-gram 余弦/Jaccard/编辑距离（:10-54）＋ `src/lib/nlpEngine.ts`（similarity，:472-479，词级）｜注册：`src/tools/ai/registry.ts:105`",
+    "对标标杆：diffchecker.com（对比交互标杆）＋ HF transformers.js 句向量（纯前端天花板参照）"
+   ],
+   "conclusion": "**交互优化** · P2（若补 diff 视图可升级为\"交互优化 + 需拓展\"）",
+   "judge": "判据：无 P0 硬伤、无功能名实冲突（:99 口径说明兜底）；核心差距是对比品类的标配\"差异可视化\"缺席——相似度数字之后用户仍要肉眼找差异。",
+   "deductions": [
+    "1. 【功能-核心】无 diff 可视化：组件结果区只有数值（:87-100），\"哪里不一样\"缺席——站内 developer/TextDiff 已有 diff 引擎却未复用/互挂，查重闭环断在最后一步",
+    "2. 【实用价值】\"词级相似（中文分词）\"标签名实有差：底层是 tokenizeWords 2-gram 伪分词（`nlpEngine.ts:473`；`textEngine.ts:606-613`，家族共性）且**不过停用词**——\"的了/是在\"类伪词双方同现反而抬升词级分；标签应改\"词频重合（2-gram）\"或修复分词",
+    "3. 【可用性】长文本编辑距离总是\">4000 字\"占位（:97）：无抽样估计等降级方案，超限后该指标直接报废",
+    "4. 【交互】无示例对预填：A/B 空窗 placeholder-only（:78-84），落后于 sentiment/entity/question-answering 同家族的预填实践；也无\"交换 A/B\"按钮（对称算法下的便利项）",
+    "5. 【功能】综合分口径未解释：avg=(cosine+jaccard+lex)/3 三指标等权（:66），词级弱指标拉低中文改写对的分值——权重不可配、口径无说明",
+    "6. 【灵魂】四级判定阈值无解释：0.8/0.5/0.25 分界（:67）直接下\"疑似重复/主题相关\"结论但无口径说明、不可调",
+    "7. 【功能】无算法详情展开：每卡只显示百分数，不展示共享/差异片段清单（如\"共同 2-gram 45 个\"），数值不可下钻",
+    "8. 【交互】仅支持 A/B 单对：查重场景常需\"原文 vs 多个候选\"一对多批量对比，当前双窗结构做不到（:76-85），只能反复粘贴"
+   ],
+   "prescriptions": [
+    "diff 联动",
+    "示例与交换",
+    "口径说明",
+    "长文降级",
+    "阈值可调"
+   ],
+   "benchmarks": [
+    "diffchecker.com",
+    "HF transformers.js 句向量"
+   ]
+  },
+  {
+   "file": "text-summarizer",
+   "name": "AI 文本摘要",
+   "slug": "text-summarizer",
+   "score": 50,
+   "dims": {
+    "func": 8,
+    "usab": 10,
+    "val": 8,
+    "iact": 10,
+    "ui": 7,
+    "soul": 7,
+    "perf": 7,
+    "mob": 6
+   },
+   "head": [
+    "分类：AI工具｜模式：A（TextTool 双栏，textDef）｜组件：`src/components/common/TextTool.vue`（全文 195 行）｜引擎：`src/lib/nlpEngine.ts`（summarize，:21-56，词频+位置规则法）｜注册：`src/tools/ai/registry.ts:6-19`",
+    "对标标杆：QuillBot Summarizer ＋ TLDRthis（均云）｜纯前端天花板参照：HF transformers.js 摘要模型"
+   ],
+   "conclusion": "**交互优化 + 需拓展** · P1（无 P0 硬伤——M-17 证实按钮可达；核心问题是质量诚实度与中文效果）",
+   "judge": "判据：实用价值 8/15（中文规则法质量受限）+ 灵魂度 7/20（能力边界未在面板内标注，规约要求诚实标\"规则模型\"未达标）。",
+   "deductions": [
+    "1. 【实用价值-核心】中文停用词缺失：`STOPWORDS` 仅 30 个英文虚词（`textEngine.ts:616-620`），`summarize` 的词频统计（`nlpEngine.ts:29-33`）对中文直接喂 2-gram——\"的了\"\"的是\"\"一个\"等高频虚词组合主导词频，得分句未必是关键句，中文摘要质量不可靠",
+    "2. 【灵魂-规约红线】诚实标注未进面板：引擎确为抽取式规则法（词频+位置+首段×1.25 权重，`nlpEngine.ts:38-46`），desc 有诚实说明（registry.ts:8\"抽取式摘要引擎在本地运行\"）但该文案渲染在面板下方 `.tool-about`（`ToolPage.vue:99`）视口外——**用户在面板内看不到\"这是规则抽取、非大模型生成\"**，易产生\"AI 幻觉式改写\"的错误预期（抽取法只搬原句，不改写）",
+    "3. 【功能】无压缩比控制：仅句数（1~N），无法表达\"压到 30%\"或\"300 字以内\"——摘要场景最自然的输入是目标长度（registry.ts:11 单 number 选项）",
+    "4. 【功能】无原文高亮联动：QuillBot 在原文中高亮被选中的句子，让用户秒懂\"摘了哪几句\"；本工具输出纯文本，用户无法回溯选句依据",
+    "5. 【交互】手动执行：`count` 是 number 选项 → `auto=false` → 显示\"立即转换\"按钮（`TextTool.vue:47,:131`），粘贴后不自动出结果；改句数也要手动重跑",
+    "6. 【交互】无压缩比展示：输出仅摘要文本，\"3000 字压成 187 字\"的价值信息缺失（输出区字符计数 TextTool.vue:124 需用户自己心算）",
+    "7. 【灵魂】无示例长文预填（空态 textarea 只有 placeholder\"粘贴长文章、报告或段落…\"）、无\"要点式/段落式\"输出切换"
+   ],
+   "prescriptions": [
+    "面板内诚实标注",
+    "中文停用词修复",
+    "压缩比展示",
+    "原文高亮联动",
+    "目标长度模式"
+   ],
+   "benchmarks": [
+    "QuillBot / TLDRthis",
+    "HF transformers.js 摘要模型"
+   ]
+  },
+  {
+   "file": "translator",
+   "name": "离线基础翻译",
+   "slug": "translator",
+   "score": 55,
+   "dims": {
+    "func": 9,
+    "usab": 12,
+    "val": 5,
+    "iact": 11,
+    "ui": 7,
+    "soul": 11,
+    "perf": 8,
+    "mob": 7
+   },
+   "head": [
+    "分类：AI工具｜模式：D（自定义面板 + ResultBox）｜组件：`src/tools/ai/components/Translator.vue`（全文 82 行）｜引擎：`src/lib/nlpEngine.ts`（translateBasic，:428-457；DICT 词库 :404-426，21 条）｜注册：`src/tools/ai/registry.ts:32-38`",
+    "对标标杆：DeepL（云，架构天花板）＋ Firefox Translations / Bergamot（纯前端 WASM，站内可实现的天花板路径）"
+   ],
+   "conclusion": "**交互优化 + 需拓展** · P2",
+   "judge": "判据：实用价值 5/15 已触及\"阉割\"边缘，但面板内诚实标注（家族唯一满分实践）+命中率自曝把误导风险降为 0——处置应是明确定位\"词库演示 + Bergamot 升级占位\"，而非下架。",
+   "deductions": [
+    "1. 【实用价值-核心】取词粒度与词库键不匹配：zh→X 用 `/[\\u4e00-\\u9fff]+/` **整段连续中文串**匹配（`nlpEngine.ts:447-455`），而词库键是单字词——\"我的朋友\"作为整串永不命中（我/朋友明明都在词库），预填示例命中率仅 40%，输出大段原文原样保留",
+    "2. 【功能】词库语种覆盖不齐：网站/文件/图片/视频/工具/中国/今天/明天 8 条仅 en+ja（`nlpEngine.ts:418-425`），选法语译\"今天\"必然 miss；页脚\"7 语对照\"hint（`Translator.vue:56-59`）与实际不符",
+    "3. 【功能】源语言选择无效：\"自动检测（按中文处理）\"与\"中文\"两选项等价（translateBasic 无 from 形参，`nlpEngine.ts:428`），英文输入需靠反向按钮绕行——交互误导",
+    "4. 【灵魂】无逐词对照表：命中率只给一个百分比（`Translator.vue:50`），不显示哪些词命中/未命中——逐词对照是词库法唯一能做实的可解释性，缺席可惜",
+    "5. 【功能】无读音/转写：日语输出无假名/罗马字注音、韩语无拉丁转写，\"轻量场景\"下读音是刚需",
+    "6. 【可用性】输入/结果窗 110px 钉死（`Translator.vue:47,:54`），粘贴 300 字段落即在两个小窗内各自滚动",
+    "7. 【交互】无历史与常用语对记忆：组件全文无持久化（仅内存 ref），常用的\"你好→hello\"类语对每次都要重输；偏好设施（composables/localStorage）站内已有先例未复用",
+    "8. 【可用性】en→zh 反查仅匹配单个英文词（`nlpEngine.ts:433-443`），多词词条\"thank you\"作为整体永不命中反查——同一词库正反两个方向的可用词条集合不一致"
+   ],
+   "prescriptions": [
+    "取词粒度修复",
+    "未命中可视化",
+    "语种如实标注",
+    "诚实标注回归检查",
+    "Bergamot 落地评估"
+   ],
+   "benchmarks": [
+    "DeepL / 彩云小译",
+    "Firefox Translations / Bergamot"
+   ]
+  },
+  {
+   "file": "zero-shot-classifier",
+   "name": "零样本分类",
+   "slug": "zero-shot-classifier",
+   "score": 58,
+   "dims": {
+    "func": 10,
+    "usab": 13,
+    "val": 8,
+    "iact": 11,
+    "ui": 8,
+    "soul": 8,
+    "perf": 9,
+    "mob": 7
+   },
+   "head": [
+    "分类：AI工具｜模式：C 变体（单列：输入+标签表→即时结果）｜组件：`src/tools/ai/components/ZeroShotClassifier.vue`（150 行）｜引擎：`src/lib/nlpEngine.ts` similarity（:472-479，token 集合交并比）+ 组件内 AUTO 同义扩展表（:32-43）｜注册：`src/tools/ai/registry.ts:98-102`",
+    "对标标杆：HF Spaces 零样本分类官方 demo（XLM-RoBERTa NLI，真·零样本天花板参照）"
+   ],
+   "conclusion": "**交互优化 + 需拓展** · P1",
+   "judge": "判据：实用 8/15（自定义标签场景不可靠）+ 与真零样本模型存在能力代差需诚实标注；无可用性硬伤。",
+   "deductions": [
+    "1. 【实用价值-核心】\"零样本\"名不副实：真零样本 = NLI 蕴含模型对任意标签推理；本实现是文本与\"标签+扩展词+示例\"的 token 集合相似度（`nlpEngine.ts:472-479`，inter/√(sa·sb)），AUTO 表未覆盖的标签（如\"物流\"\"售后\"）只剩标签词 2-gram 重叠，两字标签几乎必然失配",
+    "2. 【灵魂-规约红线】归一化置信度误导：confidence = score/Σscore（ZeroShotClassifier.vue:63-66），四个标签相似度全部 <0.05 时照样显示\"归一化置信度 45.2%\"——绝对分极低的\"矮子里拔将军\"没有低置信提示，与诚实标注纪律冲突",
+    "3. 【功能】无批量：运营场景\"100 条留言打标签\"只能一条条来",
+    "4. 【功能】单选强制：实际评论常同时含咨询+吐槽，无\"输出 Top-2/多标签\"开关",
+    "5. 【交互】示例句无引导填充：AUTO 表已有扩展词却不能一键转成示例句；label/example 两 input 无校验（纯空格也计入）",
+    "6. 【灵魂】无\"为什么是这个标签\"解释：命中了哪些扩展词/哪些词与示例句重叠不展示（对比 emotion-detector 有命中词 chips）",
+    "7. 【交互】只显示归一化百分比，原始相似度分不展示（结果行仅 confidence(s.score)，ZeroShotClassifier.vue:103）——用户无法判断\"45% 是真高还是矮子里拔将军\"",
+    "8. 【共性】面板首控件受 266px 装饰层前缀（共性-根因 1）；结果区无弹性高度（共性-根因 2）"
+   ],
+   "prescriptions": [
+    "能力标注",
+    "低置信警告",
+    "multi-label",
+    "命中解释",
+    "批量模式",
+    "原始分透出"
+   ],
+   "benchmarks": [
+    "HF Spaces 零样本分类 demo"
+   ]
+  }
+ ]
+}

@@ -52,7 +52,7 @@ export const popularSlugs = [
   'income-tax-calculator',
   'word-counter',
   'merge-images-long',
-  'rmb-uppercase',
+  'number-to-words',
   'amortization-calculator',
   'lucky-wheel',
   'typing-test',

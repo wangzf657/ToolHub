@@ -1,9 +1,8 @@
 import type { ToolDef } from '@/types'
 
-/** 音频工具注册表（38 项）—— WebAudio 快路径 + ffmpeg 兜底 */
+/** 音频工具注册表（37 项）—— WebAudio 快路径 + ffmpeg 兜底 */
 const tools: ToolDef[] = [
   { slug: 'text-to-speech', title: '文字转语音', category: 'audio', desc: '调用系统内置语音朗读文本，可调语速音调，选中文本试听。', keywords: ['tts', '朗读', '配音'], component: () => import('./components/TextToSpeech.vue') },
-  { slug: 'audio-transcribe', title: '音频转文字', category: 'audio', desc: '端侧语音识别模型把录音转成文字（首次需下载模型，之后离线）。', keywords: ['转写', '字幕', 'transcribe'], needModel: true, component: () => import('./components/AudioTranscribe.vue') },
   { slug: 'audio-trimmer', title: '音频裁剪', category: 'audio', desc: '按时间轴选择起点终点裁剪，可加淡入淡出，导出 MP3/WAV。', keywords: ['裁剪', '剪辑', 'trim'], component: () => import('./components/AudioTrimmer.vue') },
   { slug: 'voice-recorder', title: '在线录音机', category: 'audio', desc: '调用麦克风直接录音，回放后下载 WAV/MP3，全程本地。', keywords: ['录音', '麦克风', 'recorder'], component: () => import('./components/VoiceRecorder.vue'), steps: ['授权麦克风', '点击开始录音', '回放并下载'] },
   { slug: 'speech-to-text', title: '语音输入', category: 'audio', desc: '用浏览器自带语音识别把说话变成文字（需浏览器支持）。', keywords: ['语音识别', '听写', 'stt'], component: () => import('./components/SpeechToText.vue') },

@@ -20,15 +20,15 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 
 /** 期望条目数(与 docs/V1.1/工具清单-V1.1.md 一致),重排前后必须吻合 */
 const EXPECT_COUNT = {
-  image: 73,
-  video: 42,
-  audio: 38,
+  image: 71,
+  video: 41,
+  audio: 37,
   pdf: 54,
   data: 18,
-  utility: 135,
-  developer: 92,
+  utility: 132,
+  developer: 91,
   finance: 20,
-  business: 16,
+  business: 15,
   seo: 13,
   ai: 15,
 }

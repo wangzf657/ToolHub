@@ -260,11 +260,11 @@ C('salary-calculator', '月薪2万→年薪≈24万(4.33周口径)', { amount: 2
 C('fuel-cost-calculator', '64元/2人32', { km: 100, l100: 8, price: 8, people: 2 }, (r) => { if (!r.some((x) => Math.abs(num(x.value) - 64) < 0.01)) fail(`实际:${rowsText(r)}`) })
 C('aspect-ratio-calculator', '1920×1080→1280宽高720', { ow: 1920, oh: 1080, nw: 1280, nh: 0 }, (r) => { if (!r.some((x) => Math.abs(num(x.value) - 720) < 1)) fail(`实际:${rowsText(r)}`) })
 C('ratio-calculator', '3:4=6:D→8', { a: 3, b: 4, c: 6, d: '' }, (r) => { if (!r.some((x) => /D/.test(x.label) && Math.abs(num(x.value) - 8) < 0.01)) fail(`实际:${rowsText(r)}`) })
-C('average-calculator', '均值4/中位3/极差9', { nums: '1,2,3,4,10' }, (r) => {
+C('statistics-calculator', '均值4/中位3/极差9(合并自 average-calculator)', { data: '1,2,3,4,10' }, (r) => {
   const t = rowsText(r)
   for (const v of [4, 3]) if (!r.some((x) => Math.abs(num(x.value) - v) < 0.01)) fail(`缺 ${v} 实际:${t}`); if (!t.includes('9')) fail(`缺极差9 实际:${t}`)
 })
-C('calorie-calculator', 'BMR≈1648.75', { age: 30, sex: choiceVal('calorie-calculator', 'sex', /男/) ?? '', h: 175, w: 70, act: '1.55', goal: '' }, (r) => { if (!r.some((x) => Math.abs(num(x.value) - 1648.75) < 1)) fail(`实际:${rowsText(r)}`) })
+C('tdee-calculator', 'BMR≈1648.75(合并自 calorie-calculator)', { age: 30, sex: choiceVal('tdee-calculator', 'sex', /男/) ?? '', h: 175, w: 70, act: '1.55' }, (r) => { if (!r.some((x) => Math.abs(num(x.value) - 1648.75) < 1)) fail(`实际:${rowsText(r)}`) })
 C('body-fat-calculator', '男175/颈38/腰85≈17%', { sex: choiceVal('body-fat-calculator', 'sex', /男/) ?? '', h: 175, neck: 38, waist: 85, hip: 0 }, (r) => { if (!r.some((x) => Math.abs(num(x.value) - 17) < 1.5)) fail(`实际:${rowsText(r)}`) })
 C('ideal-weight-calculator', 'Devine≈70.5kg', { sex: choiceVal('ideal-weight-calculator', 'sex', /男/) ?? '', h: 175 }, (r) => { if (!r.some((x) => Math.abs(num(x.value) - 70.5) < 1)) fail(`实际:${rowsText(r)}`) })
 C('due-date-calculator', 'Naegele 280天', { lmp: '2026-01-01' }, (r) => {

@@ -4,7 +4,7 @@ import { b64encode, b64decode, urlEncode, urlDecode, htmlEntityEncode, htmlEntit
 import { formatJson, minifyJson, validateJson, jsonToYaml, yamlToJson, yamlToJsonHeavy, jsonToXml, xmlToJson, jsonToTs, jsonSchemaFrom, jsonPathQuery, generateMock, fakeRows, FAKE_FIELDS, uaParse, curlToFetch, HTTP_STATUS, formatXml, chmodToSymbol, chmodFromSymbol } from '@/lib/jsEngine'
 import { bytesToBase64, bytesToLatin1, base64ToBytes, latin1ToBytes, convertIdentifier, CASE_TARGETS, type CaseTarget, parseCookieInput, cookieJsonToHeader, dockerRunToCompose, dockerComposeToRun, convertCoord, COORD_LABELS, outOfChina, type CoordSys } from '@/lib/devExt'
 
-/** 开发工具注册表（92 项） */
+/** 开发工具注册表（91 项） */
 const tools: ToolDef[] = [
   { slug: 'json-formatter', title: 'JSON 格式化校验', category: 'developer', desc: '粘贴 JSON 即时格式化、压缩与校验，错误定位到行列。', keywords: ['json', '格式化', '校验'], component: () => import('./components/JsonFormatter.vue'), steps: ['粘贴 JSON 文本', '选择格式化或压缩', '复制或下载结果'] },
   { slug: 'timestamp-converter', title: 'Unix 时间戳转换', category: 'developer', desc: '秒/毫秒时间戳与可读日期互转，本地与 UTC 双时区显示。', keywords: ['时间戳', 'unix', 'epoch'], component: () => import('./components/TimestampConverter.vue') },
@@ -183,8 +183,7 @@ const tools: ToolDef[] = [
   { slug: 'chmod-calculator', title: 'Chmod 权限计算', category: 'developer', desc: '勾选属主/组/其他的读写执行权限，实时得到八进制、符号式与命令。', keywords: ['chmod', '权限', 'linux'], component: () => import('./components/ChmodCalculator.vue') },
   { slug: 'subnet-calculator', title: '子网计算器', category: 'developer', desc: '输入 IPv4 与 CIDR，得到网络地址、广播、掩码、可用主机范围与数量。', keywords: ['子网', 'cidr', '网络'], component: () => import('./components/SubnetCalculator.vue') },
   { slug: 'css-formatter', title: 'CSS 格式化 / 压缩', category: 'developer', desc: '整理 CSS 缩进或压缩为生产版本，同一工具双向切换。', keywords: ['css', '格式化', '压缩'], component: () => import('./components/CodeFormatter.vue') },
-  { slug: 'html-formatter', title: 'HTML 格式化', category: 'developer', desc: '缩进杂乱的 HTML 标记，或压缩去除注释与冗余空白。', keywords: ['html', '格式化'], component: () => import('./components/CodeFormatter.vue') },
-  { slug: 'html-minifier', title: 'HTML 压缩', category: 'developer', desc: '删除注释与多余空白减小 HTML 体积，随时可再格式化还原可读性。', keywords: ['html', '压缩', 'minify'], component: () => import('./components/CodeFormatter.vue') },
+  { slug: 'html-formatter', title: 'HTML 格式化 / 压缩', category: 'developer', desc: '缩进杂乱的 HTML 标记，或压缩去除注释与冗余空白。', keywords: ['html', '格式化', '压缩', 'minify'], component: () => import('./components/CodeFormatter.vue') },
   { slug: 'xml-formatter', title: 'XML 格式化', category: 'developer', desc: 'XML 美化缩进或压缩，边输入边捕获解析错误，适合 Feed 与配置。', keywords: ['xml', '格式化'], component: () => import('./components/XmlFormatter.vue') },
   { slug: 'graphql-formatter', title: 'GraphQL 格式化', category: 'developer', desc: '美化或压缩 GraphQL 查询、变更与 SDL schema，大括号自动缩进。', keywords: ['graphql', '格式化'], component: () => import('./components/GraphqlFormatter.vue') },
   { slug: 'svg-optimizer', title: 'SVG 优化器', category: 'developer', desc: '去除 SVG 元数据、注释与多余小数位，实时对比优化前后体积。', keywords: ['svg', '优化', '压缩'], component: () => import('./components/SvgOptimizer.vue') },

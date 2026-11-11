@@ -28,7 +28,7 @@ watch(
   (s) => {
     if (s === 'javascript-formatter') setLang('javascript')
     else if (s === 'css-formatter') setLang('css')
-    else if (s === 'html-formatter' || s === 'html-minifier') setLang('html')
+    else if (s === 'html-formatter') setLang('html')
   },
   { immediate: true },
 )

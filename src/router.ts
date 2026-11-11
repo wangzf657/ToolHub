@@ -21,7 +21,7 @@ const router = createRouter({
     { path: '/privacy', name: 'privacy', component: () => import('@/pages/PrivacyPage.vue') },
     { path: '/terms', name: 'terms', component: () => import('@/pages/TermsPage.vue') },
     { path: '/studio/:id', redirect: (to) => {
-      const map: Record<string, string> = { pdf: 'pdf-editor', video: 'video-editor', photo: 'photo-editor', data: 'data-analysis-tool' }
+      const map: Record<string, string> = { pdf: 'pdf-editor', video: 'video-studio', photo: 'photo-studio', data: 'data-studio' }
       return `/t/${map[to.params.id as string] ?? 'tools'}`
     } },
     { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('@/pages/NotFoundPage.vue') },

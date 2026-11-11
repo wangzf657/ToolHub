@@ -6,38 +6,9 @@ const F = (k: string, label: string, extra: Partial<CalcFieldDef> = {}): CalcFie
 const money = (n: number) => n.toLocaleString('zh-CN', { maximumFractionDigits: 2 })
 const pct = (n: number) => `${n.toFixed(2)}%`
 
-/** 商业 SaaS 工具注册表（16 项） */
+/** 商业 SaaS 工具注册表（15 项） */
 const tools: ToolDef[] = [
-  { slug: 'resume-builder', title: '简历生成器', category: 'business', desc: '填写经历即可生成排版整洁的简历页面，浏览器直接打印/另存 PDF，无水印。', keywords: ['简历', 'cv', 'resume'], component: () => import('./components/ResumeBuilder.vue'), steps: ['填写基本信息与经历', '选择模板样式', '打印或另存为 PDF'] },
-  {
-    slug: 'take-home-pay-calculator', title: '税后工资计算器', category: 'business',
-    desc: '由税前年薪与有效税率估算每月/每年到手工资与扣除明细。',
-    keywords: ['税后', '工资', '到手'],
-    calcDef: {
-      fields: [
-        F('gross', '税前年薪', { placeholder: '如 300000' }),
-        F('taxRate', '有效税率（%）', { default: 15, step: 0.5 }),
-        F('other', '其他月度扣除（社保公积金等）', { placeholder: '如 2000' }),
-        F('months', '发放月数', { default: 12 }),
-      ],
-      compute: (v) => {
-        const gross = Number(v.gross)
-        const tax = gross * ((Number(v.taxRate) || 0) / 100)
-        const otherYear = (Number(v.other) || 0) * Number(v.months)
-        const net = gross - tax - otherYear
-        const months = Number(v.months) || 12
-        return [
-          { label: '每年到手', value: `¥${money(net)}`, primary: true },
-          { label: '每月到手', value: `¥${money(net / months)}` },
-          { label: '年度个税', value: `¥${money(tax)}` },
-          { label: '其他扣除合计', value: `¥${money(otherYear)}` },
-          { label: '实际到手率', value: gross ? pct((net / gross) * 100) : '—' },
-        ]
-      },
-      note: '使用「有效税率」简化计算，未模拟累进税率表；其他扣除按每月固定金额 × 月数。',
-    },
-  },
-  {
+  { slug: 'resume-builder', title: '简历生成器', category: 'business', desc: '填写经历即可生成排版整洁的简历页面，浏览器直接打印/另存 PDF，无水印。', keywords: ['简历', 'cv', 'resume'], component: () => import('./components/ResumeBuilder.vue'), steps: ['填写基本信息与经历', '选择模板样式', '打印或另存为 PDF'] },  {
     slug: 'roi-calculator', title: 'ROI / ROAS 计算器', category: 'business',
     desc: '计算投资回报率与广告支出回报率，支持按持有期年化。',
     keywords: ['roi', 'roas', '回报'],

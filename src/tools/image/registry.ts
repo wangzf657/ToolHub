@@ -1,6 +1,6 @@
 import type { ToolDef } from '@/types'
 
-/** 图片工具注册表（73 项）—— imgcvt 走通用转换组件，其余为专用组件 */
+/** 图片工具注册表（71 项）—— imgcvt 走通用转换组件，其余为专用组件 */
 const tools: ToolDef[] = [
   { slug: 'compress-image-to-size', title: '压缩图片到指定大小', category: 'image', desc: '把 JPG/PNG/WebP 压到精确的 KB 目标（二分质量），适配上传限制。', keywords: ['压缩', 'kb', '大小'], component: () => import('./components/CompressToSize.vue'), steps: ['拖入图片', '输入目标体积（如 200KB）', '自动压缩并下载'] },
   { slug: 'resize-image', title: '调整图片尺寸', category: 'image', desc: '缩放到精确像素尺寸，支持锁定比例与缩放模式，画质平滑。', keywords: ['尺寸', '缩放', 'resize'], component: () => import('./components/ResizeImage.vue') },
@@ -42,7 +42,6 @@ const tools: ToolDef[] = [
   { slug: 'circle-crop', title: '圆形头像裁剪', category: 'image', desc: '裁成透明背景的正圆 PNG，社交头像专用。', keywords: ['圆形', '头像', '圆角'], component: () => import('./components/CircleCrop.vue') },
   { slug: 'round-corners', title: '圆角图片', category: 'image', desc: '任意半径的圆角输出为透明 PNG。', keywords: ['圆角', 'rounded'], component: () => import('./components/RoundCorners.vue') },
   { slug: 'image-border', title: '图片加边框', category: 'image', desc: '添加纯色边框/相框，宽度与颜色随意调。', keywords: ['边框', '相框', 'border'], component: () => import('./components/ImageBorder.vue') },
-  { slug: 'add-text-to-image', title: '图片添加文字', category: 'image', desc: '在图片上叠加文字标签：字号、颜色、位置与透明度可调。', keywords: ['文字', '标题', '配文'], component: () => import('./components/AddWatermark.vue') },
   { slug: 'overlay-images', title: '图片叠加', category: 'image', desc: '把 Logo、印章或第二张图叠到底图上，缩放、位置与透明度可调。', keywords: ['叠加', 'logo', '合成'], component: () => import('./components/OverlayImages.vue') },
   { slug: 'photo-collage', title: '照片拼图', category: 'image', desc: '多图网格拼贴：2×2、3×3 等布局，间距与背景可自定义。', keywords: ['拼图', 'collage', '九宫格'], component: () => import('./components/PhotoCollage.vue') },
   { slug: 'split-image-grid', title: '图片九宫格切分', category: 'image', desc: '把一张图切成等分网格（发朋友圈九宫格），打包下载。', keywords: ['九宫格', '切分', '网格'], component: () => import('./components/SplitGrid.vue') },
@@ -67,7 +66,6 @@ const tools: ToolDef[] = [
   { slug: 'remove-watermark', title: '图片去水印', category: 'image', desc: '涂抹水印区域，端侧 AI 模型按周围画面智能补全背景（首次需下载模型）。', keywords: ['去水印', 'inpaint', '修复'], needModel: true, component: () => import('./components/RemoveWatermark.vue'), steps: ['上传带水印的图片', '用画笔涂抹水印区域', '点「AI 修复」并下载结果'] },
   { slug: 'blemish-remover', title: '瑕疵修补笔', category: 'image', desc: '画笔涂抹痘印、灰尘与噪点，用邻近像素自然修复。', keywords: ['瑕疵', '痘印', '修图'], component: () => import('./components/BlemishRemover.vue') },
   { slug: 'image-steganography', title: '图片隐写术', category: 'image', desc: '把秘密消息藏进 PNG 最低有效位，或提取此前隐藏的消息。', keywords: ['隐写', '密写', 'steganography'], component: () => import('./components/Steganography.vue') },
-  { slug: 'photo-editor', title: '照片编辑器', category: 'image', desc: '浏览器里的分层修图工作台：调整、滤镜、文字、裁剪与 AI 工具。', keywords: ['修图', 'photoshop', '编辑器'], studio: true, component: () => import('../editors/components/PhotoStudio.vue'), steps: ['打开照片', '调整 / 滤镜 / 文字 / 裁剪', '导出 JPG 或 PNG'] },
   { slug: 'screenshot-dress-up', title: '截图套壳美化', category: 'image', desc: '截图加浏览器/手机壳、圆角阴影与渐变背景，自媒体配图一键出片。', keywords: ['截图', '套壳', '美化', '配图'], component: () => import('./components/ScreenshotDressUp.vue') },
   /* ---- 文件格式批次新增 ---- */
   { slug: 'psd-to-jpg', title: 'PSD 转 JPG', category: 'image', desc: '浏览器解析 PSD 合成图导出 JPG/PNG，附图层树预览与单图层透明 PNG 导出。', keywords: ['psd', 'photoshop', 'jpg', 'png', '图层'], component: () => import('./components/PsdToJpg.vue'), steps: ['拖入 .psd 文件', '预览合成图与图层', '导出 JPG/PNG'] },

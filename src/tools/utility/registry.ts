@@ -2,7 +2,7 @@ import type { ToolDef, CalcResultRow } from '@/types'
 import {
   toCase, sortLines, removeDuplicateLines, reverseText, removeLineBreaks, repeatText,
   morseEncode, morseDecode, textToBinary, binaryToText, caesar, toRoman, fromRoman,
-  numberToChinese, wordFrequency, isPalindrome, isAnagram, findReplace, randomString,
+  numberToChinese, numberToEnglish, wordFrequency, isPalindrome, isAnagram, findReplace, randomString,
   uuidv4, slugify, piiScrub, textStats,
 } from '@/lib/textEngine'
 import { loanPayment, compoundInterest } from '@/lib/finance'
@@ -33,7 +33,7 @@ const fmtDuration = (mins: number): string => {
 }
 const TZ_CHOICES = COMMON_TIMEZONES.map((t) => ({ value: t.value, label: t.label }))
 
-/** 实用工具注册表（135 项）—— 文本/编码类走内联 textDef，其余为自定义组件 */
+/** 实用工具注册表（132 项）—— 文本/编码类走内联 textDef，其余为自定义组件 */
 const tools: ToolDef[] = [
   { slug: 'qr-code-generator', title: '二维码生成器', category: 'utility', desc: '为链接、文本、电话生成高清二维码，可选中心 Logo，支持 PNG 与 SVG 下载。', keywords: ['qr', '二维码', 'qrcode'], component: () => import('./components/QrGenerator.vue'), steps: ['输入链接或文本内容', '调整尺寸与纠错级别', '下载 PNG 或 SVG'] },
   { slug: 'unit-converter', title: '单位换算', category: 'utility', desc: '长度、重量、温度、面积、体积、速度、数据容量等常用单位即时互转。', keywords: ['单位', '换算', 'converter'], component: () => import('./components/UnitConverter.vue') },
@@ -561,14 +561,32 @@ const tools: ToolDef[] = [
     },
   },
   {
-    slug: 'number-to-words', title: '数字转中文大写', category: 'utility',
-    desc: '把整数与小数转成中文汉字或财务大写（壹贰叁），适合填单据与合同。',
-    keywords: ['大写', '数字', '人民币'],
+    slug: 'number-to-words', title: '数字大小写转换', category: 'utility',
+    desc: '数字一键转人民币大写（壹仟贰佰…元整）、普通汉字或英文单词，报销单据与合同通用。',
+    keywords: ['大写', '数字', '人民币', '金额大写', '壹仟', '英文'],
     textDef: {
-      options: [{ key: 'finance', label: '财务大写（壹贰叁）', type: 'toggle', default: true }],
-      transform: (t, o) => numberToChinese(t.trim(), !!o.finance),
+      options: [{ key: 'mode', label: '输出格式', type: 'select', default: 'rmb', choices: [
+        { value: 'rmb', label: '人民币大写（元角分整）' },
+        { value: 'finance', label: '财务数字大写（壹贰叁）' },
+        { value: 'cn', label: '普通汉字（一二三）' },
+        { value: 'en', label: '英文（One Thousand…）' },
+      ] }],
+      transform: (t, o) => {
+        const raw = t.trim().replace(/[¥￥,，\s]/g, '')
+        if (o.mode === 'en') {
+          if (!/^-?\d+(\.\d+)?$/.test(raw)) return '（请输入有效数字）'
+          const neg = raw.startsWith('-')
+          const body = neg ? raw.slice(1) : raw
+          const [ip = '0', dp] = body.split('.')
+          const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
+          const words = cap(numberToEnglish(Number(ip))) + (dp ? ' point ' + [...dp].map((d) => numberToEnglish(Number(d))).join(' ') : '')
+          return (neg ? 'Negative ' : '') + words
+        }
+        if (o.mode === 'cn') return numberToChinese(raw, false)
+        return numberToChinese(raw, true)
+      },
       singleLine: true,
-      placeholder: '输入数字，如 1234.56',
+      placeholder: '输入数字，如 1234.56 或 -12',
     },
   },
   {
@@ -868,77 +886,6 @@ const tools: ToolDef[] = [
     },
   },
   {
-    slug: 'average-calculator', title: '平均数计算器', category: 'utility',
-    desc: '粘贴一组数字，即刻得出均值、中位数、众数、标准差与极差。',
-    keywords: ['平均', '均值', '中位数'],
-    calcDef: {
-      fields: [
-        { key: 'nums', label: '数字列表（逗号/空格/换行分隔）', type: 'text', default: '', placeholder: '如 3, 5, 7, 10' },
-      ],
-      compute: (v) => {
-        const arr = String(v.nums)
-          .split(/[,，;；\s]+/)
-          .map(Number)
-          .filter((x) => !Number.isNaN(x))
-        if (!arr.length) return [{ label: '请输入数字列表', value: '—' }]
-        const sum = arr.reduce((a2, b2) => a2 + b2, 0)
-        const mean = sum / arr.length
-        const sorted = [...arr].sort((a2, b2) => a2 - b2)
-        const mid = Math.floor(sorted.length / 2)
-        const median = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2
-        const freq = new Map<number, number>()
-        arr.forEach((n) => freq.set(n, (freq.get(n) ?? 0) + 1))
-        const maxFreq = Math.max(...freq.values())
-        const modes = [...freq.entries()].filter(([, c]) => c === maxFreq && maxFreq > 1).map(([n]) => n)
-        const sd = Math.sqrt(arr.reduce((a2, b2) => a2 + (b2 - mean) ** 2, 0) / arr.length)
-        return [
-          { label: '平均值', value: fmtN(mean), primary: true },
-          { label: '中位数', value: fmtN(median) },
-          { label: '众数', value: modes.length ? modes.slice(0, 5).join('、') : '无' },
-          { label: '总和 / 数量', value: `${fmtN(sum)} / ${arr.length}` },
-          { label: '标准差', value: fmtN(sd) },
-          { label: '最大 / 最小 / 极差', value: `${fmtN(sorted[sorted.length - 1])} / ${fmtN(sorted[0])} / ${fmtN(sorted[sorted.length - 1] - sorted[0])}` },
-        ]
-      },
-    },
-  },
-  {
-    slug: 'calorie-calculator', title: '卡路里计算器', category: 'utility',
-    desc: 'Mifflin-St Jeor 公式计算基础代谢（BMR）与每日总消耗（TDEE），附三大营养素建议。',
-    keywords: ['卡路里', 'bmr', 'tdee'],
-    calcDef: {
-      fields: [
-        { key: 'age', label: '年龄', type: 'number', default: '' },
-        { key: 'sex', label: '性别', type: 'select', default: 'male', choices: [{ value: 'male', label: '男' }, { value: 'female', label: '女' }] },
-        { key: 'h', label: '身高（cm）', type: 'number', default: '' },
-        { key: 'w', label: '体重（kg）', type: 'number', default: '' },
-        { key: 'act', label: '活动水平', type: 'select', default: '1.375', choices: [
-          { value: '1.2', label: '久坐' }, { value: '1.375', label: '轻度活动' },
-          { value: '1.55', label: '中度活动' }, { value: '1.725', label: '高强度' }, { value: '1.9', label: '极高强度' },
-        ] },
-        { key: 'goal', label: '目标', type: 'select', default: 'keep', choices: [
-          { value: 'lose', label: '减脂（-20%）' }, { value: 'keep', label: '维持' }, { value: 'gain', label: '增肌（+15%）' },
-        ] },
-      ],
-      compute: (v) => {
-        const s = Number(v.sex) === 1 || v.sex === 'female' ? -161 : 5
-        const bmr = 10 * Number(v.w) + 6.25 * Number(v.h) - 5 * Number(v.age) + s
-        const tdee = bmr * Number(v.act)
-        const goalK = v.goal === 'lose' ? 0.8 : v.goal === 'gain' ? 1.15 : 1
-        const target = tdee * goalK
-        return [
-          { label: '基础代谢 BMR', value: `${Math.round(bmr)} 千卡/天` },
-          { label: '每日总消耗 TDEE', value: `${Math.round(tdee)} 千卡/天` },
-          { label: '目标热量', value: `${Math.round(target)} 千卡/天`, primary: true },
-          { label: '蛋白质建议', value: `${Math.round((target * 0.3) / 4)} g（30%）` },
-          { label: '碳水建议', value: `${Math.round((target * 0.4) / 4)} g（40%）` },
-          { label: '脂肪建议', value: `${Math.round((target * 0.3) / 9)} g（30%）` },
-        ]
-      },
-      note: 'Mifflin-St Jeor 公式为常用估算，个体差异可达 ±10%，不构成医疗建议。',
-    },
-  },
-  {
     slug: 'body-fat-calculator', title: '体脂率计算器', category: 'utility',
     desc: '美国海军围度法估算体脂率，需要身高体重与腰围颈围（女性加臀围）。',
     keywords: ['体脂', '围度', '健身'],
@@ -1047,38 +994,6 @@ const tools: ToolDef[] = [
     desc: '多段上下班时间累计工时，自动扣除午休，适合工时表与考勤。',
     keywords: ['工时', '考勤', '工时表'],
     component: () => import('./components/HoursCalculator.vue'),
-  },
-  {
-    slug: 'rmb-uppercase', title: '人民币大写转换', category: 'utility',
-    desc: '阿拉伯金额转中文大写（壹仟贰佰…元整），附合同日期大写，报销单据一步到位。',
-    keywords: ['大写', '人民币', '财务', '金额大写', '壹仟'],
-    calcDef: {
-      fields: [
-        { key: 'amount', label: '金额', type: 'text', default: '', placeholder: '如 1234.56 或 -12' },
-        { key: 'date', label: '日期大写（可选）', type: 'date', default: '', hint: '合同落款用，如 贰零贰陆年壹拾壹月零伍日' },
-      ],
-      compute: (v) => {
-        const raw = String(v.amount ?? '').trim()
-        const rows: CalcResultRow[] = []
-        if (raw) {
-          const s = raw.replace(/[¥￥,]/g, '')
-          const n = Number(s)
-          if (!Number.isFinite(n)) rows.push({ label: '大写金额', value: '请输入有效金额' })
-          else {
-            rows.push({ label: '大写金额', value: numberToChinese(s, true), primary: true })
-            rows.push({ label: '规范化金额', value: `¥${moneyCn(n)}` })
-          }
-        }
-        const d = String(v.date ?? '')
-        if (d) {
-          const [y, m, day] = d.split('-').map(Number)
-          if (y && m && day) rows.push({ label: '日期大写', value: cnDate(y!, m!, day!) })
-        }
-        if (!rows.length) rows.push({ label: '大写金额', value: '请输入金额' })
-        return rows
-      },
-      note: '口径：按人民币票据规范（元/角/分、「整」与中间补零），四位分节读法；重要票据请再人工复核。',
-    },
   },
   {
     slug: 'sleep-cycle-calculator', title: '睡眠周期计算器', category: 'utility',
@@ -1382,8 +1297,8 @@ const tools: ToolDef[] = [
         const tdee = bmr * act
         const fmt = (x: number) => Math.round(x).toLocaleString('zh-CN')
         return [
-          { label: '基础代谢 BMR', value: fmt(bmr) + ' 千卡', primary: true },
-          { label: '每日总消耗 TDEE', value: fmt(tdee) + ' 千卡', hint: 'BMR × 活动系数' },
+          { label: '基础代谢 BMR', value: fmt(bmr) + ' 千卡', hint: 'Mifflin-St Jeor 公式' },
+          { label: '每日总消耗 TDEE', value: fmt(tdee) + ' 千卡', hint: 'BMR × 活动系数', primary: true },
           { label: '温和减脂（−300 千卡）', value: '约 ' + fmt(tdee - 300) + ' 千卡/天' },
           { label: '均衡维持', value: '约 ' + fmt(tdee) + ' 千卡/天' },
           { label: '增肌盈余（+300 千卡）', value: '约 ' + fmt(tdee + 300) + ' 千卡/天' },

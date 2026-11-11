@@ -1,6 +1,6 @@
 import type { ToolDef } from '@/types'
 
-/** 视频工具注册表（42 项）—— 大多数依赖 ffmpeg.wasm（首次使用提示下载） */
+/** 视频工具注册表（41 项）—— 大多数依赖 ffmpeg.wasm（首次使用提示下载） */
 const tools: ToolDef[] = [
   { slug: 'compress-video', title: '压缩视频', category: 'video', desc: '按目标体积或质量档位压缩视频，无需上传，无大小限制。', keywords: ['压缩', '视频', '体积'], needModel: true, component: () => import('./components/FfmpegCompress.vue'), steps: ['拖入视频', '设置目标大小或质量', '压缩并下载'] },
   { slug: 'convert-video', title: '视频格式转换', category: 'video', desc: 'MP4 / WebM / MOV / MKV / AVI 互转，本地 ffmpeg 完成。', keywords: ['视频', '转换', '格式'], needModel: true, component: () => import('./components/FfmpegConvert.vue') },
@@ -12,7 +12,6 @@ const tools: ToolDef[] = [
   { slug: 'video-thumbnail', title: '视频截帧', category: 'video', desc: '抓取某一帧存为 JPG/PNG，或按间隔批量抽帧打包下载。', keywords: ['截帧', '封面', 'thumbnail'], component: () => import('./components/VideoThumbnail.vue') },
   { slug: 'mute-video', title: '视频消音', category: 'video', desc: '只删音轨不动画面，直接流复制瞬间完成。', keywords: ['消音', '静音', 'mute'], needModel: true, component: () => import('./components/FfmpegMute.vue') },
   { slug: 'rotate-video', title: '旋转视频', category: 'video', desc: '竖拍横了？90/180/270° 旋转写入元数据，全设备正常播放。', keywords: ['旋转', '方向'], needModel: true, component: () => import('./components/FfmpegRotate.vue') },
-  { slug: 'video-editor', title: '视频编辑器', category: 'video', desc: '浏览器时间线剪辑工作台：多段拼接、裁剪、变速、静音与导出。', keywords: ['视频', '剪辑', 'editor'], studio: true, component: () => import('../editors/components/VideoStudio.vue'), steps: ['导入多段视频素材', '在时间线上裁剪与排序', '导出成片'] },
   { slug: 'mov-to-mp4', title: 'MOV 转 MP4', category: 'video', desc: 'QuickTime 录制转 MP4，兼容所有播放器与社交平台。', keywords: ['mov', 'mp4'], needModel: true, component: () => import('./components/FfmpegConvert.vue') },
   { slug: 'mkv-to-mp4', title: 'MKV 转 MP4', category: 'video', desc: 'MKV 容器转 MP4，尽量不重编码以保留画质。', keywords: ['mkv', 'mp4'], needModel: true, component: () => import('./components/FfmpegConvert.vue') },
   { slug: 'avi-to-mp4', title: 'AVI 转 MP4', category: 'video', desc: '老格式 AVI 转现代 MP4（H.264 + AAC）。', keywords: ['avi', 'mp4'], needModel: true, component: () => import('./components/FfmpegConvert.vue') },

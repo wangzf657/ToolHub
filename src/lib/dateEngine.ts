@@ -1,5 +1,9 @@
 /** 日期与时间引擎 */
 
+/** 按本地时区格式化 yyyy-mm-dd（toISOString 按 UTC 输出，东八区本地午夜会偏移成前一天） */
+const fmtLocalDate = (d: Date): string =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
 export interface AgeResult {
   years: number
   months: number
@@ -39,7 +43,7 @@ export function calcAge(birth: string, refDate = new Date()): AgeResult {
     totalDays,
     totalWeeks: Math.floor(totalDays / 7),
     totalHours: totalDays * 24,
-    nextBirthday: { days: toNext, date: next.toISOString().slice(0, 10) },
+    nextBirthday: { days: toNext, date: fmtLocalDate(next) },
   }
 }
 
@@ -111,22 +115,50 @@ export function formatInTz(d: Date, tz: string): string {
   }).format(d)
 }
 
+/** 常用时区列表：UTC 偏移随夏令时变化，标签不写死偏移，实际偏移由 tzOffsetAt 按日期实时计算 */
 export const COMMON_TIMEZONES: { value: string; label: string }[] = [
-  { value: 'Asia/Shanghai', label: '北京 UTC+8' },
-  { value: 'Asia/Tokyo', label: '东京 UTC+9' },
-  { value: 'Asia/Singapore', label: '新加坡 UTC+8' },
-  { value: 'Asia/Dubai', label: '迪拜 UTC+4' },
-  { value: 'Europe/London', label: '伦敦 UTC+0' },
-  { value: 'Europe/Paris', label: '巴黎 UTC+1' },
-  { value: 'Europe/Berlin', label: '柏林 UTC+1' },
-  { value: 'Europe/Moscow', label: '莫斯科 UTC+3' },
-  { value: 'America/New_York', label: '纽约 UTC-5' },
-  { value: 'America/Chicago', label: '芝加哥 UTC-6' },
-  { value: 'America/Los_Angeles', label: '洛杉矶 UTC-8' },
-  { value: 'Australia/Sydney', label: '悉尼 UTC+10' },
-  { value: 'Pacific/Auckland', label: '奥克兰 UTC+12' },
+  { value: 'Asia/Shanghai', label: '北京' },
+  { value: 'Asia/Tokyo', label: '东京' },
+  { value: 'Asia/Singapore', label: '新加坡' },
+  { value: 'Asia/Dubai', label: '迪拜' },
+  { value: 'Europe/London', label: '伦敦' },
+  { value: 'Europe/Paris', label: '巴黎' },
+  { value: 'Europe/Berlin', label: '柏林' },
+  { value: 'Europe/Moscow', label: '莫斯科' },
+  { value: 'America/New_York', label: '纽约' },
+  { value: 'America/Chicago', label: '芝加哥' },
+  { value: 'America/Los_Angeles', label: '洛杉矶' },
+  { value: 'Australia/Sydney', label: '悉尼' },
+  { value: 'Pacific/Auckland', label: '奥克兰' },
   { value: 'UTC', label: 'UTC 标准时间' },
 ]
+
+/** 用 Intl 按指定时刻实时解析时区偏移（分钟）；不依赖写死偏移表，夏令时自动正确 */
+function offsetMinutesAt(tz: string, at: Date): number {
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'longOffset' }).formatToParts(at)
+  const gmt = parts.find((p) => p.type === 'timeZoneName')?.value ?? 'GMT'
+  const m = gmt.match(/GMT([+-])(\d{1,2})(?::(\d{2}))?/)
+  if (!m) return 0
+  const sign = m[1] === '-' ? -1 : 1
+  return sign * (Number(m[2]) * 60 + Number(m[3] ?? 0))
+}
+
+/** 时区在指定时刻的实际偏移与夏令时状态（夏令时=时钟拨快，偏移大于全年标准偏移） */
+export function tzOffsetAt(tz: string, at: Date): { offset: string; dst: boolean } {
+  const cur = offsetMinutesAt(tz, at)
+  // 标准偏移取当年 1 月/7 月中旬的较小值（夏令时只会把时钟拨快、偏移变大）
+  const jan = offsetMinutesAt(tz, new Date(at.getFullYear(), 0, 15))
+  const jul = offsetMinutesAt(tz, new Date(at.getFullYear(), 6, 15))
+  const std = Math.min(jan, jul)
+  const sign = cur < 0 ? '-' : '+'
+  const abs = Math.abs(cur)
+  const hh = Math.floor(abs / 60)
+  const mm = abs % 60
+  return {
+    offset: `UTC${sign}${hh}${mm ? `:${`${mm}`.padStart(2, '0')}` : ''}`,
+    dst: cur > std,
+  }
+}
 
 /** 工时累计（多段开始-结束时间） */
 export function sumHours(ranges: { start: string; end: string; breakMinutes?: number }[]): { totalMinutes: number; perDay: number[] } {

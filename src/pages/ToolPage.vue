@@ -73,7 +73,7 @@ const defaultSteps = ['打开工具，输入或拖入内容', '按需调整选�
       </button>
     </div>
 
-    <div class="tool-layout">
+    <div class="tool-layout" :class="{ 'tool-layout--wide': tool.studio }">
       <div class="panel tool-panel">
         <div v-if="loadingComp" class="loading"><span class="spinner"></span> 加载工具中…</div>
         <!-- 自定义组件 -->
@@ -93,7 +93,8 @@ const defaultSteps = ['打开工具，输入或拖入内容', '按需调整选�
         <div v-else class="notice notice-warn">该工具正在施工中，敬请期待。</div>
       </div>
 
-      <TrustSidebar :steps="tool.steps ?? defaultSteps" />
+      <!-- 工作室类工具豁免右侧信任栏：画布/时间线需要完整宽度（photo 中栏 400→≥750px） -->
+      <TrustSidebar v-if="!tool.studio" :steps="tool.steps ?? defaultSteps" />
     </div>
 
     <p class="tool-about">{{ tool.desc }} 所有处理都在你的浏览器中完成——无上传、无注册、无水印。</p>
@@ -160,6 +161,9 @@ const defaultSteps = ['打开工具，输入或拖入内容', '按需调整选�
   grid-template-columns: minmax(0, 1fr) 300px;
   gap: 18px;
   align-items: start;
+}
+.tool-layout--wide {
+  grid-template-columns: minmax(0, 1fr);
 }
 @media (max-width: 900px) {
   .tool-layout {

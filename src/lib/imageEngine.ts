@@ -10,7 +10,20 @@ export function loadImage(src: string | Blob | File): Promise<HTMLImageElement> 
   return new Promise((resolve, reject) => {
     const img = new Image()
     img.onload = () => resolve(img)
-    img.onerror = () => reject(new Error('图片加载失败，请检查文件是否为有效图像'))
+    img.onerror = () => {
+      // 区分两种失败：文件本身损坏 vs 浏览器不支持该编码（如 Safari 的 AVIF），
+      // 后者给出转换路径而不是误导用户「文件无效」
+      const name = typeof src === 'string' ? '' : (src as File).name ?? ''
+      const ext = (name.match(/\.([a-z0-9]+)$/i)?.[1] ?? '').toLowerCase()
+      const rareExt = /^(avif|jxl|heic|heif|tiff|tif)$/
+      reject(
+        new Error(
+          rareExt.test(ext)
+            ? `浏览器无法解码 ${ext.toUpperCase()} 格式，请先用格式转换工具转成 PNG/JPG 再试`
+            : '图片加载失败，请检查文件是否为有效图像',
+        ),
+      )
+    }
     img.src = url
   })
 }

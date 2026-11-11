@@ -107,6 +107,14 @@ const convert = (v: number, from: string, to: string): number => {
   return (v * fu.factor) / tu.factor
 }
 
+/** 交换方向：互换左右单位，数值对调并按新单位重算，避免每点一次按系数膨胀 */
+const swapUnits = () => {
+  convertLeft() // 先按当前方向补齐右侧换算结果
+  ;[leftUnit.value, rightUnit.value] = [rightUnit.value, leftUnit.value]
+  ;[leftVal.value, rightVal.value] = [rightVal.value, leftVal.value]
+  convertLeft() // 按交换后的单位重算右侧（左侧保留对调后的等值数值）
+}
+
 const formatNum = (n: number): string => {
   if (!Number.isFinite(n)) return '—'
   if (n === 0) return '0'
@@ -157,7 +165,7 @@ switchCat(categories[0])
             <option v-for="x in active.units" :key="x.id" :value="x.id">{{ x.label }}</option>
           </select>
         </div>
-        <button class="swap-btn" title="交换方向" aria-label="交换方向" @click="convertRight(); [leftVal, rightVal] = [rightVal, leftVal]; convertLeft()">
+        <button class="swap-btn" title="交换方向" aria-label="交换方向" @click="swapUnits">
           <ArrowLeftRight :size="18" />
         </button>
         <div>

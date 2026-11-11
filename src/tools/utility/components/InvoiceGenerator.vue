@@ -53,6 +53,8 @@ const printInvoice = () => {
     toast.err('浏览器拦截了新窗口，请允许弹出窗口后重试')
     return
   }
+  // HTML 转义必须先于 rowsHtml 声明：此前声明在后，map 回调先执行会触发 TDZ ReferenceError
+  const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   const rowsHtml = items
     .map(
       (it, i) => `<tr>
@@ -64,7 +66,6 @@ const printInvoice = () => {
       </tr>`,
     )
     .join('')
-  const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   w.document.write(`<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>${esc(meta.number)}</title>
   <style>
     body{font-family:-apple-system,'Segoe UI','Microsoft YaHei',sans-serif;color:#111;padding:40px;max-width:800px;margin:0 auto}

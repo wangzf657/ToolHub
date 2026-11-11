@@ -6,7 +6,7 @@ import {
   uuidv4, slugify, piiScrub, textStats,
 } from '@/lib/textEngine'
 import { loanPayment, compoundInterest } from '@/lib/finance'
-import { calcAge, convertTimezone, dateDiff, COMMON_TIMEZONES } from '@/lib/dateEngine'
+import { calcAge, convertTimezone, dateDiff, COMMON_TIMEZONES, tzOffsetAt } from '@/lib/dateEngine'
 import { annualIncomeTax, annualBonusTax, computeInsurance, CITY_INSURANCE } from '@/lib/chinaPayroll'
 import { pinyinOf, variantConvert, type VariantMode } from '@/lib/chineseText'
 import { extractFromText, EXTRACT_TYPES, cleanText, fullToHalf, halfToFull, type ExtractType } from '@/lib/textExt'
@@ -610,14 +610,21 @@ const tools: ToolDef[] = [
         if (!v.date) return [{ label: '请选择日期', value: '—' }]
         try {
           const r = convertTimezone(String(v.date), String(v.time), String(v.from), String(v.to))
+          // 用 Intl 按所选日期实时计算两时区实际偏移（含夏令时），不依赖写死偏移表
+          const at = new Date(`${v.date}T${String(v.time) || '00:00'}:00`)
+          const fmtTz = (tz: string) => {
+            const o = tzOffsetAt(tz, at)
+            return `${o.offset}${o.dst ? '（夏令时生效）' : ''}`
+          }
           return [
-            { label: '源时区时间', value: r.from },
-            { label: '目标时区时间', value: r.to, primary: true },
+            { label: '源时区时间', value: r.from, hint: `所选日期实际偏移 ${fmtTz(String(v.from))}` },
+            { label: '目标时区时间', value: r.to, primary: true, hint: `所选日期实际偏移 ${fmtTz(String(v.to))}` },
           ]
         } catch (e) {
           return [{ label: '错误', value: (e as Error).message }]
         }
       },
+      note: '偏移按所选日期由浏览器 Intl 数据实时计算，夏令时期间自动生效；结果行偏移即该日实际偏移。',
     },
   },
   {

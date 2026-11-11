@@ -3,7 +3,7 @@
  * pdf-lib 的 StandardFonts（WinAnsi）无法编码中文，含中文的叠加文字
  * 改为「Canvas 渲染 → 透明 PNG → embedPng 贴图」；签名图片同理。
  */
-import { toPdfBlob, loadPdfLib } from '@/lib/pdfEngine'
+import { savePdf, loadPdfLib } from '@/lib/pdfEngine'
 
 export function hasCJK(s: string): boolean {
   return /[\u2e80-\u9fff\uf900-\ufaff\u3000-\u303f\uff00-\uffef]/.test(s)
@@ -82,5 +82,5 @@ export async function stampPngs(file: File | Blob, items: PngStamp[]): Promise<B
       rotate: degrees(it.rotateDeg ?? 0),
     })
   }
-  return toPdfBlob(await doc.save())
+  return await savePdf(doc)
 }

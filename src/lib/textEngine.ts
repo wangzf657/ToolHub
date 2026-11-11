@@ -614,9 +614,10 @@ export function tokenizeWords(text: string): string[] {
 }
 
 export const STOPWORDS = new Set(
-  'the a an and or of to in on for with is are was were be been it this that i you he she they we as at by from not but'.split(
-    ' ',
-  ),
+  ('the a an and or of to in on for with is are was were be been being it its this that these those i you he she they we me him her them my your his their our '
+    + 'as at by from not but if then else when while so than too very can will just should now what which who whom whose where why how all any both each few more most other some such no nor only own same s t don should ve ll re d m o y '
+    + 'about into over under again further once here there during before after above below up down out off between because until against through have has had having do does did doing would could ought im youre ive theyre doesnt didnt wont cant'
+  ).split(/\s+/),
 )
 
 export function isPalindrome(text: string): boolean {

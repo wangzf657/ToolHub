@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref } from 'vue'
+import { onBeforeUnmount, ref, watch } from 'vue'
 import { Play, Square } from 'lucide-vue-next'
 import { startMetronome, closeAudioCtx } from '@/lib/audioSynth'
 
@@ -17,7 +17,11 @@ const TEMPO_PRESETS = [
   { label: '急板 168', v: 168 },
 ]
 
-let handle: { stop: () => void } | null = null
+let handle: { stop: () => void; setBpm: (b: number) => void; setBeats: (b: number) => void } | null = null
+
+// 运行中实时调速/改拍号：下一拍生效，不打断节拍
+watch(bpm, (b) => handle?.setBpm(b))
+watch(beats, (b) => handle?.setBeats(b))
 
 const start = () => {
   stop()
@@ -71,7 +75,7 @@ onBeforeUnmount(() => {
         </select>
       </div>
       <div class="chips mt-2">
-        <button v-for="p in TEMPO_PRESETS" :key="p.v" class="chip-btn" @click="bpm = p.v; running && start()">{{ p.label }}</button>
+        <button v-for="p in TEMPO_PRESETS" :key="p.v" class="chip-btn" @click="bpm = p.v">{{ p.label }}</button>
       </div>
       <p class="hint mt-1">Web Audio lookahead 调度，节拍精度不受 UI 掉帧影响；页面切到后台时浏览器可能限流。</p>
     </div>

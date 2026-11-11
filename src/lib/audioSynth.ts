@@ -24,6 +24,8 @@ export type NoiseKind = 'white' | 'pink' | 'brown' | 'rain' | 'wave' | 'fan'
 
 interface NoiseChain {
   stop: () => void
+  /** 运行中实时调音量（免重启，避免声音中断） */
+  setVolume: (v: number) => void
 }
 
 /** 启动一段持续的环境音，返回停止句柄 */
@@ -92,6 +94,9 @@ export function startNoise(kind: NoiseKind, gain = 0.5): NoiseChain {
   }
 
   return {
+    setVolume: (v: number) => {
+      master.gain.setTargetAtTime(Math.max(0, Math.min(1.5, v)), ctx.currentTime, 0.04)
+    },
     stop: () => {
       try {
         master.gain.setTargetAtTime(0, ctx.currentTime, 0.05)
@@ -110,6 +115,9 @@ export function startNoise(kind: NoiseKind, gain = 0.5): NoiseChain {
 
 export interface MetroHandle {
   stop: () => void
+  /** 运行中实时调速/改拍号（下一拍生效，不打断节拍） */
+  setBpm: (bpm: number) => void
+  setBeats: (beatsPerBar: number) => void
   /** 每拍回调（beatInBar 从 0 开始，重音拍为 0） */
   onBeat?: (beatInBar: number) => void
 }
@@ -118,6 +126,8 @@ export interface MetroHandle {
 export function startMetronome(bpm: number, beatsPerBar: number, subdiv = 1, onBeat?: (b: number) => void): MetroHandle {
   const ctx = getAudioCtx()
   let running = true
+  let curBpm = bpm
+  let curBeats = beatsPerBar
   let nextNoteTime = ctx.currentTime + 0.05
   let beat = 0
   let sub = 0
@@ -139,13 +149,13 @@ export function startMetronome(bpm: number, beatsPerBar: number, subdiv = 1, onB
   const schedule = () => {
     if (!running) return
     while (nextNoteTime < ctx.currentTime + lookahead) {
-      const accent = sub === 0 && beat % beatsPerBar === 0
+      const accent = sub === 0 && beat % curBeats === 0
       click(nextNoteTime, accent)
-      const step = 60 / bpm / subdiv
+      const step = 60 / curBpm / subdiv
       // 回调对齐真实节拍（非细分拍）
       if (sub === 0) {
         const delayMs = Math.max(0, (nextNoteTime - ctx.currentTime) * 1000)
-        setTimeout(() => onBeat?.(beat % beatsPerBar), delayMs)
+        setTimeout(() => onBeat?.(beat % curBeats), delayMs)
       }
       nextNoteTime += step
       sub++
@@ -158,6 +168,12 @@ export function startMetronome(bpm: number, beatsPerBar: number, subdiv = 1, onB
   const timer = setInterval(schedule, interval)
   schedule()
   return {
+    setBpm: (b: number) => {
+      curBpm = Math.max(20, Math.min(400, b))
+    },
+    setBeats: (b: number) => {
+      curBeats = Math.max(1, Math.min(12, Math.round(b)))
+    },
     stop: () => {
       running = false
       clearInterval(timer)
@@ -169,7 +185,7 @@ export function startMetronome(bpm: number, beatsPerBar: number, subdiv = 1, onB
 
 export type WaveKind = 'sine' | 'square' | 'triangle' | 'sawtooth'
 
-export function startTone(freq: number, kind: WaveKind = 'sine', gain = 0.3): { stop: () => void; setFreq: (f: number) => void } {
+export function startTone(freq: number, kind: WaveKind = 'sine', gain = 0.3): { stop: () => void; setFreq: (f: number) => void; setVolume: (v: number) => void; setKind: (k: WaveKind) => void } {
   const ctx = getAudioCtx()
   const osc = ctx.createOscillator()
   const g = ctx.createGain()
@@ -181,6 +197,12 @@ export function startTone(freq: number, kind: WaveKind = 'sine', gain = 0.3): { 
   return {
     setFreq: (f: number) => {
       osc.frequency.setTargetAtTime(f, ctx.currentTime, 0.01)
+    },
+    setVolume: (v: number) => {
+      g.gain.setTargetAtTime(Math.max(0, Math.min(1, v)), ctx.currentTime, 0.03)
+    },
+    setKind: (k: WaveKind) => {
+      osc.type = k
     },
     stop: () => {
       g.gain.setTargetAtTime(0, ctx.currentTime, 0.03)

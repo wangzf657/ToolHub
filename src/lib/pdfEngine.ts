@@ -68,7 +68,7 @@ export function toPdfBlob(bytes: Uint8Array | Blob): Blob {
  * 「pdf-lib (https://github.com/Hopding/pdf-lib)」，故以 updateMetadata:false 跳过，
  * 由引擎维护元数据契约——producer=ToolHub，creator 缺失时补 ToolHub。
  */
-async function savePdf(
+export async function savePdf(
   doc: import('@cantoo/pdf-lib').PDFDocument,
   opts: { useObjectStreams?: boolean } = {},
 ): Promise<Blob> {

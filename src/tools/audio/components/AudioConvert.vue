@@ -1,11 +1,12 @@
 <script setup lang="ts">
 /**
- * 音频格式转换（convert-audio 与 9 个「X 转 Y」入口共用）：
+ * 音频格式转换（convert-audio 与 13 个「X 转 Y」入口共用）：
  * WAV / MP3 目标走 WebAudio 快路径；M4A / FLAC / OGG / AAC / OPUS 目标，或
  * WMA / OPUS 等浏览器无法解码的源，自动切换到 ffmpeg 兜底。
- * 组件内读不到路由参数，默认目标为 MP3（即「WAV 转 MP3」语义），其余入口自行选择目标。
+ * 挂载时按 slug 预设目标格式（如 mp3-to-wav 默认 WAV），避免「转无损页默认出有损」。
  */
 import { computed, nextTick, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { Download, Info, Loader2 } from 'lucide-vue-next'
 import AudioToolBase from './AudioToolBase.vue'
 import FfAudioBase from './FfAudioBase.vue'
@@ -26,7 +27,24 @@ const targets: { value: Target; label: string }[] = [
   { value: 'opus', label: 'OPUS · ffmpeg' },
 ]
 
-const target = ref<Target>('mp3')
+const route = useRoute()
+/** slug → 默认目标：X-to-Y 入口页语义即目标格式，不能让「转 WAV 页」默认出 MP3 */
+const SLUG_TARGET: Record<string, Target> = {
+  'wav-to-mp3': 'mp3',
+  'mp3-to-wav': 'wav',
+  'flac-to-mp3': 'mp3',
+  'flac-to-wav': 'wav',
+  'm4a-to-mp3': 'mp3',
+  'm4a-to-wav': 'wav',
+  'ogg-to-mp3': 'mp3',
+  'aac-to-mp3': 'mp3',
+  'mp3-to-m4a': 'm4a',
+  'wav-to-m4a': 'm4a',
+  'wav-to-flac': 'flac',
+  'opus-to-mp3': 'mp3',
+  'wma-to-mp3': 'mp3',
+}
+const target = ref<Target>(SLUG_TARGET[String(route.params.slug ?? '')] ?? 'mp3')
 const kbps = ref(192)
 const mono = ref(false)
 
@@ -131,7 +149,7 @@ async function runFf() {
       <span>
         WAV / MP3 目标解码后即时完成；M4A / FLAC / OGG / AAC / OPUS 目标自动改用 ffmpeg 引擎（首次约 25MB）。
         WMA、OPUS 等浏览器解不了的源文件，选 MP3 / WAV 目标时同样会自动走 ffmpeg。
-        本页是通用转换入口，多个「X 转 Y」工具共用此组件，默认目标为 MP3（WAV→MP3 语义），请按需切换。
+        已按当前工具预设目标格式，也可点击上方按钮切换。
       </span>
     </div>
 

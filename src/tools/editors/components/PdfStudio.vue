@@ -6,7 +6,7 @@ import {
 } from 'lucide-vue-next'
 import FileDrop from '@/components/common/FileDrop.vue'
 import SignaturePad from './studio/SignaturePad.vue'
-import { loadPdfLib, loadPdfJs, renderPageToCanvas, stampText, addPageNumbers } from '@/lib/pdfEngine'
+import { loadPdfLib, loadPdfJs, renderPageToCanvas, stampText, addPageNumbers, savePdf } from '@/lib/pdfEngine'
 import { hasCJK, hexToRgb01, renderTextPng, stampPngs } from './studio/pdfText'
 import { saveBlob } from '@/lib/download'
 import { useToast } from '@/composables/useToast'
@@ -174,7 +174,7 @@ const extractChecked = async () => {
     const out = await PDFDocument.create()
     const pages = await out.copyPages(srcDoc, checked.value)
     pages.forEach((p) => out.addPage(p))
-    saveBlob(new Blob([await out.save()], { type: 'application/pdf' }), '提取页.pdf')
+    saveBlob(await savePdf(out), '提取页.pdf')
     toast.ok(`已提取 ${checked.value.length} 页`)
   } catch (e) {
     toast.err((e as Error).message || '提取失败')

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { UploadCloud, File as FileIcon, X, GripVertical, FilePlus2 } from 'lucide-vue-next'
 import { useToast } from '@/composables/useToast'
 
@@ -44,11 +44,13 @@ const onInput = (e: Event) => {
 }
 
 const removeAt = (i: number) => {
+  dropThumb(files.value[i]!)
   files.value.splice(i, 1)
   emit('files', [...files.value])
 }
 
 const clear = () => {
+  for (const f of files.value) dropThumb(f)
   files.value = []
   emit('files', [])
 }
@@ -64,6 +66,51 @@ const move = (i: number, dir: -1 | 1) => {
 }
 
 const sizeLabel = (n: number) => (n > 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.ceil(n / 1024)} KB`)
+
+/* ---------- 图片缩略图：文件行直接看内容，选错/漏选不再靠文件名排查 ---------- */
+const thumbUrls = new Map<File, string>()
+const thumbOf = (f: File): string => {
+  if (!f.type.startsWith('image/')) return ''
+  let u = thumbUrls.get(f)
+  if (!u) {
+    u = URL.createObjectURL(f)
+    thumbUrls.set(f, u)
+  }
+  return u
+}
+const dropThumb = (f: File) => {
+  const u = thumbUrls.get(f)
+  if (u) {
+    URL.revokeObjectURL(u)
+    thumbUrls.delete(f)
+  }
+}
+
+/* ---------- Ctrl+V 粘贴：截图流直达（图片类工具高频路径） ---------- */
+const acceptsImage = computed(() => !props.accept || /image/i.test(props.accept))
+const onPaste = (e: ClipboardEvent) => {
+  const dt = e.clipboardData
+  if (!dt) return
+  // 优先取文件（资源管理器复制的文件 / 截图工具生成的图片文件）
+  if (dt.files?.length) {
+    addFiles(dt.files)
+    return
+  }
+  if (!acceptsImage.value) return
+  const item = Array.from(dt.items ?? []).find((x) => x.kind === 'file' && x.type.startsWith('image/'))
+  const blob = item?.getAsFile()
+  if (blob) {
+    const stamp = new Date().toISOString().slice(11, 19).replace(/:/g, '')
+    const file = blob instanceof File && blob.name ? blob : new File([blob], `截图-${stamp}.png`, { type: blob.type || 'image/png' })
+    addFiles([file])
+  }
+}
+onMounted(() => window.addEventListener('paste', onPaste))
+onBeforeUnmount(() => {
+  window.removeEventListener('paste', onPaste)
+  for (const u of thumbUrls.values()) URL.revokeObjectURL(u)
+  thumbUrls.clear()
+})
 
 const acceptAttr = computed(() => props.accept)
 defineExpose({ files, clear, addFiles })
@@ -90,14 +137,15 @@ void toast
       />
       <UploadCloud :size="30" class="drop-icon" />
       <p class="drop-label">{{ label }}</p>
-      <p class="drop-hint">{{ hint }}</p>
+      <p class="drop-hint">{{ hint }}{{ acceptsImage ? ' · 支持 Ctrl+V 粘贴截图' : '' }}</p>
     </div>
 
     <div v-if="files.length" class="file-list">
       <div v-for="(f, i) in files" :key="`${f.name}-${i}`" class="file-row">
         <GripVertical :size="14" class="grip" />
         <span class="file-idx">{{ i + 1 }}</span>
-        <FileIcon :size="16" class="file-icon" />
+        <img v-if="thumbOf(f)" :src="thumbOf(f)" :alt="f.name" class="file-thumb" />
+        <FileIcon v-else :size="16" class="file-icon" />
         <span class="file-name" :title="f.name">{{ f.name }}</span>
         <span class="file-size">{{ sizeLabel(f.size) }}</span>
         <span class="row gap4">
@@ -182,6 +230,16 @@ void toast
 .file-icon {
   color: var(--text-3);
   flex: none;
+}
+.file-thumb {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background:
+    repeating-conic-gradient(var(--panel-hover) 0% 25%, transparent 0% 50%) 0 0 / 10px 10px;
 }
 .file-name {
   flex: 1;

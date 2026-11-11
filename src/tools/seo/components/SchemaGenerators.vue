@@ -1,10 +1,28 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { Plus, Trash2 } from 'lucide-vue-next'
 import ResultBox from '@/components/common/ResultBox.vue'
 
 type Tab = 'article' | 'product' | 'faq' | 'local' | 'event' | 'breadcrumb'
-const tab = ref<Tab>('article')
+// 六个 schema-* 入口共用本组件：按 slug 预选对应 Tab，首屏表单与工具名一致
+const SLUG_TAB: Record<string, Tab> = {
+  'schema-article-generator': 'article',
+  'schema-product-generator': 'product',
+  'schema-faq-generator': 'faq',
+  'schema-localbusiness-generator': 'local',
+  'schema-event-generator': 'event',
+  'schema-breadcrumb-generator': 'breadcrumb',
+}
+const route = useRoute()
+const tab = ref<Tab>(SLUG_TAB[String(route.params.slug ?? '')] ?? 'article')
+watch(
+  () => route.params.slug,
+  (s2) => {
+    const t = SLUG_TAB[String(s2 ?? '')]
+    if (t) tab.value = t
+  },
+)
 const TABS: { v: Tab; label: string }[] = [
   { v: 'article', label: 'Article 文章' },
   { v: 'product', label: 'Product 商品' },

@@ -2,7 +2,7 @@
  * 中文文字兜底方案：pdf-lib 的 StandardFonts（WinAnsi）无法编码中文，
  * 含中文的叠加文字改为「Canvas 渲染 → 透明 PNG → embedPng 贴图」。
  */
-import { toPdfBlob, loadPdfLib } from '@/lib/pdfEngine'
+import { savePdf, loadPdfLib } from '@/lib/pdfEngine'
 
 export function hasCJK(s: string): boolean {
   return /[\u2e80-\u9fff\uf900-\ufaff\u3000-\u303f\uff00-\uffef]/.test(s)
@@ -71,7 +71,7 @@ export async function stampImageTexts(file: File | Blob, items: ImageTextItem[])
       rotate: degrees(it.rotateDeg ?? 0),
     })
   }
-  return toPdfBlob(await doc.save())
+  return await savePdf(doc)
 }
 
 /** hex 颜色 → 0-1 RGB 三元组 */

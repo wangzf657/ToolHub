@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref } from 'vue'
+import { onBeforeUnmount, ref, watch } from 'vue'
 import { Play, Square, Radio } from 'lucide-vue-next'
 import { startTone, closeAudioCtx, type WaveKind } from '@/lib/audioSynth'
 
@@ -21,7 +21,11 @@ const WAVES: { k: WaveKind; label: string }[] = [
   { k: 'sawtooth', label: '锯齿波' },
 ]
 
-let handle: { stop: () => void; setFreq: (f: number) => void } | null = null
+let handle: { stop: () => void; setFreq: (f: number) => void; setVolume: (v: number) => void; setKind: (k: WaveKind) => void } | null = null
+
+// 播放中实时生效：波形/音量即时切换，无需重开
+watch(kind, (k) => handle?.setKind(k))
+watch(volume, (v) => handle?.setVolume(v))
 let sweepTimer: number | null = null
 
 const start = () => {
@@ -84,7 +88,7 @@ onBeforeUnmount(() => {
         <span class="freq-val">{{ freq }}</span>
         <span class="field-label">Hz</span>
       </div>
-      <input v-model.number="freq" type="range" min="20" max="20000" step="1" class="range" @change="setFreq" />
+      <input v-model.number="freq" type="range" min="20" max="20000" step="1" class="range" @input="setFreq" />
       <div class="row wrap gap mt-2">
         <label class="check"><input v-model="kind" type="radio" value="sine" /> 正弦</label>
         <label class="check"><input v-model="kind" type="radio" value="square" /> 方波</label>

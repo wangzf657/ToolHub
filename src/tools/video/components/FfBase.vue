@@ -43,6 +43,8 @@ const emit = defineEmits<{ run: []; time: [t: number] }>()
 const toast = useToast()
 const files = ref<File[]>([])
 const meta = shallowRef<VideoMeta | null>(null)
+/** 浏览器解不出预览（编码不支持）时不再挡门：仍允许走 ffmpeg 处理 */
+const previewFailed = ref(false)
 const outputName = ref('')
 const busy = ref(false)
 const status = ref('')
@@ -58,14 +60,18 @@ watch(files, async (list) => {
     URL.revokeObjectURL(meta.value.url)
     meta.value = null
   }
+  previewFailed.value = false
   const f = list[0]
   if (!f) return
+  const ext = props.outputExt ?? (f.name.includes('.') ? f.name.split('.').pop()! : 'mp4')
+  outputName.value = `${baseName(f.name)}.${ext}`
   try {
     meta.value = await loadVideo(f)
-    const ext = props.outputExt ?? (f.name.includes('.') ? f.name.split('.').pop()! : 'mp4')
-    outputName.value = `${baseName(f.name)}.${ext}`
   } catch (e) {
-    toast.err((e as Error).message || '视频加载失败')
+    // 浏览器预览不了 ≠ 处理不了：ffmpeg 支持的编码远多于 <video>，
+    // 放行执行流程并明示「预览不可用」，避免「导入了却哪儿都点不了」
+    previewFailed.value = true
+    toast.warn('浏览器无法预览该编码，仍可使用下方 ffmpeg 流程处理')
   }
 })
 
@@ -164,14 +170,17 @@ defineExpose({ file, files, meta, outputName, videoEl, ffReady, setBusy, runWith
       @files="files = $event"
     />
 
-    <template v-if="meta && files.length">
-      <div class="preview-wrap mt-2">
+    <template v-if="(meta || previewFailed) && files.length">
+      <div v-if="meta" class="preview-wrap mt-2">
         <video ref="videoEl" :src="meta.url" controls class="preview" @timeupdate="onTime"></video>
         <div class="meta-bar">
           <span>{{ meta.width }}×{{ meta.height }}</span>
           <span>时长 {{ fmtDur(meta.duration) }}</span>
           <span>{{ fmtSize(files[0].size) }}</span>
         </div>
+      </div>
+      <div v-else class="notice notice-warn mt-2">
+        预览不可用（浏览器不支持该编码），但 ffmpeg 仍可处理——直接设置参数并执行即可。
       </div>
 
       <div v-if="files.length === 1" class="out-row mt-2">

@@ -5,7 +5,7 @@
  * 子组件通过 setOutput 更新渲染结果 → 统一下载（canvasToBlob + saveBlob）/ 换一张重置。
  */
 import { computed, ref, shallowRef, watch } from 'vue'
-import { Download, RotateCcw, Loader2 } from 'lucide-vue-next'
+import { Download, RotateCcw, Loader2, Eye } from 'lucide-vue-next'
 import { decodeToCanvas, canvasToBlob, MIME_EXT } from '@/lib/imageEngine'
 import { saveBlob, baseName } from '@/lib/download'
 import { useToast } from '@/composables/useToast'
@@ -46,7 +46,10 @@ const file = ref<File | null>(null)
 const source = shallowRef<HTMLCanvasElement | null>(null)
 const output = shallowRef<HTMLCanvasElement | null>(null)
 const stage = ref<HTMLElement | null>(null)
-const shown = computed(() => output.value ?? source.value)
+/** 按住「看原图」时临时显示源图，松开回到处理结果（对比校对） */
+const peeking = ref(false)
+const hasResult = computed(() => !!output.value && output.value !== source.value)
+const shown = computed(() => (peeking.value && source.value ? source.value : output.value ?? source.value))
 
 /** 把当前要显示的画布挂到预览容器（flush:post 保证容器已渲染） */
 let mounted: HTMLCanvasElement | null = null
@@ -144,6 +147,18 @@ defineExpose({ source, output, file, setOutput, download, reset: resetAll })
         <button v-if="downloadable" class="btn btn-primary" :disabled="!shown" @click="download">
           <Download :size="16" /> {{ buttonText }}
         </button>
+        <button
+          v-if="hasResult"
+          class="btn btn-soft"
+          title="按住显示处理前的原图，松开回到结果"
+          aria-label="按住显示处理前的原图，松开回到结果"
+          @pointerdown.prevent="peeking = true"
+          @pointerup="peeking = false"
+          @pointerleave="peeking = false"
+          @pointercancel="peeking = false"
+        >
+          <Eye :size="15" /> 按住看原图
+        </button>
         <button class="btn btn-ghost" @click="resetAll">
           <RotateCcw :size="15" /> 换一张
         </button>
@@ -162,6 +177,11 @@ defineExpose({ source, output, file, setOutput, download, reset: resetAll })
     repeating-conic-gradient(var(--panel-hover) 0% 25%, transparent 0% 50%) 0 0 / 20px 20px,
     color-mix(in srgb, var(--panel-solid) 60%, transparent);
   overflow: hidden;
+}
+/* 预览高度上限：竖图不把选项/下载按钮推出首屏（超长图在框内滚动） */
+.bt-stage :deep(canvas) {
+  max-height: 46vh;
+  width: auto;
 }
 .bt-loading {
   display: flex;

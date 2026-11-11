@@ -18,7 +18,7 @@ const playing = ref(false)
 const timerMin = ref(0) // 0 = 不定时
 const remain = ref(0)
 
-let handle: { stop: () => void } | null = null
+let handle: { stop: () => void; setVolume: (v: number) => void } | null = null
 let timer: number | null = null
 
 const play = () => {
@@ -51,7 +51,8 @@ const switchKind = (k: NoiseKind) => {
 }
 
 const setVolume = () => {
-  if (playing.value) play() // 重启以应用音量（简单可靠）
+  // 运行中实时调音量，不再重启（重启会打断氛围）
+  handle?.setVolume(volume.value)
 }
 
 onBeforeUnmount(() => {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-/** 音频裁剪：起止秒（可试听选区定位）+ 淡入淡出 → transformBuffer → WAV/MP3 下载 */
+/** 音频裁剪：波形拖拽选区（双向同步起止秒）+ 淡入淡出 → transformBuffer → WAV/MP3 下载 */
 import { computed, ref } from 'vue'
 import { Play } from 'lucide-vue-next'
 import AudioToolBase from './AudioToolBase.vue'
@@ -24,6 +24,11 @@ function onLoaded(buf: AudioBuffer) {
 }
 function onClear() {
   duration.value = 0
+}
+/** 波形拖拽选区 → 同步到起止输入框 */
+function onSelect(s: number, e: number) {
+  startS.value = Math.round(s * 100) / 100
+  endS.value = Math.round(e * 100) / 100
 }
 
 /** 播放当前选区（含淡入淡出效果）帮助定位 */
@@ -60,7 +65,7 @@ const outName = computed(() => `${baseName(base.value?.file?.name ?? 'audio')}-t
 </script>
 
 <template>
-  <AudioToolBase ref="base" @loaded="onLoaded" @clear="onClear">
+  <AudioToolBase ref="base" @loaded="onLoaded" @clear="onClear" @select="onSelect">
     <div class="grid-2 mt-2">
       <label>
         <span class="field-label">起点（秒）</span>

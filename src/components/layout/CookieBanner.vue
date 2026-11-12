@@ -10,24 +10,25 @@ const close = (v: string) => {
 </script>
 
 <template>
-  <transition name="slide-up">
-    <div v-if="visible" class="cookie-banner">
-      <div class="cookie-inner">
-        <div class="cookie-icon"><ShieldCheck :size="20" /></div>
-        <div class="cookie-text">
-          <strong>我们重视你的隐私</strong>
-          <p>
-            你的文件永远留在你的设备上。本站不在本地存储任何文件内容，仅使用浏览器缓存保存可选设置。
-          </p>
-        </div>
-        <div class="cookie-actions">
-          <button class="btn btn-ghost btn-sm" @click="close('rejected')">仅必要</button>
-          <button class="btn btn-primary btn-sm" @click="close('accepted')">接受</button>
-          <button class="icon-close" aria-label="关闭提示" @click="close('dismissed')"><X :size="15" /></button>
-        </div>
+  <!-- UX1-001：不用 <transition> 包裹——离场动画的完成依赖 rAF，无渲染帧环境（后台标签页/
+       被遮挡的 webview）下 transition 永不结束，横幅会滞留到刷新。改为纯 CSS 入场动画 +
+       v-if 即时移除，点击后立即消失。 -->
+  <div v-if="visible" class="cookie-banner">
+    <div class="cookie-inner">
+      <div class="cookie-icon"><ShieldCheck :size="20" /></div>
+      <div class="cookie-text">
+        <strong>我们重视你的隐私</strong>
+        <p>
+          你的文件永远留在你的设备上。本站不在本地存储任何文件内容，仅使用浏览器缓存保存可选设置。
+        </p>
+      </div>
+      <div class="cookie-actions">
+        <button class="btn btn-ghost btn-sm" @click="close('rejected')">仅必要</button>
+        <button class="btn btn-primary btn-sm" @click="close('accepted')">接受</button>
+        <button class="icon-close" aria-label="关闭提示" @click="close('dismissed')"><X :size="15" /></button>
       </div>
     </div>
-  </transition>
+  </div>
 </template>
 
 <style scoped>
@@ -42,6 +43,7 @@ const close = (v: string) => {
   border: 1px solid var(--border-strong);
   background: var(--panel-solid);
   box-shadow: var(--shadow);
+  animation: slide-up-in 0.25s ease;
 }
 .cookie-inner {
   display: flex;
@@ -77,13 +79,14 @@ const close = (v: string) => {
   cursor: pointer;
   padding: 4px;
 }
-.slide-up-enter-active,
-.slide-up-leave-active {
-  transition: all 0.25s ease;
-}
-.slide-up-enter-from,
-.slide-up-leave-to {
-  opacity: 0;
-  transform: translate(-50%, 16px);
+@keyframes slide-up-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%);
+  }
 }
 </style>

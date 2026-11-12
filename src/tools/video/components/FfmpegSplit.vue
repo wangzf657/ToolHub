@@ -18,13 +18,21 @@ const run = async () => {
   const b = base.value
   if (!b || !b.meta) return
   const dur = b.meta.duration
+  // UX1-003：时长缺失（损坏文件/录屏原始流）时给明确终态，杜绝「进度走完却无产物无报错」
+  if (!Number.isFinite(dur) || dur <= 0) {
+    toast.err('无法读取视频时长（文件可能损坏或是录屏原始数据），请先用「视频格式转换」重编码后再切分')
+    return
+  }
   const segLen =
     mode.value === 'dur'
       ? Math.max(0.5, segMin.value * 60)
       : dur / Math.max(2, Math.floor(segCount.value))
   // 不设段数上限：Math.ceil 保证最后不足一段的尾段也被切出，避免长视频后半被静默丢弃
   const n = Math.ceil(dur / segLen)
-  if (n < 1) return
+  if (n < 1) {
+    toast.err('按当前设置切不出任何分段，请调整每段时长或段数')
+    return
+  }
   const parts: { name: string; blob: Blob }[] = []
   for (let i = 0; i < n; i++) {
     const s = i * segLen
@@ -43,6 +51,9 @@ const run = async () => {
   if (parts.length) {
     await saveMany(parts, `${stem}-parts.zip`)
     toast.ok(`已切分为 ${parts.length} 段并打包下载`)
+  } else {
+    // UX1-003：零产出也要有终态——引导用户先转 MP4（webm 流复制进 mp4 容器不被允许）
+    toast.err('切分未产出任何分段（当前编码流复制受限），请先用「视频格式转换」转成 MP4 后再切分')
   }
 }
 </script>

@@ -40,6 +40,9 @@ const cat = categoryMap.get(props.tool.category)
   text-decoration: none !important;
   color: inherit;
   cursor: pointer;
+  /* UX1-005：grid item 默认 min-width:auto，卡片内容的长英文串（SEO 工具描述等）
+     会把 min-content 撑到 368px，顶破移动端 1fr 轨道造成 body 横向溢出 */
+  min-width: 0;
 }
 .tool-card:hover {
   border-color: color-mix(in srgb, var(--accent) 45%, transparent);
@@ -96,5 +99,7 @@ const cat = categoryMap.get(props.tool.category)
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  /* 配合 min-width:0：超长英文词（URL/产品名）在任意字符处换行而不是撑破卡片 */
+  overflow-wrap: anywhere;
 }
 </style>

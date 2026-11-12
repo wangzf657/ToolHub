@@ -86,6 +86,8 @@ const setBusy = (b: boolean, text?: string) => {
 }
 
 const fmtDur = (s: number) => {
+  // 时长未知（录屏原始流 duration=Infinity/0）时如实显示，避免「Infinity:NaN」漏到界面
+  if (!Number.isFinite(s) || s < 0) return '—:—'
   const m = Math.floor(s / 60)
   const sec = Math.floor(s % 60)
   return `${m}:${String(sec).padStart(2, '0')}`

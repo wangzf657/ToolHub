@@ -52,6 +52,26 @@ function onFiles(files: File[]) {
   else void loadFile(files[0])
 }
 
+/* ---------- UX1-004：已加载文件后仍可整面板拖入替换（不再静默忽略） ---------- */
+const replacing = ref(false)
+
+/** 仅在真正离开面板（而非移入子元素）时取消高亮 */
+function onDragLeave(e: DragEvent) {
+  if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node | null)) replacing.value = false
+}
+
+function onReplaceDrop(e: DragEvent) {
+  replacing.value = false
+  const f = e.dataTransfer?.files?.[0]
+  if (!f) return
+  // 有明确 MIME 但不是音频 → 提示；MIME 缺失时交给解码器判定（失败有 toast）
+  if (f.type && !f.type.startsWith('audio/')) {
+    toast.warn('音频工具仅支持音频文件，图片/文档等请换对应工具处理')
+    return
+  }
+  void loadFile(f)
+}
+
 function resetAll() {
   stopPreview()
   buffer.value = null
@@ -249,10 +269,14 @@ onBeforeUnmount(() => {
   void audioCtx?.close()
 })
 
-watch(buffer, () => {
+watch(buffer, (buf) => {
   baseCanvas = null // 新文件需重绘底图（宽度相同也不能复用旧波形）
-  requestAnimationFrame(drawWave)
   stopPreview()
+  // UX1-002：初绘不能只依赖 RAF/ResizeObserver——二者只在渲染帧里派发，
+  // 后台标签页 / 被遮挡的 webview 中页面显示 visible 却长期无帧，波形就永不挂载。
+  // post-flush 时 stage 已绑定，同步绘制（clientWidth 触发强制布局，无需帧）保证立即可见。
+  if (buf && waveStage.value) drawWave()
+  requestAnimationFrame(drawWave) // 有帧环境下按最终布局再精绘一次
 }, { flush: 'post' })
 watch(waveStage, (el) => {
   ro?.disconnect()
@@ -261,6 +285,8 @@ watch(waveStage, (el) => {
   if (el) {
     ro = new ResizeObserver(() => drawWave())
     ro.observe(el)
+    // stage 晚于 buffer 就绪时（v-else 首次渲染）同步补绘，不依赖 RO 的初始回调
+    if (buffer.value) drawWave()
   }
 })
 
@@ -277,7 +303,13 @@ defineExpose({ buffer, file, meta, selection, playhead, setBusy, reload, loadFil
       hint="支持 WAV / MP3 / OGG / M4A / FLAC 等浏览器可解码格式 · 全部本地处理"
       @files="onFiles"
     />
-    <div v-else>
+    <div
+      v-else
+      :class="{ 'drop-replacing': replacing }"
+      @dragover.prevent="replacing = true"
+      @dragleave.prevent="onDragLeave"
+      @drop.prevent="onReplaceDrop"
+    >
       <div v-if="loading" class="at-loading"><Loader2 :size="18" class="spin" /> 正在解码音频…</div>
       <template v-else>
         <div class="at-meta">
@@ -325,6 +357,12 @@ defineExpose({ buffer, file, meta, selection, playhead, setBusy, reload, loadFil
 </template>
 
 <style scoped>
+/* 拖入替换时的可视反馈：整面板高亮为可放置区 */
+.drop-replacing {
+  outline: 2px dashed var(--accent);
+  outline-offset: -6px;
+  border-radius: 14px;
+}
 .at-meta {
   display: flex;
   flex-wrap: wrap;

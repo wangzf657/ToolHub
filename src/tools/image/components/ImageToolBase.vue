@@ -92,6 +92,33 @@ async function onFiles(files: File[]) {
   }
 }
 
+/* ---------- UX1-004：已加载文件后仍可整面板拖入替换（不再静默忽略） ---------- */
+const replacing = ref(false)
+
+/** 拖入的文件是否符合本工具 accept（通配前缀或精确 MIME 列表） */
+function dropAccepted(f: File): boolean {
+  const a = props.accept
+  if (!a) return true
+  if (a.includes('*')) return f.type.startsWith(a.split('*')[0])
+  return a.split(',').some((m) => m.trim() === f.type)
+}
+
+/** 仅在真正离开面板（而非移入子元素）时取消高亮 */
+function onDragLeave(e: DragEvent) {
+  if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node | null)) replacing.value = false
+}
+
+function onReplaceDrop(e: DragEvent) {
+  replacing.value = false
+  const f = e.dataTransfer?.files?.[0]
+  if (!f) return
+  if (!dropAccepted(f)) {
+    toast.warn('该工具仅支持图片文件，其他格式请换对应工具处理')
+    return
+  }
+  void onFiles([f])
+}
+
 /** 子组件设置渲染结果画布（传 null 恢复显示原图） */
 function setOutput(c: HTMLCanvasElement | null) {
   output.value = c
@@ -139,7 +166,13 @@ defineExpose({ source, output, file, setOutput, download, reset: resetAll })
       :hint="hint ?? '支持 PNG / JPG / WebP / GIF / AVIF / BMP / HEIC / TIFF · 全部本地处理'"
       @files="onFiles"
     />
-    <div v-else>
+    <div
+      v-else
+      :class="{ 'drop-replacing': replacing }"
+      @dragover.prevent="replacing = true"
+      @dragleave.prevent="onDragLeave"
+      @drop.prevent="onReplaceDrop"
+    >
       <div v-if="loading" class="bt-loading"><Loader2 :size="18" class="spin" /> 正在解码图片…</div>
       <div v-show="shown" ref="stage" class="bt-stage"></div>
       <slot />
@@ -169,6 +202,12 @@ defineExpose({ source, output, file, setOutput, download, reset: resetAll })
 </template>
 
 <style scoped>
+/* 拖入替换时的可视反馈：整面板高亮为可放置区 */
+.drop-replacing {
+  outline: 2px dashed var(--accent);
+  outline-offset: -6px;
+  border-radius: 14px;
+}
 .bt-stage {
   padding: 14px;
   border: 1px solid var(--border);

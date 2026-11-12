@@ -147,4 +147,33 @@
 
 ---
 
+## 八、QA 缺陷修复轮(2026-11-12 第二轮,UX1-001~005)
+
+独立 QA 全盘轮(见 qa/UX1.0/,结论 PASS WITH ISSUES)交回 5 项缺陷,本轮全部修复并全量回归,**结论 PASS**(回归明细见 `qa/UX1.0/06-regression-report.md`)。
+
+### 8.1 修复与根因(实机定位)
+
+| 缺陷 | 根因 | 修复 |
+|---|---|---|
+| UX1-002 P1 波形初始不渲染(~24 音频工具) | 初绘只依赖 RAF/RO 回调;**页面 visible 但渲染帧挂起**(后台标签/遮挡 webview)时二者永不派发,波形永不挂载 | AudioToolBase:watch(buffer) post-flush 同步初绘(强制布局无需帧),waveStage watch 补绘;RAF 仅留动画 |
+| UX1-003 P2 split-video 假完成 | MediaRecorder 产物 duration=Infinity/0 且 seekable 末端 null → n=0/NaN 静默 return | loadVideo seek 补全时长(超时兜底);FfmpegSplit 时长守卫+零产出终态 toast;FfBase fmtDur 非有限显示 —:— |
+| UX1-004 P2 .ico 拖入静默 | ICO 在 Chromium 本可解码;真因=加载后 FileDrop 被 v-if 换掉,全页无 drop 目标 | Image/AudioToolBase 已加载态整面板替换拖入(高亮+类型不符 toast) |
+| UX1-001 P3 横幅不即时消失 | `<transition>` 离场完成依赖 nextFrame(RAF),无帧环境永不结束 | CookieBanner 去 transition,v-if 即时移除;入场改 CSS animation |
+| UX1-005 P3 首页移动端溢出 15px | grid item min-width:auto,SEO 卡片长英文串 min-content 368px 顶破 1fr 轨道 | ToolCard min-width:0 + desc overflow-wrap:anywhere |
+
+### 8.2 工程结论(防复发)
+
+1. **一次性 UI 状态变更不得依赖渲染帧回调**(RAF/RO/transition 完成事件):后台标签页与被遮挡 webview 中页面 visible 却长期无帧,链路会永久卡死。初绘/关闭类操作同步执行,动画仅做增强。
+2. **MediaRecorder 产物时长不可信**(Infinity/0,seekable 末端 null 时 seek-hack 也救不回):所有按 duration 切分的执行路径必须有「非有限时长」守卫与终态反馈。
+3. **grid 卡片行的 min-width:0 纪律**:凡 1fr 轨道放内容含长英文串的卡片,item 必须 min-width:0(本轮 ToolCard,其他自定义卡片行下轮排查)。
+4. **文案口径哨兵**:新增「520+ 残留清零」哨兵抓出 4 处上轮漏改(index.html/router/SearchModal/AboutPage);计数变更必须全站 grep 一遍口径。
+5. 哨兵基线 520→511 升级 + 「已删 9 slug 不复活」新哨兵,只增不删。
+
+### 8.3 回归摘要
+
+门禁三绿;511/511 爬测(H1/面板/溢出/首控件全过);金标准 663/665(余 2 条 QRR/SEAL 结构性浏览器待验);E2E 家族抽查全过;prod preview 抽检波形修复同样生效。
+
+---
+
 *执行方式:主会话(壳组件/杠杆/阉割/报告)+ 4 个并行领域子代理(缺陷修复)。所有提交均通过 typecheck 与全量单测后落库。*
+*第二轮:主会话修复 5 缺陷+全量回归;用户授权「测试后的问题直接修改」。*

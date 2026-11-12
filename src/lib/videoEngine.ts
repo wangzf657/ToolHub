@@ -16,14 +16,41 @@ export function loadVideo(file: File | Blob): Promise<VideoMeta> {
   video.src = url
   video.muted = true
   return new Promise((resolve, reject) => {
-    video.onloadedmetadata = () =>
+    video.onloadedmetadata = async () => {
+      let dur = video.duration
+      // UX1-003：MediaRecorder 录屏产物常报 duration=Infinity/0，
+      // seek 到极大时间可逼浏览器补全真实时长（超时兜底返回原值，由工具层守卫）
+      if (!Number.isFinite(dur) || dur <= 0) {
+        dur = await new Promise<number>((res) => {
+          const fallback = dur
+          const done = () => res(Number.isFinite(video.duration) && video.duration > 0 ? video.duration : fallback)
+          const timer = setTimeout(done, 1500)
+          video.addEventListener(
+            'seeked',
+            () => {
+              clearTimeout(timer)
+              done()
+            },
+            { once: true },
+          )
+          try {
+            video.currentTime = 1e101
+            // 恢复成功后回零，避免预览停留在片尾
+            video.addEventListener('seeked', () => { video.currentTime = 0 }, { once: true })
+          } catch {
+            clearTimeout(timer)
+            res(fallback)
+          }
+        })
+      }
       resolve({
         width: video.videoWidth,
         height: video.videoHeight,
-        duration: video.duration,
+        duration: dur,
         video,
         url,
       })
+    }
     video.onerror = () => {
       URL.revokeObjectURL(url)
       reject(new Error('无法解析该视频文件（编码可能不受浏览器支持，可尝试 ffmpeg 转码类工具）'))

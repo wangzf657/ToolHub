@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { Play, Loader2, Download } from 'lucide-vue-next'
+import { computed, ref } from 'vue'
+import { Play, Loader2, Download, Save } from 'lucide-vue-next'
 import { datasetToRecords, csvEscape, type Dataset } from './dataShared'
 import { saveText } from '@/lib/download'
 import { useToast } from '@/composables/useToast'
 
 /** SQL 面板（简版）：全部已载数据集注册进 alasql，运行 SELECT */
 const props = defineProps<{ datasets: Dataset[] }>()
+const emit = defineEmits<{ save: [ds: Dataset] }>()
 const toast = useToast()
 
 interface AlaSqlApi {
@@ -22,6 +23,10 @@ const running = ref(false)
 const resultRows = ref<Record<string, unknown>[]>([])
 const resultCols = ref<string[]>([])
 const sqlError = ref('')
+/** rx2 截断披露：实际行数（展示最多 500 行） */
+const MAX_SHOW = 500
+const fullCount = ref(0)
+const truncated = computed(() => fullCount.value > resultRows.value.length)
 
 const getAlasql = async (): Promise<AlaSqlApi> => {
   const mod = (await import('alasql')) as unknown as { default?: unknown }
@@ -99,7 +104,8 @@ const run = async () => {
       ? await alasql.promise<Record<string, unknown>[]>(stmt)
       : (alasql.exec?.(stmt) as Record<string, unknown>[])
     const arr = Array.isArray(res) ? res : []
-    resultRows.value = arr.slice(0, 500)
+    fullCount.value = arr.length
+    resultRows.value = arr.slice(0, MAX_SHOW)
     resultCols.value = arr.length ? Object.keys(arr[0]) : []
     toast.ok(`查询完成：${arr.length} 行`)
   } catch (e) {
@@ -116,6 +122,17 @@ const dlResult = () => {
     ...resultRows.value.map((r) => resultCols.value.map((c) => csvEscape(r[c])).join(',')),
   ].join('\n')
   saveText('\uFEFF' + csv, '查询结果.csv', 'text/csv;charset=utf-8')
+}
+
+/** rx7 查询结果存为新数据集（进入左侧数据集列表，可继续透视/图表） */
+const saveAsDataset = () => {
+  if (!resultRows.value.length) return
+  const ds: Dataset = {
+    name: '查询结果',
+    header: resultCols.value.map((c) => c || '列'),
+    rows: resultRows.value.map((r) => resultCols.value.map((c) => (r[c] === null || r[c] === undefined ? '' : String(r[c])))),
+  }
+  emit('save', ds)
 }
 
 const insertExample = () => {
@@ -146,10 +163,14 @@ const insertExample = () => {
 
     <template v-if="resultRows.length">
       <div class="row row-wrap mt-2">
-        <span class="badge">结果 {{ resultRows.length }} 行</span>
+        <span class="badge" :class="{ 'badge-warn': truncated }">
+          {{ truncated ? `显示 ${resultRows.length} / 实际 ${fullCount} 行（截断）` : `结果 ${resultRows.length} 行` }}
+        </span>
         <button class="btn btn-sm" @click="dlResult"><Download :size="14" /> 下载 CSV</button>
+        <button class="btn btn-sm" @click="saveAsDataset"><Save :size="14" /> 存为新数据集</button>
+        <span v-if="truncated" class="muted small">表格与下载均为截断后的前 {{ resultRows.length }} 行；如需完整结果请在 SQL 中分页（LIMIT/OFFSET）。</span>
       </div>
-      <div class="table-wrap mt-1" style="max-height: 380px">
+      <div class="table-wrap mt-1 result-wrap">
         <table class="data-table">
           <thead>
             <tr><th v-for="c in resultCols" :key="c">{{ c }}</th></tr>
@@ -173,5 +194,13 @@ const insertExample = () => {
   to {
     transform: rotate(360deg);
   }
+}
+/* rx4 结果区 vh 化：768 高视口同屏 ≥25 行 */
+.result-wrap {
+  max-height: max(480px, calc(100vh - 320px));
+}
+.badge-warn {
+  border-color: rgba(251, 191, 36, 0.5);
+  color: var(--warn);
 }
 </style>

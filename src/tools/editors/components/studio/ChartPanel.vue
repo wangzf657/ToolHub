@@ -42,6 +42,20 @@ const numCols = computed(() => {
   return out.length ? out : ds.header.map((_, i) => i)
 })
 
+// rx5 非数值披露：所选 Y 列中无法解析为数字且非空的单元格计数
+const ignoredCount = computed(() => {
+  const ds = props.dataset
+  const ys = yCols.value.length ? yCols.value : numCols.value.slice(0, 1)
+  let n = 0
+  for (const c of ys) {
+    for (const r of ds.rows) {
+      const v = (r[c] ?? '').trim()
+      if (v && Number.isNaN(parseFloat(v))) n++
+    }
+  }
+  return n
+})
+
 const draw = () => {
   if (!stage.value) return
   cleanup?.()
@@ -98,6 +112,11 @@ onBeforeUnmount(() => {
           <option v-for="i in numCols" :key="i" :value="i">{{ dataset.header[i] }}</option>
         </select>
       </label>
+    </div>
+
+    <!-- rx5 Y 列含非数值时黄条提示 -->
+    <div v-if="ignoredCount" class="notice notice-warn mt-2">
+      已忽略 {{ ignoredCount }} 个非数值单元格（来自所选 Y 列，按 0 绘制）；建议先在数据表清洗或改选数值列。
     </div>
 
     <div class="chart-stage mt-2">

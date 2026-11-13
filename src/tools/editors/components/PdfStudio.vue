@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   Loader2, Download, RotateCw, Trash2, ArrowUp, ArrowDown, CheckSquare,
-  Type as TypeIcon, PenTool, Droplets, Hash, FileText,
+  Type as TypeIcon, PenTool, Droplets, Hash, FileText, X, Undo2, Redo2,
 } from 'lucide-vue-next'
 import FileDrop from '@/components/common/FileDrop.vue'
 import SignaturePad from './studio/SignaturePad.vue'
+import { useUndoStack, installUndoKeys } from './studio/undoStack'
 import { loadPdfLib, loadPdfJs, renderPageToCanvas, stampText, addPageNumbers, savePdf } from '@/lib/pdfEngine'
 import { hasCJK, hexToRgb01, renderTextPng, stampPngs } from './studio/pdfText'
 import { saveBlob } from '@/lib/download'
@@ -42,6 +43,39 @@ const steps = ['打开 PDF 浏览缩略图', '删页/转页/排序/加内容', '
 
 const state = computed(() => work.value ?? file.value)
 
+/* ---------- rx1 撤销栈（快照式，上限 20 步，Ctrl+Z/Y + 界面按钮） ---------- */
+const undoStack = useUndoStack<Blob>(20)
+/** 每次变更前捕获当前文档快照 */
+const capture = () => {
+  const s = state.value
+  if (s) undoStack.push(s)
+}
+const applySnapshot = async (blob: Blob) => {
+  work.value = blob
+  await refreshThumbs()
+}
+const doUndo = async () => {
+  const cur = state.value
+  if (!cur) return
+  const prev = undoStack.undo(cur)
+  if (!prev) return
+  await applySnapshot(prev)
+  toast.ok('已撤销上一步操作')
+}
+const doRedo = async () => {
+  const cur = state.value
+  if (!cur) return
+  const next = undoStack.redo(cur)
+  if (!next) return
+  await applySnapshot(next)
+  toast.ok('已重做')
+}
+let removeKeys: (() => void) | null = null
+onMounted(() => {
+  removeKeys = installUndoKeys(window, () => void doUndo(), () => void doRedo())
+})
+onBeforeUnmount(() => removeKeys?.())
+
 const onFiles = async (list: File[]) => {
   const f = list[0]
   if (!f) return
@@ -55,6 +89,7 @@ const onFiles = async (list: File[]) => {
   checked.value = []
   mode.value = 'none'
   pendingSign.value = null
+  undoStack.reset()
   await refreshThumbs()
 }
 
@@ -105,7 +140,7 @@ const renderPreview = async () => {
 
 watch([file, work, cur], () => nextTick(renderPreview), { immediate: true })
 
-/** 对当前状态执行一次 pdf-lib 变更并保存为新的中间状态 */
+/** 对当前状态执行一次 pdf-lib 变更并保存为新的中间状态（统一走 savePdf，元数据 producer/creator=ToolHub） */
 const mutate = async (fn: (doc: import('@cantoo/pdf-lib').PDFDocument) => void | Promise<void>) => {
   const src = state.value
   if (!src) return
@@ -114,8 +149,7 @@ const mutate = async (fn: (doc: import('@cantoo/pdf-lib').PDFDocument) => void |
     const { PDFDocument } = await loadPdfLib()
     const doc = await PDFDocument.load(await src.arrayBuffer(), { ignoreEncryption: true })
     await fn(doc)
-    const bytes = await doc.save()
-    work.value = new Blob([bytes.slice().buffer as ArrayBuffer], { type: 'application/pdf' })
+    work.value = await savePdf(doc)
     await refreshThumbs()
   } catch (e) {
     toast.err((e as Error).message || '操作失败')
@@ -125,6 +159,7 @@ const mutate = async (fn: (doc: import('@cantoo/pdf-lib').PDFDocument) => void |
 }
 
 const rotatePage = (i: number) => {
+  capture()
   void mutate(async (doc) => {
     const { degrees } = await loadPdfLib()
     const page = doc.getPage(i)
@@ -138,6 +173,7 @@ const removePage = (i: number) => {
     toast.warn('至少需要保留一页')
     return
   }
+  capture()
   checked.value = checked.value.filter((c) => c !== i).map((c) => (c > i ? c - 1 : c))
   void mutate((doc) => {
     doc.removePage(i)
@@ -149,6 +185,28 @@ const movePage = (i: number, dir: -1 | 1) => {
   if (j < 0 || j >= pageCount.value) return
   const order = Array.from({ length: pageCount.value }, (_, k) => k)
   ;[order[i], order[j]] = [order[j], order[i]]
+  applyOrder(order)
+}
+
+// rx3 拖拽排序：缩略图 dragstart/dragover/drop → 换位重建页序
+const dragIdx = ref(-1)
+const onThumbDragStart = (i: number) => (dragIdx.value = i)
+const onThumbDrop = (i: number) => {
+  const from = dragIdx.value
+  dragIdx.value = -1
+  if (from < 0 || from === i) return
+  const order = Array.from({ length: pageCount.value }, (_, k) => k)
+  const [moved] = order.splice(from, 1)
+  order.splice(i, 0, moved)
+  applyOrder(order)
+}
+
+/** 按新页序重建文档，并同步当前页与勾选索引 */
+const applyOrder = (order: number[]) => {
+  capture()
+  const oldCur = cur.value
+  cur.value = order.indexOf(oldCur)
+  checked.value = checked.value.map((c) => order.indexOf(c)).filter((c) => c >= 0)
   void mutate(async (doc) => {
     const pages = await doc.copyPages(doc, order)
     while (doc.getPageCount()) doc.removePage(0)
@@ -196,6 +254,7 @@ const pickPos = (e: PointerEvent): [number, number] | null => {
 
 const onPageClick = async (e: PointerEvent) => {
   if (mode.value === 'none' || busy.value) return
+  capture()
   const pos = pickPos(e)
   if (!pos) return
   const src = state.value
@@ -260,6 +319,7 @@ const addWm = async () => {
     toast.warn('请输入水印文字')
     return
   }
+  capture()
   wmBusy.value = true
   try {
     if (hasCJK(wmText.value)) {
@@ -292,6 +352,7 @@ const addWm = async () => {
 
 const addNums = async () => {
   if (!state.value) return
+  capture()
   wmBusy.value = true
   try {
     work.value = await addPageNumbers(state.value, { format: '{n} / {total}' })
@@ -326,7 +387,7 @@ const exportPdf = () => {
       <div class="toolbar row row-wrap">
         <div class="text-form row row-wrap">
           <TypeIcon :size="15" class="muted" />
-          <input v-model="text" class="input" style="width: 150px" placeholder="要添加的文字" @focus="mode = 'text'" />
+          <input v-model="text" class="input" style="width: 150px" placeholder="要添加的文字" />
           <input v-model.number="textSize" type="number" min="8" max="72" class="input" style="width: 66px" title="字号 pt" />
           <input v-model="textColor" type="color" title="文字颜色" />
           <button class="btn btn-sm" :class="{ primary: mode === 'text' }" @click="mode = 'text'">点击页面放置</button>
@@ -340,16 +401,41 @@ const exportPdf = () => {
           <button class="btn btn-sm" :disabled="wmBusy" @click="addNums"><Hash :size="14" /> 页码</button>
         </div>
         <button class="btn btn-sm" @click="extractChecked"><CheckSquare :size="14" /> 提取勾选页（{{ checked.length }}）</button>
+        <div class="row" style="gap: 6px">
+          <button class="btn btn-sm" :disabled="!undoStack.canUndo.value" title="Ctrl+Z" @click="doUndo"><Undo2 :size="14" /> 撤销</button>
+          <button class="btn btn-sm" :disabled="!undoStack.canRedo.value" title="Ctrl+Y" @click="doRedo"><Redo2 :size="14" /> 重做</button>
+        </div>
         <button class="btn btn-primary btn-sm" :disabled="busy" @click="exportPdf"><Download :size="14" /> 导出 PDF</button>
       </div>
 
-      <div v-if="mode === 'sign'" class="sign-box mt-2">
-        <SignaturePad ref="sigRef" />
-      </div>
+      <!-- rx6 签名板改为浮层抽屉：打开时不挤压/跳动主布局 -->
+      <Teleport to="body">
+        <div v-if="mode === 'sign'" class="sign-drawer">
+          <div class="sd-head">
+            <b>手绘签名</b>
+            <button class="mini" title="关闭签名板" aria-label="关闭签名板" @click="mode = 'none'"><X :size="13" /></button>
+          </div>
+          <SignaturePad ref="sigRef" />
+          <p class="muted small">写好后点上方「手绘签名」生成印章，再到页面预览点击放置。</p>
+        </div>
+      </Teleport>
 
       <div class="layout mt-2">
         <aside class="pages">
-          <div v-for="(t, i) in thumbs" :key="i" class="page-item" :class="{ active: i === cur }" @click="cur = i">
+          <div v-if="pageCount > MAX_THUMBS" class="notice notice-info small">
+            缩略图墙已渲染前 {{ MAX_THUMBS }} 页（共 {{ pageCount }} 页）；页码/水印/导出仍覆盖全部页面。
+          </div>
+          <div
+            v-for="(t, i) in thumbs"
+            :key="i"
+            class="page-item"
+            :class="{ active: i === cur, dragging: dragIdx === i }"
+            draggable="true"
+            @click="cur = i"
+            @dragstart="onThumbDragStart(i)"
+            @dragover.prevent
+            @drop.prevent="onThumbDrop(i)"
+          >
             <span class="pnum">{{ i + 1 }}</span>
             <img :src="t" class="thumb" :alt="`第 ${i + 1} 页`" />
             <div class="pacts">
@@ -369,12 +455,14 @@ const exportPdf = () => {
             {{ mode === 'text' ? '已进入文字放置模式：在页面预览上点击选择位置（该点为文字顶部附近）。' : '已进入签名放置模式：在页面预览上点击放置。' }}
             <button class="btn btn-ghost btn-sm" style="margin-left: auto" @click="mode = 'none'">取消</button>
           </div>
-          <div ref="previewStage" class="preview-stage" :class="{ picking: mode !== 'none' }" @click="onPageClick"></div>
+          <div class="preview-wrap">
+            <div ref="previewStage" class="preview-stage" :class="{ picking: mode !== 'none' }" @click="onPageClick"></div>
+            <!-- rx4 就近 busy：预览区左上角叠加 spinner 徽标 -->
+            <div v-if="busy" class="busy-badge"><Loader2 :size="14" class="spin" /> 处理中…</div>
+          </div>
           <p class="muted small center">第 {{ cur + 1 }} / {{ pageCount }} 页</p>
         </main>
       </div>
-
-      <div v-if="busy" class="row mt-2 muted small"><Loader2 :size="14" class="spin" /> 正在处理…</div>
       <p class="muted small mt-2"><FileText :size="12" style="vertical-align: -2px" /> 每次编辑都会即时保存为中间状态，「导出 PDF」直接保存当前状态。</p>
     </template>
   </div>
@@ -421,8 +509,49 @@ const exportPdf = () => {
   border-color: var(--accent);
   color: #fff;
 }
-.sign-box {
-  max-width: 560px;
+/* rx6 签名板浮层：不挤压主布局 */
+.sign-drawer {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 60;
+  width: min(420px, calc(100vw - 36px));
+  border: 1px solid var(--border-strong, var(--border));
+  border-radius: 14px;
+  background: var(--panel-solid);
+  box-shadow: 0 18px 50px rgb(0 0 0 / 0.28);
+  padding: 12px 14px;
+  display: grid;
+  gap: 8px;
+}
+.sd-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13.5px;
+}
+.preview-wrap {
+  position: relative;
+}
+.busy-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel-solid) 85%, transparent);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-2);
+  box-shadow: 0 2px 10px rgb(0 0 0 / 0.12);
+}
+.page-item.dragging {
+  opacity: 0.55;
+  outline: 1.5px dashed var(--accent);
 }
 .layout {
   display: grid;

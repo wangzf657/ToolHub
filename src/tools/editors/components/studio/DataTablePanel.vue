@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { ArrowUpDown, SortAsc, SortDesc } from 'lucide-vue-next'
-import type { Dataset } from './dataShared'
+import { ArrowUpDown, SortAsc, SortDesc, Download } from 'lucide-vue-next'
+import { csvEscape, type Dataset } from './dataShared'
+import { saveText } from '@/lib/download'
+import { useToast } from '@/composables/useToast'
 
-/** 数据表面板：全文搜索 + 列排序 + 前 N 行 */
+/** 数据表面板：全文搜索 + 列排序 + 前 N 行 + 导出筛选结果 */
 const props = defineProps<{ dataset: Dataset }>()
+const toast = useToast()
 
 const keyword = ref('')
 const limit = ref(50)
@@ -47,6 +50,16 @@ const toggleSort = (i: number) => {
     sortDir.value = 'none'
   }
 }
+
+/** 导出当前筛选+排序后的完整结果（行数 = 徽章「匹配行数」） */
+const dlFiltered = () => {
+  const csv = [
+    props.dataset.header.map(csvEscape).join(','),
+    ...sorted.value.map((r) => r.map(csvEscape).join(',')),
+  ].join('\n')
+  saveText('\uFEFF' + csv, `${props.dataset.name}-筛选结果.csv`, 'text/csv;charset=utf-8')
+  toast.ok(`已导出筛选排序结果 ${sorted.value.length} 行`)
+}
 </script>
 
 <template>
@@ -60,9 +73,11 @@ const toggleSort = (i: number) => {
         </select>
       </label>
       <span class="badge">{{ filtered.length }} / {{ dataset.rows.length }} 行</span>
+      <button class="btn btn-ghost btn-sm" :disabled="!filtered.length" @click="dlFiltered"><Download :size="13" /> 导出筛选结果（{{ filtered.length }} 行）</button>
     </div>
 
-    <div class="table-wrap mt-2">
+    <!-- rx4 表格高度 vh 化：768 高视口下 100 行同屏可见 ≥25 行 -->
+    <div class="table-wrap mt-2 ds-table">
       <table class="data-table">
         <thead>
           <tr>
@@ -94,6 +109,9 @@ const toggleSort = (i: number) => {
 <style scoped>
 .search {
   max-width: 260px;
+}
+.ds-table {
+  max-height: max(480px, calc(100vh - 340px));
 }
 .sortable {
   cursor: pointer;

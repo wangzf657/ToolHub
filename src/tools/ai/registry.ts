@@ -1,34 +1,18 @@
 import type { ToolDef } from '@/types'
-import { summarize, extractKeywords, grammarCheck, paraphrase } from '@/lib/nlpEngine'
 
 /** AI 工具注册表（15 项）—— nlpEngine 规则模型即时可用，无需下载 */
 const tools: ToolDef[] = [
   {
     slug: 'text-summarizer', title: '文本自动摘要', category: 'ai',
-    desc: '抽取式摘要引擎在本地运行：自动挑出文中最关键的句子，生成简洁摘要。',
+    desc: '抽取式摘要引擎在本地运行：自动挑出文中最关键的句子，生成简洁摘要（可按句数或目标字数）。',
     keywords: ['摘要', '总结', 'summarize'],
-    textDef: {
-      options: [{ key: 'count', label: '摘要句数', type: 'number', default: 3 }],
-      transform: (t, o) => {
-        const r = summarize(t, Math.max(1, Number(o.count) || 3))
-        // 输出保持纯摘要（句数即所选项），统计信息不混入结果文本
-        return r.summary
-      },
-      placeholder: '粘贴长文章、报告或段落…',
-    },
+    component: () => import('./components/TextSummarizer.vue'),
   },
   {
     slug: 'keyword-extractor', title: '关键词提取', category: 'ai',
-    desc: 'TF-IDF 算法在本地运行，按重要度提取文中最具代表性的短语。',
+    desc: 'TF-IDF 算法在本地运行，按重要度提取文中最具代表性的短语，可回看出处句。',
     keywords: ['关键词', '提取', 'tfidf'],
-    textDef: {
-      options: [{ key: 'n', label: '提取数量', type: 'number', default: 10 }],
-      transform: (t, o) => {
-        const items = extractKeywords(t, Math.max(1, Number(o.n) || 10))
-        return items.map((k, i) => `${i + 1}. ${k.word}（权重 ${k.score.toFixed(2)}）`).join('\n')
-      },
-      placeholder: '粘贴文本…',
-    },
+    component: () => import('./components/KeywordExtractor.vue'),
   },
   {
     slug: 'translator', title: '离线基础翻译', category: 'ai',
@@ -45,35 +29,15 @@ const tools: ToolDef[] = [
   },
   {
     slug: 'grammar-corrector', title: '中文笔误检查', category: 'ai',
-    desc: '本地规则引擎检查重复字词、标点问题与英文大小写，列出问题并给出修正稿（规则法，非 AI 模型）。',
+    desc: '本地规则引擎检查重复字词、标点问题与英文大小写，逐条采纳并实时生成修正稿（规则法，非 AI 模型）。',
     keywords: ['纠错', '语法', 'grammar'],
-    textDef: {
-      options: [],
-      transform: (t) => {
-        const issues = grammarCheck(t)
-        if (!issues.length) return '未发现明显语法问题 ✓'
-        let fixed = t
-        for (const issue of issues.slice().reverse()) {
-          if (issue.suggestion) {
-            fixed = fixed.slice(0, issue.index) + issue.suggestion + fixed.slice(issue.index + (issue.msg.includes('未闭合') ? 0 : issue.msg.length))
-          }
-        }
-        void paraphrase
-        return `发现 ${issues.length} 处问题：\n${issues.map((i) => `• ${i.msg}`).join('\n')}\n\n修正后：\n${fixed}`
-      },
-      placeholder: '粘贴要检查的文本…',
-    },
+    component: () => import('./components/GrammarCorrector.vue'),
   },
   {
     slug: 'paraphraser', title: '同义改写', category: 'ai',
-    desc: '本地同义词库轮换替换，为句子换一种说法（规则法，非 AI 模型；不会重组句式）。',
+    desc: '本地同义词库轮换替换，为句子换一种说法；替换片段高亮可切换候选（规则法，非 AI 模型）。',
     keywords: ['改写', '同义', 'paraphrase'],
-    textDef: {
-      options: [{ key: 'strength', label: '改写幅度', type: 'select', default: '0.5', choices: [
-        { value: '0.25', label: '轻微' }, { value: '0.5', label: '适中' }, { value: '1', label: '大幅' },
-      ] }],
-      transform: (t, o) => paraphrase(t, Number(o.strength)),
-    },
+    component: () => import('./components/Paraphraser.vue'),
   },
   {
     slug: 'entity-extractor', title: '实体识别抽取', category: 'ai',

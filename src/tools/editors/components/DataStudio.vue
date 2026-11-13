@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Database, Loader2, Download, Trash2, Table2, BarChart3, Grid3x3, FileSearch, Terminal } from 'lucide-vue-next'
+import { Database, Loader2, Download, Trash2, Table2, BarChart3, Grid3x3, FileSearch, Terminal, Lightbulb } from 'lucide-vue-next'
 import FileDrop from '@/components/common/FileDrop.vue'
-import { loadFilesToDatasets, datasetToRecords, csvEscape, type Dataset } from './studio/dataShared'
+import { loadFilesToDatasets, datasetToRecords, csvEscape, EXAMPLE_DATASETS, type Dataset } from './studio/dataShared'
 import DataTablePanel from './studio/DataTablePanel.vue'
 import ChartPanel from './studio/ChartPanel.vue'
 import PivotPanel from './studio/PivotPanel.vue'
@@ -66,6 +66,24 @@ const removeAt = (i: number) => {
   if (activeIdx.value >= datasets.value.length) activeIdx.value = Math.max(0, datasets.value.length - 1)
 }
 
+// rx6 内置示例数据：一键完成「筛选 → 图表 → SQL」全流程
+const loadExamples = () => {
+  datasets.value.push(...EXAMPLE_DATASETS.map((d) => ({ ...d, rows: d.rows.map((r) => [...r]) })))
+  if (!active.value) activeIdx.value = 0
+  toast.ok('已载入 2 个示例数据集：试试数据表筛选 → 图表 → SQL 查询')
+}
+
+// rx7 SQL 查询结果存为新数据集
+let seq = 1
+const onSaveDataset = (ds: Dataset) => {
+  const exists = new Set(datasets.value.map((d) => d.name))
+  let name = '查询结果'
+  while (exists.has(name)) name = `查询结果-${seq++}`
+  datasets.value.push({ name, header: ds.header, rows: ds.rows })
+  activeIdx.value = datasets.value.length - 1
+  toast.ok(`已存为数据集「${name}」，可继续透视与图表分析`)
+}
+
 /* ------- 导出 ------- */
 const dlCsv = () => {
   if (!active.value) return
@@ -100,9 +118,9 @@ const dlXlsx = async () => {
     <div class="layout">
       <aside class="sidebar">
         <FileDrop
-          accept=".csv,.tsv,.txt,.xlsx,.xls,.json"
+          accept=".csv,.tsv,.txt,.xlsx,.xls,.json,.parquet"
           label="拖放数据文件（可多选）"
-          hint="CSV / Excel / JSON"
+          hint="CSV / Excel / JSON / Parquet"
           @files="onFiles"
         />
         <div v-if="loading" class="row mt-1 muted small"><Loader2 :size="14" class="spin" /> 正在解析…</div>
@@ -123,6 +141,7 @@ const dlXlsx = async () => {
           </div>
         </div>
         <p v-else class="muted small mt-2">支持多文件，每个 Excel 工作表会作为独立数据集。</p>
+        <button class="btn btn-ghost btn-sm mt-2" @click="loadExamples"><Lightbulb :size="14" /> 载入示例数据（无需文件）</button>
       </aside>
 
       <main class="main">
@@ -134,11 +153,12 @@ const dlXlsx = async () => {
           </div>
 
           <div class="panel">
-            <DataTablePanel v-if="tab === 'table'" :dataset="active" />
-            <ChartPanel v-else-if="tab === 'chart'" :dataset="active" />
-            <PivotPanel v-else-if="tab === 'pivot'" :dataset="active" />
-            <SqlPanel v-else-if="tab === 'sql'" :datasets="datasets" />
-            <div v-else>
+            <!-- rx1 面板用 v-show 保持挂载：切 Tab 不丢透视配置与 SQL 文本 -->
+            <DataTablePanel v-show="tab === 'table'" :dataset="active" />
+            <ChartPanel v-show="tab === 'chart'" :dataset="active" />
+            <PivotPanel v-show="tab === 'pivot'" :dataset="active" />
+            <SqlPanel v-show="tab === 'sql'" :datasets="datasets" @save="onSaveDataset" />
+            <div v-show="tab === 'export'">
               <div class="row row-wrap">
                 <span class="badge">{{ active.name }} · {{ active.rows.length }} 行 × {{ active.header.length }} 列</span>
               </div>
@@ -153,7 +173,8 @@ const dlXlsx = async () => {
         </template>
         <div v-else class="empty">
           <FileSearch :size="40" class="empty-icon" />
-          <p>先在左侧载入数据文件，即可开始分析。</p>
+          <p>先在左侧载入数据文件，或一键载入示例开始分析。</p>
+          <button class="btn btn-primary btn-sm" @click="loadExamples"><Lightbulb :size="14" /> 载入示例数据</button>
         </div>
       </main>
     </div>

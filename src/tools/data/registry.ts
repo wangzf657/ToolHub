@@ -13,7 +13,7 @@ const tools: ToolDef[] = [
   { slug: 'excel-viewer', title: 'Excel 在线预览', category: 'data', desc: '不用装 Office：多 sheet 标签预览 xlsx，单元格点击复制，另存 CSV。', keywords: ['excel', '预览', 'xlsx', '查看'], component: () => import('./components/ExcelViewer.vue'), steps: ['拖入 .xlsx/.xls', '切换 sheet 标签', '点击单元格复制 / 另存 CSV'] },
   { slug: 'query-csv-with-sql', title: 'SQL 查询 CSV', category: 'data', desc: '用 SQL 查询 CSV/Excel/JSON 文件，支持多表 JOIN（本地 alasql 引擎）。', keywords: ['sql', '查询', 'join'], component: () => import('./components/SqlQuery.vue') },
   { slug: 'excel-pivot-table-online', title: '在线数据透视表', category: 'data', desc: '选择行、列与值聚合方式（求和/平均/计数/中位数），生成透视表。', keywords: ['透视表', 'pivot', '汇总'], component: () => import('./components/PivotTable.vue') },
-  { slug: 'parquet-to-csv', title: 'Parquet 查看转换', category: 'data', desc: '在浏览器打开 Parquet 文件：查看 schema、浏览行数据并转 CSV/Excel。', keywords: ['parquet', '大数据', '列存'], needModel: true, component: () => import('./components/ParquetViewer.vue') },
+  { slug: 'parquet-to-csv', title: 'Parquet 查看转换', category: 'data', desc: '在浏览器打开 Parquet 文件：查看 schema、浏览行数据并转 CSV/Excel，纯 JS 解析无需下载模型。', keywords: ['parquet', '大数据', '列存'], component: () => import('./components/ParquetViewer.vue') },
   { slug: 'split-csv-file', title: 'CSV 文件拆分', category: 'data', desc: '按行数或按某列取值拆分大 CSV，导出为 CSV/Excel 打包下载。', keywords: ['拆分', 'csv', '分割'], component: () => import('./components/CsvSplitter.vue') },
   /* ---- 文件格式批次新增 ---- */
   { slug: 'epub-reader', title: 'EPUB 阅读器', category: 'data', desc: '浏览器里直接读 EPUB 电子书：目录跳转、翻页、字号调节，本地渲染不上传。', keywords: ['epub', '电子书', '阅读器', '阅读'], component: () => import('./components/EpubReader.vue'), steps: ['拖入 .epub 电子书', '目录点击跳转章节', '翻页 / 调字号阅读'] },

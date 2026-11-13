@@ -22,9 +22,81 @@ const legs = ref<Leg[]>([{ side: 'buy', type: 'call', qty: 1, strike: 100, premi
 const stockOn = ref(false)
 const stockQty = ref(100)
 const stockEntry = ref(100)
+/** 图表区间：现价 ±20/40/60% */
+const rangePct = ref(40)
+/** 导入 JSON */
+const importInput = ref<HTMLInputElement | null>(null)
 
 const addLeg = () => legs.value.push({ side: 'buy', type: 'call', qty: 1, strike: Number(spot.value) || 100, premium: 3 })
 const removeLeg = (i: number) => legs.value.splice(i, 1)
+
+/* 策略预设：一键生成常见组合腿 */
+const S = () => Number(spot.value) || 100
+const PRESETS: { label: string; build: () => Leg[] }[] = [
+  { label: '单腿 Call', build: () => [{ side: 'buy', type: 'call', qty: 1, strike: S(), premium: 3.5 }] },
+  { label: '单腿 Put', build: () => [{ side: 'buy', type: 'put', qty: 1, strike: S(), premium: 3 }] },
+  {
+    label: '牛市价差',
+    build: () => [
+      { side: 'buy', type: 'call', qty: 1, strike: S() * 0.95, premium: 5 },
+      { side: 'sell', type: 'call', qty: 1, strike: S() * 1.1, premium: 2 },
+    ],
+  },
+  {
+    label: '熊市价差',
+    build: () => [
+      { side: 'buy', type: 'put', qty: 1, strike: S() * 1.05, premium: 5 },
+      { side: 'sell', type: 'put', qty: 1, strike: S() * 0.9, premium: 2 },
+    ],
+  },
+  {
+    label: '跨式',
+    build: () => [
+      { side: 'buy', type: 'call', qty: 1, strike: S(), premium: 3.5 },
+      { side: 'buy', type: 'put', qty: 1, strike: S(), premium: 3 },
+    ],
+  },
+  {
+    label: '勒式',
+    build: () => [
+      { side: 'buy', type: 'call', qty: 1, strike: S() * 1.1, premium: 2 },
+      { side: 'buy', type: 'put', qty: 1, strike: S() * 0.9, premium: 2 },
+    ],
+  },
+  {
+    label: '蝶式',
+    build: () => [
+      { side: 'buy', type: 'call', qty: 1, strike: S() * 0.9, premium: 5 },
+      { side: 'sell', type: 'call', qty: 2, strike: S(), premium: 3 },
+      { side: 'buy', type: 'call', qty: 1, strike: S() * 1.1, premium: 1.5 },
+    ],
+  },
+]
+const applyPreset = (p: { label: string; build: () => Leg[] }) => {
+  legs.value = p.build()
+  toast.ok(`已应用预设：${p.label}（行权价按现价比例生成，权利金可改）`)
+}
+
+/* 导入参数 JSON（与导出格式一致：spot/legs/stock） */
+const onImportFile = async (ev: Event) => {
+  const input = ev.target as HTMLInputElement
+  const f = input.files?.[0]
+  input.value = ''
+  if (!f) return
+  try {
+    const d = JSON.parse(await f.text()) as { spot?: number; legs?: Leg[]; stock?: { qty: number; entry: number } | null }
+    if (typeof d.spot === 'number') spot.value = d.spot
+    if (Array.isArray(d.legs) && d.legs.length) legs.value = d.legs.map((l) => ({ ...l, qty: Number(l.qty) || 0 }))
+    if (d.stock && typeof d.stock.qty === 'number') {
+      stockOn.value = true
+      stockQty.value = d.stock.qty
+      stockEntry.value = Number(d.stock.entry) || 0
+    } else stockOn.value = false
+    toast.ok('参数已导入，图表与统计已恢复')
+  } catch {
+    toast.err('JSON 解析失败——请使用本工具导出的参数文件')
+  }
+}
 
 /** 单腿在到期价 s 的损益（美元） */
 const legPnl = (l: Leg, s: number) => {
@@ -40,10 +112,11 @@ const payoffAt = (s: number) => {
   return v
 }
 
-/** 价格范围：现价 ±40%，共 81 个点 */
+/** 价格范围：现价 ±rangePct%，共 81 个点 */
 const prices = computed(() => {
   const base = Number(spot.value) > 0 ? Number(spot.value) : 100
-  return Array.from({ length: 81 }, (_, i) => base * 0.6 + (base * 0.8 * i) / 80)
+  const k = (Number(rangePct.value) || 40) / 100
+  return Array.from({ length: 81 }, (_, i) => base * (1 - k) + (base * 2 * k * i) / 80)
 })
 const points = computed(() => prices.value.map(payoffAt))
 
@@ -61,10 +134,25 @@ const breakevens = computed(() => {
   return out
 })
 
-const maxProfit = computed(() => (points.value.length ? Math.max(...points.value) : 0))
-const maxLoss = computed(() => (points.value.length ? Math.min(...points.value) : 0))
-const netPremium = computed(() => legs.value.reduce((s, l) => s + (l.side === 'buy' ? -1 : 1) * l.qty * 100 * l.premium, 0))
-const hasLegs = computed(() => legs.value.length > 0 || stockOn.value)
+/** 数量校验：任一腿 qty ≤ 0 或非法时统计瓦片显示「—」 */
+const qtyInvalid = computed(() => legs.value.some((l) => !(Number(l.qty) >= 1)))
+const hasLegs = computed(() => (legs.value.length > 0 || stockOn.value) && !qtyInvalid.value)
+
+const maxProfit = computed(() => (!hasLegs.value || !points.value.length ? null : Math.max(...points.value)))
+const maxLoss = computed(() => (!hasLegs.value || !points.value.length ? null : Math.min(...points.value)))
+const netPremium = computed(() =>
+  qtyInvalid.value ? null : legs.value.reduce((s, l) => s + (l.side === 'buy' ? -1 : 1) * l.qty * 100 * l.premium, 0),
+)
+const breakevenDisp = computed(() => {
+  if (qtyInvalid.value) return '—'
+  if (!breakevens.value.length) {
+    const s0 = points.value[0] ?? 0
+    const s1 = points.value[points.value.length - 1] ?? 0
+    if ((s0 >= 0) === (s1 >= 0)) return '—（在区间外）'
+    return '—'
+  }
+  return breakevens.value.map((b) => b.toFixed(2)).join(' / ')
+})
 
 /* ---------- 图表 ---------- */
 const stage = ref<HTMLDivElement | null>(null)
@@ -128,12 +216,28 @@ const money = (n: number) => `$${n.toLocaleString('zh-CN', { maximumFractionDigi
       </div>
       <div class="stat-mini">
         <span>净权利金收入</span>
-        <strong :class="{ neg: netPremium < 0 }">{{ money(netPremium) }}</strong>
+        <strong :class="{ neg: (netPremium ?? 0) < 0 }">{{ netPremium === null ? '—' : money(netPremium) }}</strong>
+      </div>
+      <div class="stat-mini">
+        <span>图表区间</span>
+        <select v-model.number="rangePct" class="select" style="width: 100px">
+          <option :value="20">±20%</option>
+          <option :value="40">±40%</option>
+          <option :value="60">±60%</option>
+        </select>
       </div>
     </div>
 
+    <div class="row row-wrap mb-2" style="gap: 6px; align-items: center">
+      <span class="muted small">策略预设：</span>
+      <button v-for="p in PRESETS" :key="p.label" class="chip" @click="applyPreset(p)">{{ p.label }}</button>
+      <span class="grow"></span>
+      <button class="btn btn-ghost btn-sm" @click="importInput?.click()"><Braces :size="13" /> 导入参数</button>
+      <input ref="importInput" type="file" accept=".json,application/json" style="display: none" @change="onImportFile" />
+    </div>
+
     <div class="legs">
-      <div v-for="(l, i) in legs" :key="i" class="leg-row">
+      <div v-for="(l, i) in legs" :key="i" class="leg-row" :class="{ 'leg-bad': !(Number(l.qty) >= 1) }">
         <select v-model="l.side" class="select w-side">
           <option value="buy">买入</option>
           <option value="sell">卖出</option>
@@ -146,6 +250,7 @@ const money = (n: number) => `$${n.toLocaleString('zh-CN', { maximumFractionDigi
         <input v-model.number="l.strike" type="number" class="input w-num" step="0.5" placeholder="行权价" />
         <input v-model.number="l.premium" type="number" class="input w-num" step="0.05" placeholder="权利金" />
         <button class="icon-btn danger" title="删除" aria-label="删除" @click="removeLeg(i)"><Trash2 :size="14" /></button>
+        <span v-if="!(Number(l.qty) >= 1)" class="qty-err small">数量需 ≥1</span>
       </div>
       <button class="btn btn-ghost btn-sm" @click="addLeg"><Plus :size="15" /> 添加期权腿</button>
 
@@ -161,15 +266,15 @@ const money = (n: number) => `$${n.toLocaleString('zh-CN', { maximumFractionDigi
     <div class="stats mt-2">
       <div class="stat-tile">
         <span class="st-label">最大盈利（区间内）</span>
-        <strong class="st-val ok">{{ money(maxProfit) }}</strong>
+        <strong class="st-val ok">{{ maxProfit === null ? '—' : money(maxProfit) }}</strong>
       </div>
       <div class="stat-tile">
         <span class="st-label">最大亏损（区间内）</span>
-        <strong class="st-val" :class="maxLoss < 0 ? 'bad' : 'ok'">{{ money(maxLoss) }}</strong>
+        <strong class="st-val" :class="maxLoss !== null && maxLoss < 0 ? 'bad' : 'ok'">{{ maxLoss === null ? '—' : money(maxLoss) }}</strong>
       </div>
       <div class="stat-tile">
         <span class="st-label">盈亏平衡点</span>
-        <strong class="st-val">{{ breakevens.length ? breakevens.map((b) => b.toFixed(2)).join(' / ') : '—' }}</strong>
+        <strong class="st-val">{{ breakevenDisp }}</strong>
       </div>
     </div>
 
@@ -257,12 +362,14 @@ const money = (n: number) => `$${n.toLocaleString('zh-CN', { maximumFractionDigi
 }
 .stat-mini strong { font-size: 18px; color: var(--ok); }
 .stat-mini strong.neg { color: var(--err); }
+.leg-bad { outline: 1px dashed var(--err); border-radius: 8px; padding: 2px 4px; }
+.qty-err { color: var(--err); }
 .chart-stage {
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 16px;
   background: color-mix(in srgb, var(--panel-solid) 55%, transparent);
 }
-.chart-box { height: 380px; position: relative; }
+.chart-box { height: max(380px, calc(100vh - 360px)); position: relative; }
 .hint { font-size: 12px; color: var(--text-3); }
 </style>

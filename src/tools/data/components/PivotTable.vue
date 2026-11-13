@@ -6,25 +6,32 @@ import { parseCsvAsync, type CsvData } from '@/lib/csvEngine'
 import { readXlsx, rowsToXlsx } from '@/lib/officeEngine'
 import { saveText, saveBlob, baseName } from '@/lib/download'
 import { useToast } from '@/composables/useToast'
+import { buildPivot, flattenTree, countNonNumeric, type PivotNode } from './pivotCore'
 
-/** 在线数据透视表：行/列/值 + 聚合方式 → 透视表格 + 行列合计 + 导出 */
+/** 在线数据透视表：多级行字段 + 基数护栏 + 占比 + 热力色阶 + 导出 */
 const toast = useToast()
 const data = ref<CsvData | null>(null)
 const fileName = ref('数据')
 const loading = ref(false)
-const rowCol = ref(0)
+/** 行字段多选（嵌套缩进，按选择顺序） */
+const rowCols = ref<number[]>([0])
 const colCol = ref(-1) // -1 = 不分列
 const valCol = ref(1)
-const fn = ref<'sum' | 'avg' | 'count' | 'min' | 'max' | 'median'>('sum')
+type Fn = 'sum' | 'avg' | 'count' | 'min' | 'max' | 'median' | 'pct-row' | 'pct-col' | 'pct-total'
+const fn = ref<Fn>('sum')
+const heat = ref(false)
 
-const fns = [
+const fns: { v: Fn; label: string }[] = [
   { v: 'sum', label: '求和' },
   { v: 'avg', label: '平均' },
   { v: 'count', label: '计数' },
   { v: 'min', label: '最小' },
   { v: 'max', label: '最大' },
   { v: 'median', label: '中位数' },
-] as const
+  { v: 'pct-row', label: '求和占比·行' },
+  { v: 'pct-col', label: '求和占比·列' },
+  { v: 'pct-total', label: '求和占比·总计' },
+]
 
 const onFiles = async (list: File[]) => {
   const f = list[0]
@@ -42,7 +49,7 @@ const onFiles = async (list: File[]) => {
     }
     data.value = d
     fileName.value = baseName(f.name)
-    rowCol.value = 0
+    rowCols.value = [0]
     colCol.value = d.header.length > 1 ? 1 : -1
     valCol.value = d.header.length > 2 ? 2 : 0
     toast.ok(`已载入 ${d.rows.length} 行`)
@@ -53,10 +60,18 @@ const onFiles = async (list: File[]) => {
   }
 }
 
+const toggleRowCol = (i: number) => {
+  rowCols.value = rowCols.value.includes(i) ? rowCols.value.filter((x) => x !== i) : [...rowCols.value, i]
+}
+
+/** 非数值披露 */
+const nonNum = computed(() => (data.value ? countNonNumeric(data.value.rows, valCol.value) : 0))
+
 const calc = (arr: number[]): number => {
   if (!arr.length) return 0
   switch (fn.value) {
-    case 'sum': return arr.reduce((a, b) => a + b, 0)
+    case 'sum': case 'pct-row': case 'pct-col': case 'pct-total':
+      return arr.reduce((a, b) => a + b, 0)
     case 'avg': return arr.reduce((a, b) => a + b, 0) / arr.length
     case 'count': return arr.length
     case 'min': return Math.min(...arr)
@@ -69,103 +84,91 @@ const calc = (arr: number[]): number => {
   }
 }
 
-interface PivotResult {
-  rowKeys: string[]
-  colKeys: string[]
-  cells: Map<string, Map<string, number[]>>
-}
-
-/** 双层聚合：行字段 × 列字段 */
-const pivot = computed<PivotResult | null>(() => {
+const MAX_ROWS = 200
+const build = computed(() => {
   const d = data.value
-  if (!d || !d.rows.length) return null
-  const cells = new Map<string, Map<string, number[]>>()
-  const rowKeys: string[] = []
-  const colKeys: string[] = []
-  for (const r of d.rows) {
-    const rk = rowCol.value >= 0 ? (r[rowCol.value] ?? '') || '（空）' : '全部'
-    const ck = colCol.value >= 0 ? (r[colCol.value] ?? '') || '（空）' : '全部'
-    if (!cells.has(rk)) {
-      cells.set(rk, new Map())
-      rowKeys.push(rk)
-    }
-    const rowMap = cells.get(rk)!
-    if (!rowMap.has(ck)) {
-      rowMap.set(ck, [])
-      if (!colKeys.includes(ck)) colKeys.push(ck)
-    }
-    const v = parseFloat(r[valCol.value] ?? '')
-    rowMap.get(ck)!.push(Number.isNaN(v) ? 0 : v)
-  }
-  return { rowKeys, colKeys, cells }
+  if (!d || !d.rows.length || !rowCols.value.length) return null
+  return buildPivot(d.rows, rowCols.value, colCol.value, valCol.value)
 })
+const flat = computed(() => (build.value ? flattenTree(build.value.root, MAX_ROWS) : { rows: [], truncated: 0 }))
+
+const isPct = computed(() => fn.value.startsWith('pct'))
+const pctBase = computed(() => (fn.value === 'pct-row' ? 'row' : fn.value === 'pct-col' ? 'col' : 'total'))
+
+const rawSumOf = (node: PivotNode, ck?: string): number => {
+  const arr = ck === undefined ? node.arr : (node.colArrs.get(ck) ?? [])
+  return arr.reduce((a, b) => a + b, 0)
+}
+const grandRaw = computed(() => (build.value ? rawSumOf(build.value.root) : 0))
+const colRaw = (ck: string) => {
+  if (!build.value) return 0
+  return ck === '全部' ? grandRaw.value : rawSumOf(build.value.root, ck)
+}
 
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2))
 
-/** 单元格值 */
-const cellVal = (rk: string, ck: string): number => {
-  const p = pivot.value
-  const arr = p?.cells.get(rk)?.get(ck)
-  return arr ? calc(arr) : 0
+/** 单元格渲染值（占比模式输出百分比字符串；ck='全部' 表示行合计，取节点全量） */
+const cellDisp = (node: PivotNode, ck: string): string => {
+  const raw = ck === '全部' ? calc(node.arr) : calc(node.colArrs.get(ck) ?? [])
+  if (!isPct.value) return fmt(raw)
+  let base = grandRaw.value
+  if (pctBase.value === 'row') base = rawSumOf(node)
+  if (pctBase.value === 'col') base = ck === '全部' ? grandRaw.value : colRaw(ck)
+  return base ? `${((raw / base) * 100).toFixed(1)}%` : '0.0%'
 }
-/** 行合计 */
-const rowTotal = (rk: string): number => {
-  const p = pivot.value
-  if (!p) return 0
-  const all: number[] = []
-  for (const ck of p.colKeys) all.push(...(p.cells.get(rk)?.get(ck) ?? []))
-  return calc(all)
-}
-/** 列合计 */
-const colTotal = (ck: string): number => {
-  const p = pivot.value
-  if (!p) return 0
-  const all: number[] = []
-  for (const rk of p.rowKeys) all.push(...(p.cells.get(rk)?.get(ck) ?? []))
-  return calc(all)
-}
-/** 总合计 */
-const grandTotal = computed(() => {
-  const p = pivot.value
-  if (!p) return 0
-  const all: number[] = []
-  for (const rk of p.rowKeys) for (const ck of p.colKeys) all.push(...(p.cells.get(rk)?.get(ck) ?? []))
-  return calc(all)
-})
 
+/** 热力：全表值归一化强度 */
+const heatVal = computed(() => {
+  if (!heat.value) return null
+  const vals: number[] = []
+  for (const fr of flat.value.rows) for (const ck of build.value?.colKeys ?? []) {
+    const arr = fr.node.colArrs.get(ck)
+    if (arr?.length) vals.push(calc(arr))
+  }
+  if (!vals.length) return null
+  const min = Math.min(...vals)
+  const max = Math.max(...vals)
+  return (v: number) => (max === min ? 0.5 : (v - min) / (max - min))
+})
+const cellStyle = (node: PivotNode, ck: string) => {
+  const h = heatVal.value
+  if (!h) return undefined
+  const arr = ck === '全部' ? node.arr : node.colArrs.get(ck)
+  const v = arr?.length ? calc(arr) : 0
+  return { background: `color-mix(in srgb, var(--accent) ${Math.round(6 + h(v) * 34)}%, transparent)` }
+}
+
+const nodeRowLabel = (fr: { key: string; level: number }) => `${'\u00A0\u00A0\u00A0\u00A0'.repeat(fr.level)}${fr.key}`
+
+/* ---------- 导出（色阶仅网页生效） ---------- */
 const exportXlsx = async () => {
-  const p = pivot.value
+  const b = build.value
   const d = data.value
-  if (!p || !d) return
-  const rows: (string | number)[][] = p.rowKeys.map((rk) => {
-    const line: (string | number)[] = [rk, ...p.colKeys.map((ck) => fmt(cellVal(rk, ck)))]
-    line.push(fmt(rowTotal(rk)))
+  if (!b || !d) return
+  const rows: (string | number)[][] = flat.value.rows.map((fr) => {
+    const line: (string | number)[] = [nodeRowLabel(fr), ...b.colKeys.map((ck) => cellDisp(fr.node, ck))]
+    line.push(cellDisp(fr.node, '全部'))
     return line
   })
-  rows.push([
-    '合计',
-    ...p.colKeys.map((ck) => fmt(colTotal(ck))),
-    fmt(grandTotal.value),
-  ])
+  rows.push(['合计（全部）', ...b.colKeys.map((ck) => cellDisp(b.root, ck)), cellDisp(b.root, '全部')])
   const blob = await rowsToXlsx(
-    [d.header[rowCol.value >= 0 ? rowCol.value : 0] ?? '行', ...p.colKeys, '合计'],
+    [rowCols.value.map((i) => d.header[i]).join('>') || '行', ...b.colKeys, '合计'],
     rows,
     '透视表',
   )
   saveBlob(blob, `${fileName.value}-透视表.xlsx`)
+  if (heat.value) toast.ok('已导出（色阶为网页效果，xlsx 不含底色）')
 }
 
 const exportCsv = () => {
-  const p = pivot.value
+  const b = build.value
   const d = data.value
-  if (!p || !d) return
+  if (!b || !d) return
   const esc = (s: string) => (/["\n,]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s)
   const lines = [
-    [d.header[rowCol.value >= 0 ? rowCol.value : 0] ?? '行', ...p.colKeys, '合计'].map(esc).join(','),
-    ...p.rowKeys.map((rk) =>
-      [rk, ...p.colKeys.map((ck) => fmt(cellVal(rk, ck))), fmt(rowTotal(rk))].map(esc).join(','),
-    ),
-    ['合计', ...p.colKeys.map((ck) => fmt(colTotal(ck))), fmt(grandTotal.value)].map(esc).join(','),
+    [rowCols.value.map((i) => d.header[i]).join('>') || '行', ...b.colKeys, '合计'].map(esc).join(','),
+    ...flat.value.rows.map((fr) => [nodeRowLabel(fr), ...b.colKeys.map((ck) => cellDisp(fr.node, ck)), cellDisp(fr.node, '全部')].map(esc).join(',')),
+    ['合计（全部）', ...b.colKeys.map((ck) => cellDisp(b.root, ck)), cellDisp(b.root, '全部')].map(esc).join(','),
   ]
   saveText('\uFEFF' + lines.join('\n'), `${fileName.value}-透视表.csv`, 'text/csv;charset=utf-8')
 }
@@ -175,15 +178,17 @@ const exportCsv = () => {
   <div>
     <FileDrop accept=".csv,.tsv,.txt,.xlsx,.xls" :multiple="false" label="拖放 CSV 或 Excel 文件，或点击选择" @files="onFiles" />
 
-    <template v-if="data && pivot">
+    <template v-if="data && build">
+      <div v-if="nonNum > 0" class="notice notice-warn mt-2 small">值列「{{ data.header[valCol] }}」有 {{ nonNum }} 个非数值项，已按 0 计入聚合。</div>
+
+      <div class="row row-wrap mt-2" style="gap: 6px; align-items: center">
+        <span class="f-label">行字段（可多选嵌套）：</span>
+        <label v-for="(h, i) in data.header" :key="i" class="chip" :class="{ on: rowCols.includes(i) }" style="cursor: pointer">
+          <input type="checkbox" :checked="rowCols.includes(i)" style="margin-right: 4px" @change="toggleRowCol(i)" /> {{ h }}
+        </label>
+      </div>
+
       <div class="grid-4 mt-2">
-        <div class="field">
-          <label class="f-label">行字段</label>
-          <select v-model.number="rowCol" class="select">
-            <option :value="-1">（不分组）</option>
-            <option v-for="(h, i) in data.header" :key="i" :value="i">{{ h }}</option>
-          </select>
-        </div>
         <div class="field">
           <label class="f-label">列字段</label>
           <select v-model.number="colCol" class="select">
@@ -203,39 +208,46 @@ const exportCsv = () => {
             <option v-for="f in fns" :key="f.v" :value="f.v">{{ f.label }}</option>
           </select>
         </div>
+        <div class="field">
+          <label class="f-label">色阶</label>
+          <label class="check"><input v-model="heat" type="checkbox" /> 按值深浅着色（仅网页生效）</label>
+        </div>
       </div>
 
       <div class="row row-wrap mt-2">
-        <span class="badge">行 {{ pivot.rowKeys.length }} × 列 {{ pivot.colKeys.length }}</span>
+        <span class="badge">行 {{ flat.rows.length }}{{ flat.truncated ? `（截断，仅显示前 ${MAX_ROWS}）` : '' }} × 列 {{ build.colKeys.length }}{{ build.totalColKeys > build.colKeys.length ? `（截断，共 ${build.totalColKeys}）` : '' }}</span>
         <button class="btn btn-sm" @click="exportXlsx"><Download :size="14" /> 下载 xlsx</button>
         <button class="btn btn-sm" @click="exportCsv"><Download :size="14" /> 下载 CSV</button>
       </div>
+      <p v-if="flat.truncated || build.totalColKeys > build.colKeys.length" class="muted small mt-1">
+        仅显示前 {{ MAX_ROWS }} 个行组合（实际更多），请收窄行字段或加筛选后再透视。
+      </p>
 
       <div class="table-wrap mt-2">
         <table class="data-table">
           <thead>
             <tr>
-              <th>{{ rowCol >= 0 ? data.header[rowCol] : '全部' }}</th>
-              <th v-for="ck in pivot.colKeys" :key="ck">{{ ck }}</th>
+              <th>{{ rowCols.map((i) => data!.header[i]).join(' / ') || '全部' }}</th>
+              <th v-for="ck in build.colKeys" :key="ck">{{ ck }}</th>
               <th class="total">合计</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="rk in pivot.rowKeys" :key="rk">
-              <th class="row-head">{{ rk }}</th>
-              <td v-for="ck in pivot.colKeys" :key="ck">{{ fmt(cellVal(rk, ck)) }}</td>
-              <td class="total">{{ fmt(rowTotal(rk)) }}</td>
+            <tr v-for="(fr, ri) in flat.rows" :key="ri" :class="{ leaf: fr.isLeaf }">
+              <th class="row-head" :style="{ paddingLeft: 10 + fr.level * 18 + 'px' }">{{ fr.key }}<span v-if="!fr.isLeaf" class="muted small">（小计）</span></th>
+              <td v-for="ck in build.colKeys" :key="ck" :style="cellStyle(fr.node, ck)">{{ cellDisp(fr.node, ck) }}</td>
+              <td class="total" :style="cellStyle(fr.node, '全部')">{{ cellDisp(fr.node, '全部') }}</td>
             </tr>
             <tr class="total-row">
-              <th class="row-head">合计</th>
-              <td v-for="ck in pivot.colKeys" :key="ck">{{ fmt(colTotal(ck)) }}</td>
-              <td class="total">{{ fmt(grandTotal) }}</td>
+              <th class="row-head">合计（全部）</th>
+              <td v-for="ck in build.colKeys" :key="ck" :style="cellStyle(build.root, ck)">{{ cellDisp(build.root, ck) }}</td>
+              <td class="total" :style="cellStyle(build.root, '全部')">{{ cellDisp(build.root, '全部') }}</td>
             </tr>
           </tbody>
         </table>
       </div>
       <p class="muted small mt-1">
-        计数模式下统计每个分组的数据条数；其他方式基于「{{ data.header[valCol] }}」列的数值。
+        多级行字段逐级缩进，带「小计」的行为其子树聚合；占比模式以当前聚合的求和为基数。计数模式统计每分组数据条数，其余基于「{{ data.header[valCol] }}」列。
       </p>
     </template>
     <div v-else class="row mt-2 muted small">
@@ -264,6 +276,14 @@ const exportCsv = () => {
   font-weight: 600;
   color: var(--text-2);
 }
+.chip.on {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-weight: 700;
+}
+tr.leaf td {
+  color: var(--text-2);
+}
 .row-head {
   font-weight: 600;
   color: var(--text-2);
@@ -279,5 +299,9 @@ const exportCsv = () => {
 .total-row th {
   border-top: 2px solid var(--border-strong);
   font-weight: 700;
+}
+.table-wrap {
+  max-height: max(480px, calc(100vh - 420px));
+  overflow: auto;
 }
 </style>

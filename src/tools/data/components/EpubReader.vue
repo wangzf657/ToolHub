@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { onBeforeUnmount, ref, shallowRef } from 'vue'
-import { BookOpen, ChevronLeft, ChevronRight, Loader2, Type } from 'lucide-vue-next'
+import { BookOpen, ChevronLeft, ChevronRight, Loader2, Type, Moon, Sun } from 'lucide-vue-next'
 import FileDrop from '@/components/common/FileDrop.vue'
 import { useToast } from '@/composables/useToast'
 import type { Book, NavItem, Rendition } from 'epubjs'
 
-/** EPUB 阅读器：epubjs 本地渲染（iframe），目录跳转 + 翻页 + 字号调节，文件不上传 */
+/** EPUB 阅读器：epubjs 本地渲染（iframe），目录跳转 + 翻页 + 字号调节 + 进度记忆 + 夜间主题，文件不上传 */
 const toast = useToast()
 const stageEl = ref<HTMLDivElement | null>(null)
 const loading = ref(false)
@@ -14,6 +14,8 @@ const toc = ref<{ href: string; label: string; depth: number }[]>([])
 const current = ref(-1)
 const fontSize = ref(16)
 const ready = ref(false)
+/** 夜间阅读主题（阅读区深底浅字） */
+const nightMode = ref(false)
 
 const book = shallowRef<Book | null>(null)
 const rendition = shallowRef<Rendition | null>(null)
@@ -26,6 +28,36 @@ const flattenToc = (items: NavItem[] | undefined, depth = 0): { href: string; la
     if (it.subitems?.length) out.push(...flattenToc(it.subitems, depth + 1))
   }
   return out
+}
+
+/** 进度记忆 key：按书名隔离 */
+const progressKey = () => `toolhub:epub:${title.value || 'unknown'}`
+
+/** relocated：保存进度 + 目录同步高亮 */
+const onRelocated = (loc: { start: { cfi: string; href: string } }) => {
+  try {
+    localStorage.setItem(progressKey(), JSON.stringify({ cfi: loc.start.cfi, href: loc.start.href }))
+  } catch {
+    /* 忽略存储失败（隐私模式） */
+  }
+  const href = (loc.start.href || '').split('#')[0]!
+  const idx = toc.value.findIndex((t) => {
+    const base = t.href.split('#')[0]!
+    return base === href || href.endsWith('/' + base) || base.endsWith('/' + href)
+  })
+  if (idx >= 0) {
+    current.value = idx
+    void document.querySelector('.toc-item.active')?.scrollIntoView({ block: 'nearest' })
+  }
+}
+
+/** 夜间主题样式注册 */
+const applyTheme = () => {
+  const rend = rendition.value
+  if (!rend) return
+  rend.themes.register('night', { body: { background: '#161c2c', color: '#d8dee9' }, 'p': { color: '#d8dee9' }, 'h1, h2, h3': { color: '#f0f3f8' } })
+  rend.themes.register('day', { body: { background: '#ffffff', color: '#1c2432' } })
+  rend.themes.select(nightMode.value ? 'night' : 'day')
 }
 
 const open = async (files: File[]) => {
@@ -50,13 +82,26 @@ const open = async (files: File[]) => {
     toc.value = flattenToc(nav.toc)
     await new Promise((r) => setTimeout(r, 50)) // 等待容器挂载
     if (!stageEl.value) throw new Error('渲染容器未就绪')
-    const rend = b.renderTo(stageEl.value, { width: '100%', height: 600, flow: 'paginated', spread: 'none' })
+    const rend = b.renderTo(stageEl.value, { width: '100%', height: '100%', flow: 'paginated', spread: 'none' })
     rendition.value = rend
     rend.themes.fontSize(`${fontSize.value}px`)
     rend.themes.default({ body: { padding: '0 8px' } })
+    applyTheme()
+    rend.on('relocated', onRelocated)
     await rend.display()
+    // 进度记忆：同一本书自动跳回上次位置
+    try {
+      const saved = JSON.parse(localStorage.getItem(progressKey()) ?? 'null') as { cfi?: string } | null
+      if (saved?.cfi) {
+        await rend.display(saved.cfi)
+        toast.ok(`已打开：${title.value}（已回到上次阅读位置）`)
+      } else {
+        toast.ok(`已打开：${title.value}（${toc.value.length} 个目录项）`)
+      }
+    } catch {
+      toast.ok(`已打开：${title.value}（${toc.value.length} 个目录项）`)
+    }
     ready.value = true
-    toast.ok(`已打开：${title.value}（${toc.value.length} 个目录项）`)
   } catch (e) {
     toast.err((e as Error).message || 'EPUB 打开失败：请确认文件为有效的 .epub')
     close()
@@ -86,6 +131,30 @@ const setFontSize = async (delta: number) => {
   rendition.value?.themes.fontSize(`${fontSize.value}px`)
 }
 
+const toggleNight = () => {
+  nightMode.value = !nightMode.value
+  applyTheme()
+}
+
+/* 键盘翻页：←/→（阅读器就绪时全局生效） */
+const onKey = (e: KeyboardEvent) => {
+  if (!ready.value) return
+  if (e.key === 'ArrowRight') void flip('next')
+  else if (e.key === 'ArrowLeft') void flip('prev')
+}
+window.addEventListener('keydown', onKey)
+
+/* 触屏滑动翻页（仅阅读区，阈值 60px，避免误触目录） */
+let touchX = 0
+const onTouchStart = (e: TouchEvent) => {
+  touchX = e.changedTouches[0]?.clientX ?? 0
+}
+const onTouchEnd = (e: TouchEvent) => {
+  const dx = (e.changedTouches[0]?.clientX ?? 0) - touchX
+  if (Math.abs(dx) < 60) return
+  void flip(dx < 0 ? 'next' : 'prev')
+}
+
 const close = () => {
   try {
     rendition.value?.destroy()
@@ -99,7 +168,10 @@ const close = () => {
   title.value = ''
 }
 
-onBeforeUnmount(close)
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onKey)
+  close()
+})
 </script>
 
 <template>
@@ -141,9 +213,15 @@ onBeforeUnmount(close)
       </div>
 
       <div class="main">
-        <div ref="stageEl" class="stage"></div>
+        <div ref="stageEl" class="stage" :class="{ night: nightMode }" @touchstart.passive="onTouchStart" @touchend.passive="onTouchEnd"></div>
         <div class="bar">
           <button class="btn btn-sm" @click="flip('prev')"><ChevronLeft :size="15" /> 上一页</button>
+          <span class="muted small">← / → 或左右滑动翻页</span>
+          <button class="btn btn-sm" :title="nightMode ? '切回日间' : '切换夜间阅读'" @click="toggleNight">
+            <Sun v-if="nightMode" :size="14" />
+            <Moon v-else :size="14" />
+            {{ nightMode ? '日间' : '夜间' }}
+          </button>
           <button class="btn btn-sm" @click="flip('next')">下一页 <ChevronRight :size="15" /></button>
         </div>
       </div>
@@ -187,7 +265,7 @@ onBeforeUnmount(close)
 .toc {
   flex: 1;
   overflow: auto;
-  max-height: 430px;
+  max-height: min(64vh, 560px);
 }
 .toc-item {
   display: block;
@@ -238,8 +316,13 @@ onBeforeUnmount(close)
 }
 .stage {
   flex: 1;
-  min-height: 600px;
+  height: min(72vh, 640px);
+  min-height: 420px;
   background: #fff;
+  transition: background 0.2s;
+}
+.stage.night {
+  background: #161c2c;
 }
 .bar {
   display: flex;

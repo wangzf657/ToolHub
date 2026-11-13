@@ -156,9 +156,11 @@ const run = async () => {
     return
   }
   running.value = true
+  cancelRequested.value = false
   sqlError.value = ''
   resultRows.value = []
   resultCols.value = []
+  const t0 = performance.now()
   try {
     await registerTables()
     const alasql = await getAlasql()
@@ -167,15 +169,38 @@ const run = async () => {
       alasql.promise
         ? await alasql.promise<Record<string, unknown>[]>(stmt)
         : (alasql.exec?.(stmt) as Record<string, unknown>[])
+    if (cancelRequested.value) {
+      toast.warn(`查询已取消（耗时 ${((performance.now() - t0) / 1000).toFixed(1)}s）`)
+      return
+    }
     const arr = Array.isArray(res) ? res : []
     resultRows.value = arr.slice(0, 500)
     resultCols.value = arr.length ? Object.keys(arr[0]) : []
-    toast.ok(`查询完成：${arr.length} 行（最多预览 500 行）`)
+    const sec = ((performance.now() - t0) / 1000).toFixed(1)
+    toast.ok(`查询完成：${arr.length} 行 · ${sec}s（最多预览 500 行）`)
+    pushHistory(sql.value)
   } catch (e) {
     sqlError.value = (e as Error).message || 'SQL 执行失败'
   } finally {
     running.value = false
   }
+}
+
+/* 取消：alasql 为同步执行，这里取消语义 = 丢弃本次结果并恢复交互 */
+const cancelRequested = ref(false)
+const cancelRun = () => {
+  cancelRequested.value = true
+}
+
+/* 查询历史：最近 10 条，点击回填 */
+const history = ref<string[]>([])
+const pushHistory = (q: string) => {
+  const t = q.trim()
+  if (!t) return
+  history.value = [t, ...history.value.filter((h) => h !== t)].slice(0, 10)
+}
+const applyHistory = (q: string) => {
+  sql.value = q
 }
 
 const dlResult = () => {
@@ -219,14 +244,31 @@ const previewRows = (t: TableInfo) => t.rows.slice(0, 3)
         </div>
       </div>
 
+      <!-- 表结构 chip：表名+行数，hover 显示列清单 -->
+      <div v-if="tables.length" class="row row-wrap mt-2" style="gap: 6px">
+        <span v-for="t in tables" :key="'c' + t.name" class="chip t-chip" :title="`${t.name}（${t.rows.length} 行）列：${t.header.join('、')}`">
+          {{ t.name }} · {{ t.rows.length }} 行
+        </span>
+      </div>
+
+      <div v-if="history.length" class="row row-wrap mt-2" style="gap: 6px; align-items: center">
+        <span class="muted small">历史：</span>
+        <button v-for="(h, i) in history" :key="i" class="chip h-chip" :title="h" @click="applyHistory(h)">
+          {{ h.replace(/\s+/g, ' ').slice(0, 28) }}{{ h.length > 28 ? '…' : '' }}
+        </button>
+      </div>
+
       <div class="mt-2">
         <div class="label">SQL 编辑器</div>
-        <textarea v-model="sql" class="textarea mono" style="min-height: 140px" spellcheck="false"></textarea>
+        <textarea v-model="sql" class="textarea mono sql-box" spellcheck="false"></textarea>
         <div class="row row-wrap mt-1">
-          <button class="btn btn-primary" :disabled="running" @click="run">
-            <Loader2 v-if="running" :size="16" class="spin" />
-            <Play v-else :size="16" />
+          <button v-if="!running" class="btn btn-primary" @click="run">
+            <Play :size="16" />
             运行查询
+          </button>
+          <button v-else class="btn" @click="cancelRun">
+            <Loader2 :size="16" class="spin" />
+            取消
           </button>
           <button class="btn btn-ghost" @click="loadExample">插入 JOIN 示例</button>
         </div>
@@ -275,6 +317,26 @@ const previewRows = (t: TableInfo) => t.rows.slice(0, 3)
   font-weight: 600;
   color: var(--text-2);
   margin-bottom: 8px;
+}
+/* 编辑器弹性高度：视口口径，可拖拽调高 */
+.sql-box {
+  height: min(280px, calc(100vh - 520px));
+  min-height: 140px;
+  resize: vertical;
+}
+.t-chip {
+  cursor: help;
+  max-width: 360px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.h-chip {
+  cursor: pointer;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .tables-grid {
   display: grid;

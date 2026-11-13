@@ -430,7 +430,7 @@ const tools: ToolDef[] = [
       },
       note: 'Black-Scholes 模型假设对数正态价格、无摩擦市场与常数波动率，仅为理论参考价；天数模式按 365 天/年折算；Put 希腊字母由 Call 与平价关系推导；IV 由看涨市价二分反推。',
       links: [
-        { label: '以当前参数构建到期损益', to: '/t/options-payoff-calculator' },
+        { label: '以当前参数构建到期损益', to: '/t/options-payoff-calculator', query: (v) => ({ spot: String(v.spot ?? ''), strike: String(v.strike ?? '') }) },
       ],
     },
   },
@@ -772,7 +772,8 @@ const tools: ToolDef[] = [
         const m = (x: number) => money(x)
         const first = res.rows[0]?.payment ?? 0
         const last = res.rows[res.rows.length - 1]?.payment ?? 0
-        const downPct = Math.min(90, Math.max(0, Number(v.downPct) || 0))
+        // 直调/预填缺省时兑现字段声明的默认首付比例 30%（表单路径恒有值，此分支仅程序化调用受益）
+        const downPct = Math.min(90, Math.max(0, v.downPct === undefined || v.downPct === '' ? 30 : Number(v.downPct) || 0))
         const extraFee = Math.max(0, Number(v.extraFee) || 0)
         const rows: CalcResultRow[] = v.mode === 'axbj'
           ? [
@@ -832,7 +833,8 @@ const tools: ToolDef[] = [
         const inc = Number(v.monthlyIncome) || 0
         if (!(loan > 0) || !(months > 0)) return [{ label: '请填写贷款金额', value: '—' }]
         const m = (x: number) => money(x)
-        const feeRate = Number(v.feeRate) || 0
+        // 缺省时兑现字段默认费率 0.33%/期（普通模式对比行的口径基准）
+        const feeRate = v.feeRate === undefined || v.feeRate === '' ? 0.33 : Number(v.feeRate) || 0
         if (v.mode === 'fee') {
           const r = installmentIrr(loan, months, feeRate)
           const rows: CalcResultRow[] = [
@@ -908,7 +910,7 @@ const tools: ToolDef[] = [
           const refiMonthly = rr === 0 ? fv / n2 : (fv * rr) / (1 - Math.pow(1 + rr, -n2))
           rows.push({ label: `到期再融资新月供（${refiYears} 年 @ ${v.refiRate}%）`, value: '¥' + m(refiMonthly), hint: `对尾付本金 ¥${m(fv)} 重排年金；手算验证：尾付 × 月利率 ÷ (1 − (1+月利率)^−期数)` })
         }
-        rows.push({ label: '⚠ 风险提示', value: `尾付占比 ${money(bp * 100)}%，到期需一次性筹措大额资金，请预留再融资或出售渠道`, tone: 'err', hint: '气球贷的核心风险在于尾付到期一次性偿付压力' })
+        rows.push({ label: '风险提示', value: `尾付占比 ${money(bp * 100)}%，到期需一次性筹措大额资金，请预留再融资或出售渠道`, tone: 'err', hint: '气球贷的核心风险在于尾付到期一次性偿付压力' })
         return rows
       },
       note: '口径：前期月供按「摊还本金部分的年金」计算，末期利息按尾付单月利息估算，与逐月精确口径在典型场景（≤5 年）误差 <1%；气球贷实际结息方式各机构不同，以合同为准。',

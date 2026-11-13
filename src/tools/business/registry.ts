@@ -21,9 +21,9 @@ const tools: ToolDef[] = [
         F('months', '持有月数（年化用，可选）', { placeholder: '如 6' }),
       ],
       samples: [
-        { label: '营销投放', values: { cost: 50000, revenue: 180000, months: 12 } },
-        { label: '设备采购', values: { cost: 200000, revenue: 260000, months: 24 } },
-        { label: '人力增产', values: { cost: 300000, revenue: 405000, months: 12 } },
+        { label: '保守', values: { cost: 50000, revenue: 60000, months: 12 } },
+        { label: '常规', values: { cost: 50000, revenue: 90000, months: 12 } },
+        { label: '乐观', values: { cost: 50000, revenue: 150000, months: 12 } },
       ],
       compute: (v) => {
         const cost = Number(v.cost)

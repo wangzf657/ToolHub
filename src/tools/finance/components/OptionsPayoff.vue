@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { Plus, Trash2, Download, Braces } from 'lucide-vue-next'
 import { renderChart } from '@/lib/chartEngine'
 import { saveBlob, saveText } from '@/lib/download'
@@ -18,6 +19,19 @@ interface Leg {
 
 const spot = ref(100)
 const legs = ref<Leg[]>([{ side: 'buy', type: 'call', qty: 1, strike: 100, premium: 3.5 }])
+// Black-Scholes 互链预填（?spot=标的现价&strike=行权价，键名与 black-scholes links.query 对齐）
+{
+  const route = useRoute()
+  const qn = (k: string) => {
+    const raw = route.query[k]
+    const x = Number(Array.isArray(raw) ? raw[0] : raw)
+    return Number.isFinite(x) && x > 0 ? x : null
+  }
+  const qSpot = qn('spot')
+  const qStrike = qn('strike')
+  if (qSpot !== null) spot.value = qSpot
+  if (qStrike !== null) legs.value[0]!.strike = qStrike
+}
 // 可选正股腿
 const stockOn = ref(false)
 const stockQty = ref(100)

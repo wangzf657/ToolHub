@@ -17,7 +17,14 @@ const work = shallowRef<HTMLCanvasElement | null>(null)
 const maskEl = ref<HTMLCanvasElement | null>(null)
 const stage = ref<HTMLElement | null>(null)
 const brush = ref(24)
-const history = shallowRef<{ img: ImageData; mask: ImageData }[]>([])
+const zoom = ref(1)
+/** rx4 撤销加深 20 步：蒙版增量 + 修复快照混合栈 */
+type HistItem =
+  | { kind: 'mask'; x: number; y: number; w: number; h: number; before: ImageData }
+  | { kind: 'fill'; img: ImageData; mask: ImageData }
+const history = shallowRef<HistItem[]>([])
+/** rx3 模型下载二次确认（会话内一次） */
+const confirmedModel = ref(false)
 
 const busy = computed(() => model.state.value === 'loading')
 const stageText = computed(() => model.progress.value.status)
@@ -107,9 +114,21 @@ function paintMask(e: PointerEvent) {
 function onDown(e: PointerEvent) {
   if (!maskEl.value || busy.value) return
   e.preventDefault()
-  const w = work.value!
+  ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+  // rx4：仅存涂抹点附近的蒙版矩形增量
   const m = maskEl.value
-  history.value = [...history.value.slice(-4), { img: w.getContext('2d')!.getImageData(0, 0, w.width, w.height), mask: m.getContext('2d')!.getImageData(0, 0, m.width, m.height) }]
+  const p = pt(e)
+  const r = brush.value + 2
+  const x0 = Math.max(0, Math.floor(p.x - r))
+  const y0 = Math.max(0, Math.floor(p.y - r))
+  const w0 = Math.min(m.width, Math.ceil(p.x + r)) - x0
+  const h0 = Math.min(m.height, Math.ceil(p.y + r)) - y0
+  if (w0 > 0 && h0 > 0) {
+    history.value = [
+      ...history.value.slice(-19),
+      { kind: 'mask', x: x0, y: y0, w: w0, h: h0, before: m.getContext('2d')!.getImageData(x0, y0, w0, h0) },
+    ]
+  }
   painting = true
   lastPt = null
   paintMask(e)
@@ -122,13 +141,26 @@ function onUp() {
   lastPt = null
 }
 
+/* rx1 滚轮缩放（100%~800%，坐标按显示矩形映射无偏移） */
+function onWheel(e: WheelEvent) {
+  if (!work.value) return
+  e.preventDefault()
+  zoom.value = Math.min(8, Math.max(1, Number((e.deltaY < 0 ? zoom.value * 1.25 : zoom.value / 1.25).toFixed(3))))
+  if (mounted) mounted.style.width = `${zoom.value * 100}%`
+}
+
 function undo() {
   const w = work.value
   const m = maskEl.value
+  if (!w || !m) return
   const snap = history.value[history.value.length - 1]
-  if (!w || !m || !snap) return
-  w.getContext('2d')!.putImageData(snap.img, 0, 0)
-  m.getContext('2d')!.putImageData(snap.mask, 0, 0)
+  if (!snap) return
+  if (snap.kind === 'fill') {
+    w.getContext('2d')!.putImageData(snap.img, 0, 0)
+    m.getContext('2d')!.putImageData(snap.mask, 0, 0)
+  } else {
+    m.getContext('2d')!.putImageData(snap.before, snap.x, snap.y)
+  }
   history.value = history.value.slice(0, -1)
 }
 
@@ -137,16 +169,40 @@ function clearMask() {
   if (m) m.getContext('2d')!.clearRect(0, 0, m.width, m.height)
 }
 
-/** 涂抹区域交给 MI-GAN 模型重绘（首次自动下载模型） */
+/** 涂抹区域交给 MI-GAN 模型重绘（rx3：首次下载前二次确认） */
 async function runInpaint() {
   const w = work.value
   const m = maskEl.value
   if (!w || !m || busy.value) return
+  if (!confirmedModel.value) {
+    const go = window.confirm('首次使用需下载修复模型（约 28MB），将消耗移动流量；此后浏览器缓存可离线。是否继续下载？')
+    if (!go) return // 取消后不发起任何 fetch
+    confirmedModel.value = true
+  }
   model.begin()
   try {
+    // rx5：蒙版区域超出 1536px 时在进度文案透明化降采样推理
+    const mk = m.getContext('2d')!.getImageData(0, 0, m.width, m.height).data
+    let minX = m.width, minY = m.height, maxX = 0, maxY = 0, has = false
+    for (let y = 0; y < m.height; y++) {
+      for (let x = 0; x < m.width; x++) {
+        if (mk[(y * m.width + x) * 4 + 3]! > 40) {
+          has = true
+          if (x < minX) minX = x
+          if (x > maxX) maxX = x
+          if (y < minY) minY = y
+          if (y > maxY) maxY = y
+        }
+      }
+    }
+    const note = has && Math.max(maxX - minX, maxY - minY) > 1536 ? '（该区域将按 1536px 内推理）' : ''
     await inpaintCanvas(w, m, (status, p) => {
-      model.setProgress({ status, progress: p ?? -1 })
+      model.setProgress({ status: status + note, progress: p ?? -1 })
     })
+    history.value = [
+      ...history.value.slice(-19),
+      { kind: 'fill', img: w.getContext('2d')!.getImageData(0, 0, w.width, w.height), mask: m.getContext('2d')!.getImageData(0, 0, m.width, m.height) },
+    ]
     clearMask()
     model.done()
     toast.ok('修复完成，不满意可撤销后调整笔刷再试')
@@ -186,7 +242,7 @@ async function download() {
         <button class="btn btn-primary" :disabled="busy" @click="runInpaint">
           <WandSparkles :size="15" /> {{ busy ? '正在修复…' : 'AI 修复涂抹区域' }}
         </button>
-        <button class="btn btn-ghost btn-sm" :disabled="!history.length || busy" @click="undo"><Undo2 :size="14" /> 撤销</button>
+        <button class="btn btn-ghost btn-sm" :disabled="!history.length || busy" @click="undo"><Undo2 :size="14" /> 撤销（{{ history.length }}）</button>
         <button class="btn btn-ghost btn-sm" :disabled="busy" @click="clearMask">清除蒙版</button>
         <button class="btn btn-ghost btn-sm" :disabled="busy" @click="resetAll">换一张</button>
       </div>
@@ -196,7 +252,7 @@ async function download() {
         <span class="muted small">{{ stageText }}{{ pct >= 0 ? ' ' + pct + '%' : '' }}</span>
       </div>
 
-      <div ref="stage" class="stage mt-2">
+      <div ref="stage" class="stage mt-2" @wheel="onWheel">
         <canvas
           ref="maskEl"
           class="mask-cv"
@@ -207,6 +263,7 @@ async function download() {
           @pointerleave="onUp"
         ></canvas>
       </div>
+      <p class="muted small mt-1">缩放 {{ Math.round(zoom * 100) }}%（滚轮 100%~800%，大图可放大后精细涂抹水印边缘）。</p>
 
       <div class="row mt-2">
         <button class="btn btn-primary" :disabled="busy" @click="download"><Download :size="16" /> 下载结果 PNG</button>

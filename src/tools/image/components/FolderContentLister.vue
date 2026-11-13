@@ -59,10 +59,42 @@ const totalSize = computed(() => rows.value.reduce((s, r) => s + r.size, 0))
 const dirCount = computed(() => new Set(rows.value.map((r) => r.dir).filter(Boolean)).size)
 const top5 = computed(() => [...rows.value].sort((a, b) => b.size - a.size).slice(0, 5))
 
-/** 树形：按目录分组渲染（两级目录树，深层目录以路径展示） */
+/* ---- UX1.0：搜索 + 排序 + 扩展名统计 + 目录聚合 ---- */
+const query = ref('')
+const flatSort = ref<'default' | 'size' | 'name' | 'time'>('default')
+const flatView = computed(() => {
+  let list = rows.value
+  const q = query.value.trim().toLowerCase()
+  if (q) list = list.filter((r) => r.path.toLowerCase().includes(q))
+  if (flatSort.value === 'size') list = [...list].sort((a, b) => b.size - a.size)
+  else if (flatSort.value === 'name') list = [...list].sort((a, b) => a.name.localeCompare(b.name, 'zh', { numeric: true }))
+  else if (flatSort.value === 'time') list = [...list].sort((a, b) => b.mtime.localeCompare(a.mtime))
+  return list
+})
+const treeSort = ref<'path' | 'size'>('path')
+interface ExtStat {
+  ext: string
+  n: number
+  size: number
+}
+const extStats = computed<ExtStat[]>(() => {
+  const map = new Map<string, ExtStat>()
+  for (const r of rows.value) {
+    const k = r.ext || '（无扩展名）'
+    const it = map.get(k) ?? { ext: k, n: 0, size: 0 }
+    it.n++
+    it.size += r.size
+    map.set(k, it)
+  }
+  return [...map.values()].sort((a, b) => b.size - a.size).slice(0, 8)
+})
+const extMaxSize = computed(() => Math.max(1, ...extStats.value.map((e) => e.size)))
+
+/** 树形：按目录分组渲染（目录行含子级合计大小，可按路径/大小排序） */
 interface TreeNode {
   dir: string
   files: FileRow[]
+  size: number
 }
 const tree = computed<TreeNode[]>(() => {
   const groups = new Map<string, FileRow[]>()
@@ -71,9 +103,12 @@ const tree = computed<TreeNode[]>(() => {
     arr.push(r)
     groups.set(r.dir, arr)
   }
-  return [...groups.entries()]
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([dir, files]) => ({ dir, files: [...files].sort((a, b) => a.name.localeCompare(b.name)) }))
+  const list = [...groups.entries()].map(([dir, files]) => ({
+    dir,
+    files: [...files].sort((a, b) => a.name.localeCompare(b.name)),
+    size: files.reduce((s, f) => s + f.size, 0),
+  }))
+  return treeSort.value === 'size' ? list.sort((a, b) => b.size - a.size) : list.sort((a, b) => a.dir.localeCompare(b.dir))
 })
 
 const csvEscape = (s: string) => `"${s.replace(/"/g, '""')}"`
@@ -134,22 +169,57 @@ const exportXlsx = async () => {
           <option value="flat">平铺清单</option>
           <option value="tree">按目录分组</option>
         </select>
+        <input v-model="query" type="text" class="input" style="width: 200px" placeholder="搜索路径 / 文件名" />
+        <template v-if="view === 'flat'">
+          <select v-model="flatSort" class="select" style="max-width: 110px">
+            <option value="default">默认排序</option>
+            <option value="size">按大小</option>
+            <option value="name">按名称</option>
+            <option value="time">按时间</option>
+          </select>
+        </template>
+        <template v-else>
+          <button class="chip" :class="{ active: treeSort === 'path' }" @click="treeSort = 'path'">目录按路径</button>
+          <button class="chip" :class="{ active: treeSort === 'size' }" @click="treeSort = 'size'">目录按大小</button>
+        </template>
         <span class="grow"></span>
         <button class="btn btn-sm" :disabled="exporting" @click="exportCsv"><Download :size="14" /> 导出 CSV</button>
         <button class="btn btn-sm" :disabled="exporting" @click="exportXlsx"><Loader2 v-if="exporting" :size="14" class="spin" /><Download v-else :size="14" /> 导出 Excel</button>
       </div>
 
+      <!-- 扩展名统计（rx2）：前 8 类占比条形 -->
+      <div v-if="extStats.length" class="mt-2">
+        <span class="field-label">扩展名占比（前 {{ extStats.length }} 类，按合计大小）</span>
+        <div class="ext-bars mt-1">
+          <div v-for="e in extStats" :key="e.ext" class="ext-bar-row">
+            <span class="ext-name">.{{ e.ext }}</span>
+            <div class="ext-track"><div class="ext-fill" :style="{ width: (e.size / extMaxSize) * 100 + '%' }"></div></div>
+            <span class="ext-meta">{{ e.n }} 个 · {{ fmtSize(e.size) }}</span>
+          </div>
+        </div>
+      </div>
+
       <div v-if="view === 'flat'" class="list mt-1">
-        <div v-for="r in rows.slice(0, 500)" :key="r.path" class="entry">
+        <div class="entry head-row">
+          <span class="path">相对路径</span>
+          <span class="ext">类型</span>
+          <span class="size">大小</span>
+          <span class="size">修改时间</span>
+        </div>
+        <div v-for="r in flatView.slice(0, 500)" :key="r.path" class="entry">
           <span class="path" :title="r.path">{{ r.path }}</span>
           <span class="ext">{{ r.ext || '—' }}</span>
           <span class="size">{{ fmtSize(r.size) }}</span>
+          <span class="size muted">{{ r.mtime }}</span>
         </div>
       </div>
 
       <div v-else class="list mt-1">
         <template v-for="g in tree" :key="g.dir">
-          <div class="dir-row">📁 {{ g.dir || rootName }}<span class="muted small" style="margin-left: 6px">（{{ g.files.length }} 个文件）</span></div>
+          <div class="dir-row">
+            📁 {{ g.dir || rootName }}
+            <span class="muted small" style="margin-left: 6px">（{{ g.files.length }} 个文件 · 合计 {{ fmtSize(g.size) }}）</span>
+          </div>
           <div v-for="r in g.files" :key="r.path" class="entry indent">
             <span class="path" :title="r.name">{{ r.name }}</span>
             <span class="ext">{{ r.ext || '—' }}</span>
@@ -158,7 +228,7 @@ const exportXlsx = async () => {
           </div>
         </template>
       </div>
-      <p v-if="rows.length > 500 && view === 'flat'" class="small muted mt-1">仅显示前 500 行，导出包含全部 {{ rows.length }} 项。</p>
+      <p v-if="view === 'flat' && flatView.length > 500" class="small muted mt-1">仅显示前 500 行，导出包含全部 {{ flatView.length }} 项。</p>
 
       <div class="mt-2">
         <p class="small muted">最大的 5 个文件</p>
@@ -236,6 +306,50 @@ const exportXlsx = async () => {
   background: var(--bg-soft, rgba(127, 127, 127, 0.08));
   position: sticky;
   top: 0;
+}
+.head-row {
+  color: var(--text-3);
+  font-size: 11.5px;
+  position: sticky;
+  top: 0;
+  background: var(--panel-solid);
+  z-index: 1;
+}
+.ext-bars {
+  display: grid;
+  gap: 4px;
+}
+.ext-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+}
+.ext-name {
+  flex: none;
+  width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-2);
+}
+.ext-track {
+  flex: 1;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--bg-soft, rgba(127, 127, 127, 0.12));
+  overflow: hidden;
+}
+.ext-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+}
+.ext-meta {
+  flex: none;
+  width: 150px;
+  color: var(--text-3);
+  font-size: 12px;
 }
 .path {
   flex: 1;

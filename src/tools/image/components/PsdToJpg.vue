@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { Download, Layers, Loader2 } from 'lucide-vue-next'
 import FileDrop from '@/components/common/FileDrop.vue'
 import { canvasToBlob } from '@/lib/imageEngine'
@@ -7,8 +7,8 @@ import { saveBlob, saveMany, baseName } from '@/lib/download'
 import { useToast } from '@/composables/useToast'
 
 /**
- * PSD 转 JPG：ag-psd 本地解析（initializeCanvas 注入浏览器 canvas）。
- * 导出合成图 JPG/PNG，附带尺寸/图层数信息；顶层图层可逐个导出透明 PNG。
+ * PSD 转 JPG（UX1.0）：解析阶段文案（rx1）、隐藏层标注与排除（rx3）、截断提示（rx4）、
+ * JPG 白底兜底（rx5）、图层搜索（rx6）。
  */
 const toast = useToast()
 const file = ref<File | null>(null)
@@ -20,7 +20,10 @@ const width = ref(0)
 const height = ref(0)
 const layerCount = ref(0)
 const composite = ref<HTMLCanvasElement | null>(null)
-const layers = ref<{ name: string; canvas: HTMLCanvasElement | null }[]>([])
+const layers = ref<{ name: string; canvas: HTMLCanvasElement | null; hidden: boolean }[]>([])
+const stage = ref('')
+const includeHidden = ref(false)
+const layerQuery = ref('')
 
 interface AgPsdLayer {
   name?: string
@@ -38,6 +41,13 @@ interface AgPsd {
 
 const fmtSize = (n: number) => (n > 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.ceil(n / 1024)} KB`)
 
+/** rx6 图层搜索 */
+const filteredLayers = computed(() => {
+  const q = layerQuery.value.trim().toLowerCase()
+  if (!q) return layers.value
+  return layers.value.filter((l) => l.name.toLowerCase().includes(q))
+})
+
 const open = async (files: File[]) => {
   const f = files[0]
   if (!f) return
@@ -54,21 +64,31 @@ const open = async (files: File[]) => {
   composite.value = null
   layers.value = []
   try {
+    stage.value = '读取文件…'
+    const buf = await f.arrayBuffer()
+    stage.value = '加载解析器…'
+    await new Promise((r) => setTimeout(r, 30)) // 让渡一帧，保证阶段文案可见（rx1）
     const agpsd = await import('ag-psd')
     agpsd.initializeCanvas(() => document.createElement('canvas'))
-    const psd = agpsd.readPsd(await f.arrayBuffer()) as AgPsd
+    stage.value = '解析图层结构…'
+    const psd = agpsd.readPsd(buf) as AgPsd
     width.value = psd.width
     height.value = psd.height
     composite.value = psd.canvas ?? null
-    // 顶层图层（含组），带独立画布的可导出
-    const walk = (nodes: AgPsdLayer[] | undefined, depth: number, acc: { name: string; canvas: HTMLCanvasElement | null; depth: number }[]) => {
+    // 顶层图层（含组），带独立画布的可导出；hidden 标注（rx3）
+    const walk = (nodes: AgPsdLayer[] | undefined, depth: number, acc: { name: string; canvas: HTMLCanvasElement | null; depth: number; hidden: boolean }[]) => {
       for (const n of nodes ?? []) {
         const isGroup = Array.isArray(n.children)
-        acc.push({ name: `${'　'.repeat(depth)}${isGroup ? '▸ ' : ''}${n.name ?? '图层'}`, canvas: isGroup ? null : n.canvas ?? null, depth })
+        acc.push({
+          name: `${'　'.repeat(depth)}${isGroup ? '▸ ' : ''}${n.name ?? '图层'}`,
+          canvas: isGroup ? null : n.canvas ?? null,
+          depth,
+          hidden: !!n.hidden,
+        })
         if (n.children) walk(n.children, depth + 1, acc)
       }
     }
-    const acc: { name: string; canvas: HTMLCanvasElement | null; depth: number }[] = []
+    const acc: { name: string; canvas: HTMLCanvasElement | null; depth: number; hidden: boolean }[] = []
     walk(psd.children, 0, acc)
     layerCount.value = acc.length
     layers.value = acc.slice(0, 200)
@@ -79,13 +99,26 @@ const open = async (files: File[]) => {
     toast.err((e as Error).message || 'PSD 解析失败：文件可能损坏或版本过新')
   } finally {
     busy.value = false
+    stage.value = ''
   }
 }
 
 const downloadComposite = async () => {
   if (!composite.value || !file.value) return
   try {
-    const blob = await canvasToBlob(composite.value, format.value, format.value === 'image/jpeg' ? quality.value : undefined)
+    let target = composite.value
+    if (format.value === 'image/jpeg') {
+      // rx5 JPG 白底兜底：透明底 PSD 导 JPG 背景为白
+      const c = document.createElement('canvas')
+      c.width = composite.value.width
+      c.height = composite.value.height
+      const ctx = c.getContext('2d')!
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(0, 0, c.width, c.height)
+      ctx.drawImage(composite.value, 0, 0)
+      target = c
+    }
+    const blob = await canvasToBlob(target, format.value, format.value === 'image/jpeg' ? quality.value : undefined)
     const ext = format.value === 'image/jpeg' ? 'jpg' : 'png'
     saveBlob(blob, `${baseName(file.value.name)}.${ext}`)
   } catch (e) {
@@ -99,8 +132,9 @@ const downloadLayer = async (l: { name: string; canvas: HTMLCanvasElement | null
   saveBlob(blob, `${l.name.replace(/[\\/:*?"<>|　]/g, '').trim() || '图层'}.png`)
 }
 
+/** rx3：默认排除隐藏层，勾选后包含 */
 const downloadAllLayers = async () => {
-  const withCanvas = layers.value.filter((l) => l.canvas)
+  const withCanvas = layers.value.filter((l) => l.canvas && (includeHidden.value || !l.hidden))
   if (!withCanvas.length) return
   const files: { name: string; blob: Blob }[] = []
   for (const l of withCanvas) {
@@ -114,7 +148,7 @@ const downloadAllLayers = async () => {
   <div>
     <FileDrop accept=".psd,image/vnd.adobe.photoshop" :multiple="false" label="拖入 .psd 文件" hint="本地解析合成图与图层，文件不上传" @files="open" />
 
-    <div v-if="busy" class="row mt-2 small muted"><Loader2 :size="14" class="spin" /> 正在解析 PSD…</div>
+    <div v-if="busy" class="row mt-2 small muted"><Loader2 :size="14" class="spin" /> 正在解析 PSD… {{ stage }}</div>
 
     <div v-if="loaded" class="mt-2">
       <div class="stats">
@@ -140,12 +174,15 @@ const downloadAllLayers = async () => {
       <div v-if="layers.length" class="mt-2">
         <div class="row row-wrap" style="gap: 10px">
           <span class="field-label">图层（缩进表示层级，仅像素图层可导出 PNG）</span>
+          <input v-model="layerQuery" type="text" class="input" style="width: 180px" placeholder="按名称搜索图层" />
+          <label class="check"><input v-model="includeHidden" type="checkbox" /> 包含隐藏层</label>
           <span class="grow"></span>
-          <button class="btn btn-sm" @click="downloadAllLayers"><Download :size="14" /> 全部图层 PNG（ZIP）</button>
+          <button class="btn btn-sm" @click="downloadAllLayers"><Download :size="14" /> 全部图层 PNG（ZIP{{ includeHidden ? '' : '，不含隐藏层' }}）</button>
         </div>
+        <p v-if="layerCount > 200" class="small muted mt-1">共 {{ layerCount }} 层，仅显示前 200 层。</p>
         <div class="list mt-1">
-          <div v-for="(l, i) in layers" :key="i" class="entry" :class="{ dim: !l.canvas }">
-            <span class="name">{{ l.name }}</span>
+          <div v-for="(l, i) in filteredLayers" :key="i" class="entry" :class="{ dim: !l.canvas || l.hidden }">
+            <span class="name">{{ l.name }}<span v-if="l.hidden" class="hidden-tag">隐藏</span></span>
             <button v-if="l.canvas" class="mini-btn" title="导出透明 PNG" @click="downloadLayer(l)"><Download :size="14" /></button>
             <span v-else class="muted small">组/空图层</span>
           </div>
@@ -214,6 +251,15 @@ const downloadAllLayers = async () => {
 }
 .entry.dim {
   color: var(--text-3);
+}
+.hidden-tag {
+  margin-left: 8px;
+  font-size: 10.5px;
+  color: #b45309;
+  border: 1px solid color-mix(in srgb, #f59e0b 40%, transparent);
+  background: color-mix(in srgb, #f59e0b 10%, transparent);
+  border-radius: 999px;
+  padding: 0 6px;
 }
 .name {
   flex: 1;

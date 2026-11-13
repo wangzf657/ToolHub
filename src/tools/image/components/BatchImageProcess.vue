@@ -1,11 +1,12 @@
 <script setup lang="ts">
 /** 图片批量处理：批量压缩（目标 KB 二分）/ 批量改尺寸 / 批量格式转换，4 路并发 + ZIP 打包 */
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { Loader2, Package, X } from 'lucide-vue-next'
 import FileDrop from '@/components/common/FileDrop.vue'
 import { decodeToCanvas, canvasToBlob } from '@/lib/imageEngine'
 import { saveMany } from '@/lib/download'
 import { useToast } from '@/composables/useToast'
+import { takeHandoff } from './handoff'
 
 const toast = useToast()
 
@@ -16,6 +17,12 @@ const outFormat = ref<'image/jpeg' | 'image/webp' | 'image/png'>('image/jpeg')
 const width = ref<number | ''>('')
 const height = ref<number | ''>('')
 const quality = ref(85)
+
+/** UX1.0 rx4 预设目标档 */
+const TARGET_PRESETS = [
+  { kb: 200, t: '200KB' },
+  { kb: 1024, t: '1MB' },
+]
 
 interface Row {
   name: string
@@ -167,10 +174,31 @@ const run = async () => {
 const dropRef = ref<InstanceType<typeof FileDrop> | null>(null)
 const dropFiles = ref<File[]>([])
 const onFiles = (list: File[]) => {
+  // UX1.0 rx2 追加不清空：新文件并入待处理列表，已完成行与 blob 保留（仅缩列表/清空时重置）
+  const old = dropFiles.value
+  const appended =
+    old.length > 0 &&
+    list.length >= old.length &&
+    list.slice(0, old.length).every((f, i) => f === old[i])
+  if (!appended && old.length > 0 && (list.length === 0 || list.length < old.length)) {
+    rows.value = []
+    packed.value = false
+  }
   dropFiles.value = list
-  rows.value = []
-  packed.value = false
+  // UX1.0 rx5 软上限预警：>200 张提示分批（不阻止、不清空）
+  if (list.length > 200) {
+    toast.warn(`已添加 ${list.length} 张（超过 200 张），建议分批处理；预计每张 0.5~2 秒，继续处理耗时较长`)
+  }
 }
+
+/* UX1.0 跨工具带图转场：rotate-image 等「带图去批量处理」接力 */
+onMounted(() => {
+  const f = takeHandoff()
+  if (f) {
+    dropRef.value?.addFiles([f])
+    toast.ok(`已带入「${f.name}」`)
+  }
+})
 
 const packZip = async () => {
   const files = rows.value.filter((r) => r.blob && r.outName).map((r) => ({ name: r.outName, blob: r.blob! }))
@@ -187,7 +215,7 @@ const removeRow = (i: number) => {
 
 <template>
   <div>
-    <FileDrop ref="dropRef" accept="image/*" :multiple="true" label="拖放多张图片到此处（支持 50 张）" hint="批量压缩 / 改尺寸 / 格式转换 · 全部本地处理" @files="onFiles" />
+    <FileDrop ref="dropRef" accept="image/*" :multiple="true" :max-files="500" label="拖放多张图片到此处" hint="批量压缩 / 改尺寸 / 格式转换 · 全部本地处理 · 超过 200 张建议分批" @files="onFiles" />
 
     <div class="row row-wrap mt-2" style="gap: 18px">
       <label class="opt">
@@ -202,6 +230,15 @@ const removeRow = (i: number) => {
         <label class="opt">
           <span class="field-label">目标大小（KB）</span>
           <input v-model.number="targetKB" type="number" min="5" class="input" style="width: 110px" />
+        </label>
+        <label class="opt">
+          <span class="field-label">预设档</span>
+          <span class="row" style="gap: 6px; flex-wrap: wrap">
+            <button v-for="p in TARGET_PRESETS" :key="p.kb" class="chip" :class="{ active: targetKB === p.kb }" @click="targetKB = p.kb">
+              {{ p.t }}
+            </button>
+            <span v-if="!TARGET_PRESETS.some((p) => p.kb === targetKB)" class="chip active">自定义</span>
+          </span>
         </label>
         <label class="opt">
           <span class="field-label">输出格式</span>
@@ -228,9 +265,9 @@ const removeRow = (i: number) => {
             <option value="image/png">PNG</option>
           </select>
         </label>
-        <label v-if="op === 'convert'" class="opt">
-          <span class="field-label">质量（%）</span>
-          <input v-model.number="quality" type="number" min="10" max="100" class="input" style="width: 90px" />
+        <label v-if="outFormat !== 'image/png'" class="opt">
+          <span class="field-label">质量（%）{{ op === 'resize' ? '（改尺寸也影响输出体积）' : '' }}</span>
+          <input v-model.number="quality" type="range" min="10" max="100" style="width: 130px" />
         </label>
       </template>
       <button class="btn btn-primary" :disabled="running || !dropFiles.length" @click="run">

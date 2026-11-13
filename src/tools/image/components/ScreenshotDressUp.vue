@@ -16,6 +16,16 @@ const bg = ref('gradient-1')
 const pad = ref(40)
 const caption = ref('')
 const busy = ref(false)
+/** rx1 地址栏可编辑；留空隐藏地址栏 */
+const addr = ref('https://toolhub.example')
+/** rx3 自定义渐变 */
+const bgMode = ref<'preset' | 'custom'>('preset')
+const c1 = ref('#6366f1')
+const c2 = ref('#ec4899')
+const angle = ref(135)
+/** rx4 阴影 */
+const shadowOn = ref(true)
+const shadowBlur = ref(60)
 
 const BGS = [
   { k: 'gradient-1', css: 'linear-gradient(135deg,#6366f1,#ec4899)' },
@@ -25,6 +35,9 @@ const BGS = [
   { k: 'solid-light', css: '#f1f5f9' },
   { k: 'solid-dark', css: '#0f172a' },
 ]
+const bgCss = () =>
+  bgMode.value === 'custom' ? `linear-gradient(${angle.value}deg, ${c1.value}, ${c2.value})` : (BGS.find((b) => b.k === bg.value)?.css ?? BGS[0]!.css)
+const shadowCss = () => (shadowOn.value ? `0 24px ${shadowBlur.value}px rgba(0,0,0,.35)` : 'none')
 
 const onFiles = (files: File[]) => {
   const f = files[0]
@@ -70,25 +83,43 @@ const exportPng = async () => {
         </div>
         <div class="row wrap gap mt-2">
           <span class="field-label">背景</span>
-          <button v-for="b in BGS" :key="b.k" class="swatch" :style="{ background: b.css }" :class="{ active: bg === b.k }" @click="bg = b.k"></button>
+          <label class="seg" :class="{ active: bgMode === 'preset' }"><input v-model="bgMode" type="radio" value="preset" class="sr" /> 预设</label>
+          <label class="seg" :class="{ active: bgMode === 'custom' }"><input v-model="bgMode" type="radio" value="custom" class="sr" /> 自定义渐变</label>
+          <template v-if="bgMode === 'preset'">
+            <button v-for="b in BGS" :key="b.k" class="swatch" :style="{ background: b.css }" :class="{ active: bg === b.k }" @click="bg = b.k"></button>
+          </template>
+          <template v-else>
+            <input v-model="c1" type="color" class="color-in" title="起始色" />
+            <input v-model="c2" type="color" class="color-in" title="结束色" />
+            <span class="field-label">角度 {{ angle }}°</span>
+            <input v-model.number="angle" type="range" min="0" max="360" step="5" style="width: 110px" />
+          </template>
+        </div>
+        <div class="row wrap gap mt-2">
+          <label class="check"><input v-model="shadowOn" type="checkbox" /> 投影</label>
+          <template v-if="shadowOn">
+            <span class="field-label">强度 {{ shadowBlur }}px</span>
+            <input v-model.number="shadowBlur" type="range" min="0" max="80" step="5" style="width: 120px" />
+          </template>
         </div>
         <input v-model="caption" class="input mt-2" placeholder="底部说明文字（可选，如：ToolHub 新版界面）" />
+        <input v-if="shell === 'browser'" v-model="addr" class="input mt-2" placeholder="地址栏文字（留空则隐藏地址栏）" />
       </div>
 
       <div class="mt-2 center">
-        <div ref="stageRef" class="stage" :style="{ background: BGS.find((b) => b.k === bg)?.css, padding: `${pad}px` }">
-          <div v-if="shell === 'browser'" class="win" :style="{ borderRadius: `${radius}px` }">
-            <div class="win-bar">
+        <div ref="stageRef" class="stage" :style="{ background: bgCss(), padding: `${pad}px` }">
+          <div v-if="shell === 'browser'" class="win" :style="{ borderRadius: `${radius}px`, boxShadow: shadowCss() }">
+            <div v-if="addr.trim()" class="win-bar">
               <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
-              <span class="addr">https://toolhub.example</span>
+              <span class="addr">{{ addr }}</span>
             </div>
-            <img :src="imgUrl" class="shot" :style="{ borderRadius: `0 0 ${radius}px ${radius}px` }" alt="截图" />
+            <img :src="imgUrl" class="shot" :style="{ borderRadius: addr.trim() ? `0 0 ${radius}px ${radius}px` : `${radius}px` }" alt="截图" />
           </div>
-          <div v-else-if="shell === 'phone'" class="phone" :style="{ borderRadius: `${radius + 10}px` }">
+          <div v-else-if="shell === 'phone'" class="phone" :style="{ borderRadius: `${radius + 10}px`, boxShadow: shadowCss() }">
             <div class="notch"></div>
             <img :src="imgUrl" class="shot" :style="{ borderRadius: `${radius}px` }" alt="截图" />
           </div>
-          <div v-else class="plain" :style="{ borderRadius: `${radius}px` }">
+          <div v-else class="plain" :style="{ borderRadius: `${radius}px`, boxShadow: shadowCss() }">
             <img :src="imgUrl" class="shot" :style="{ borderRadius: `${radius}px` }" alt="截图" />
           </div>
           <p v-if="caption" class="cap">{{ caption }}</p>
@@ -105,6 +136,7 @@ const exportPng = async () => {
 .seg.active { background: var(--accent-soft, var(--accent)); color: var(--accent-text); border-color: var(--accent); }
 .sr { position: absolute; opacity: 0; width: 0; }
 .n-input { width: 70px; }
+.color-in { width: 34px; height: 28px; padding: 0; border: 1px solid var(--border); border-radius: 6px; background: none; cursor: pointer; }
 .center { display: flex; flex-direction: column; align-items: center; }
 .stage { border-radius: 18px; max-width: 780px; width: 100%; }
 .win { overflow: hidden; box-shadow: 0 24px 60px rgba(0,0,0,.3); background: var(--panel-solid, #1e293b); }

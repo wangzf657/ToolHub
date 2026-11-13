@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { Download, Images, Loader2 } from 'lucide-vue-next'
 import FileDrop from '@/components/common/FileDrop.vue'
 import { parseIcoDirectory } from '@/lib/fileExt'
@@ -20,6 +20,7 @@ const busy = ref(false)
 const format = ref<'image/png' | 'image/jpeg'>('image/png')
 const entries = ref<(IcoEntry & { canvas: HTMLCanvasElement | null; error?: string })[]>([])
 const mainCanvas = ref<HTMLCanvasElement | null>(null)
+const mainUrl = ref('')
 
 const isBitmap = (c: unknown): c is ImageBitmap => !!c && typeof (c as ImageBitmap).close === 'function'
 
@@ -51,9 +52,14 @@ const open = async (files: File[]) => {
     if (!dir.length) throw new Error('ICO 目录为空')
     // 主图：原生解码（Chrome/FF 会取最大帧）
     try {
-      mainCanvas.value = await decodeBlob(f)
+      const mc = await decodeBlob(f)
+      if (mc) {
+        mainCanvas.value = mc
+        mainUrl.value = mc.toDataURL('image/png')
+      }
     } catch {
       mainCanvas.value = null
+      mainUrl.value = ''
     }
     // 逐帧切片解码
     for (const e of dir) {
@@ -84,23 +90,56 @@ const open = async (files: File[]) => {
   }
 }
 
+/** JPG 输出前铺白底（rx1 缺陷级修复：透明 ICO 转 JPG 不再变黑底） */
+const withWhite = (canvas: HTMLCanvasElement): HTMLCanvasElement => {
+  const c = document.createElement('canvas')
+  c.width = canvas.width
+  c.height = canvas.height
+  const ctx = c.getContext('2d')!
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, c.width, c.height)
+  ctx.drawImage(canvas, 0, 0)
+  return c
+}
+
 const downloadOne = async (canvas: HTMLCanvasElement, suffix: string) => {
   if (!file.value) return
   const ext = format.value === 'image/png' ? 'png' : 'jpg'
-  const blob = await canvasToBlob(canvas, format.value, format.value === 'image/jpeg' ? 0.92 : undefined)
+  const src = format.value === 'image/jpeg' ? withWhite(canvas) : canvas
+  const blob = await canvasToBlob(src, format.value, format.value === 'image/jpeg' ? 0.92 : undefined)
   saveBlob(blob, `${baseName(file.value.name)}${suffix}.${ext}`)
 }
 
 const downloadAll = async () => {
   if (!file.value) return
   const outs: { name: string; blob: Blob }[] = []
+  const ext = format.value === 'image/png' ? 'png' : 'jpg'
   for (const e of entries.value) {
     if (!e.canvas) continue
-    outs.push({ name: `${baseName(file.value.name)}-${e.width}x${e.height}.png`, blob: await canvasToBlob(e.canvas, 'image/png') })
+    const src = format.value === 'image/jpeg' ? withWhite(e.canvas) : e.canvas
+    outs.push({ name: `${baseName(file.value.name)}-${e.width}x${e.height}.${ext}`, blob: await canvasToBlob(src, format.value, format.value === 'image/jpeg' ? 0.92 : undefined) })
   }
-  if (mainCanvas.value) outs.push({ name: `${baseName(file.value.name)}-主图.png`, blob: await canvasToBlob(mainCanvas.value, 'image/png') })
+  if (mainCanvas.value) {
+    const src = format.value === 'image/jpeg' ? withWhite(mainCanvas.value) : mainCanvas.value
+    outs.push({ name: `${baseName(file.value.name)}-主图.${ext}`, blob: await canvasToBlob(src, format.value, format.value === 'image/jpeg' ? 0.92 : undefined) })
+  }
   if (!outs.length) return
   saveMany(outs, `${baseName(file.value.name)}-帧.zip`)
+}
+
+/** rx5 最大帧：导出目录头中最大的帧并在文件名标注尺寸 */
+const maxFrame = computed(() => entries.value.filter((e) => e.canvas).sort((a, b) => b.width * b.height - a.width * a.height)[0] ?? null)
+
+/** 帧缩略 URL（避免模板反复 toDataURL） */
+const frameUrls = new Map<number, string>()
+const frameUrl = (idx: number): string => {
+  const e = entries.value[idx]
+  let u = frameUrls.get(idx)
+  if (!u && e?.canvas) {
+    u = e.canvas.toDataURL('image/png')
+    frameUrls.set(idx, u)
+  }
+  return u ?? ''
 }
 </script>
 
@@ -122,22 +161,32 @@ const downloadAll = async () => {
       </div>
 
       <div v-if="mainCanvas" class="mt-2">
-        <p class="small muted">主图（浏览器解码的完整图标）· {{ mainCanvas.width }}×{{ mainCanvas.height }}</p>
-        <img :src="mainCanvas.toDataURL('image/png')" class="thumb" alt="主图" />
+        <p class="small muted">主图（浏览器解码的完整图标）· {{ mainCanvas.width }}×{{ mainCanvas.height }} —— 主图通常为最大帧</p>
+        <img :src="mainUrl" class="thumb" alt="主图" />
         <button class="btn btn-primary btn-sm" @click="downloadOne(mainCanvas, '')"><Download :size="14" /> 下载主图</button>
+        <button v-if="maxFrame?.canvas && maxFrame.width >= 256" class="btn btn-soft btn-sm" @click="downloadOne(maxFrame.canvas, `-${maxFrame.width}px-max`)">
+          <Download :size="14" /> 导出最大帧（{{ maxFrame.width }}px）
+        </button>
       </div>
 
-      <p class="small muted mt-2">目录头解析出的 {{ entries.length }} 帧：</p>
+      <p class="small muted mt-2">目录头解析出的 {{ entries.length }} 帧（bpp = 色深，32bpp 含透明通道；主图通常为最大帧）：</p>
       <div class="frame-grid">
         <div v-for="(e, i) in entries" :key="i" class="frame-item" :class="{ err: !e.canvas }">
           <template v-if="e.canvas">
-            <img :src="e.canvas.toDataURL('image/png')" class="thumb" alt="" />
+            <img :src="frameUrl(i)" class="thumb" alt="" />
             <p class="meta">{{ e.width }}×{{ e.height }} · {{ e.bitCount }}bpp</p>
-            <button class="btn btn-sm" @click="downloadOne(e.canvas, `-${e.width}x${e.height}`)"><Download :size="13" /> PNG</button>
+            <button class="btn btn-sm" @click="downloadOne(e.canvas, `-${e.width}x${e.height}`)"><Download :size="13" /> {{ format === 'image/png' ? 'PNG' : 'JPG' }}</button>
           </template>
           <p v-else class="meta err-text">{{ e.error }}</p>
         </div>
       </div>
+
+      <!-- rx6 站内互链 -->
+      <p class="notice notice-info mt-2 small">
+        想把 PNG 做回 ICO？请使用
+        <RouterLink to="/t/png-to-ico" class="link">PNG 转 ICO</RouterLink>
+        工具。
+      </p>
     </div>
   </div>
 </template>
@@ -183,5 +232,9 @@ const downloadAll = async () => {
 }
 .err-text {
   color: var(--err, #c0392b);
+}
+.link {
+  color: var(--accent-text);
+  text-decoration: underline;
 }
 </style>

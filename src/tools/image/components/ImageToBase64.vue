@@ -1,8 +1,8 @@
 <script setup lang="ts">
-/** 图片转 Base64：data URI + 体积对比 + img / CSS / 纯 dataURI 三种模板 */
+/** 图片转 Base64（UX1.0）：输出区弹性高度可全屏（rx1）、>100KB 阈值告警跳压缩（rx4）、精确字符数徽章（rx5） */
 import { ref, computed } from 'vue'
 import { Loader2 } from 'lucide-vue-next'
-import { decodeToCanvas, canvasToBlob } from '@/lib/imageEngine'
+import { decodeToCanvas } from '@/lib/imageEngine'
 import { useToast } from '@/composables/useToast'
 import FileDrop from '@/components/common/FileDrop.vue'
 import ResultBox from '@/components/common/ResultBox.vue'
@@ -23,6 +23,8 @@ const out = computed(() => {
 })
 
 const b64Size = computed(() => dataUri.value.length)
+/** rx4：原始 >100KB 时红色告警 */
+const overThreshold = computed(() => origSize.value > 100 * 1024)
 
 async function load(files: File[]) {
   if (!files.length) {
@@ -81,12 +83,19 @@ const fmt = (n: number) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(2)} 
 
     <div v-if="loading" class="row mt-2 muted small"><Loader2 :size="15" class="spin" /> 正在编码…</div>
 
-    <ResultBox v-if="dataUri" v-model="out" title="输出结果" class="mt-2" min-height="160px" readonly />
+    <!-- rx1：下限 480px + ResultBox 弹性高度 + 全屏按钮 -->
+    <ResultBox v-if="dataUri" v-model="out" title="输出结果" class="mt-2" min-height="480px" readonly />
 
     <div v-if="dataUri" class="row row-wrap mt-2" style="gap: 14px">
       <span class="badge badge-plain">原始：{{ fmt(origSize) }}</span>
       <span class="badge badge-plain">Base64：{{ fmt(b64Size) }}</span>
+      <!-- rx5 精确字符数 -->
+      <span class="badge badge-plain">字符数：{{ b64Size.toLocaleString('en-US') }}（≈原始字节 ×1.37）</span>
       <span class="badge">膨胀 ≈ +{{ Math.round(((b64Size - origSize) / Math.max(1, origSize)) * 100) }}%</span>
+      <!-- rx4 阈值告警 -->
+      <span v-if="overThreshold" class="badge over">内联成本高，建议先压缩 ——
+        <RouterLink to="/t/compress-image-to-size" class="link">压缩图片到指定大小</RouterLink>
+      </span>
       <span class="muted small">Base64 编码约比原始二进制大 33%，小图标内联划算，大图不划算</span>
     </div>
   </div>
@@ -95,8 +104,8 @@ const fmt = (n: number) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(2)} 
 <style scoped>
 .tabs {
   display: flex;
-  gap: 8px;
   flex-wrap: wrap;
+  gap: 8px;
 }
 .spin {
   animation: spin 0.8s linear infinite;
@@ -105,5 +114,15 @@ const fmt = (n: number) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(2)} 
   to {
     transform: rotate(360deg);
   }
+}
+.over {
+  background: color-mix(in srgb, var(--err, #e5484d) 12%, transparent);
+  color: var(--err, #e5484d);
+  border: 1px solid color-mix(in srgb, var(--err, #e5484d) 45%, transparent);
+}
+.link {
+  color: inherit;
+  text-decoration: underline;
+  font-weight: 600;
 }
 </style>

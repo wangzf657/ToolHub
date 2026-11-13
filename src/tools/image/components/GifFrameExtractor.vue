@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /** GIF 逐帧提取：gifuct-js 解码 + disposal 合成 → 单帧下载 / 全帧 ZIP */
-import { ref, shallowRef } from 'vue'
+import { computed, ref, shallowRef } from 'vue'
 import { Loader2, Package, Images } from 'lucide-vue-next'
 import FileDrop from '@/components/common/FileDrop.vue'
 import { saveBlob, saveMany, withExt } from '@/lib/download'
@@ -10,9 +10,13 @@ const toast = useToast()
 const file = ref<File | null>(null)
 const busy = ref(false)
 const frames = shallowRef<{ canvas: HTMLCanvasElement; delay: number }[]>([])
-const selectedIndex = ref<number | null>(null)
+/** 多选帧（rx3）：可点击多选 + 范围输入 */
+const selected = ref<number[]>([])
+const rangeFrom = ref<number | ''>('')
+const rangeTo = ref<number | ''>('')
+const decodeProgress = ref('')
 
-const fmtSize = (n: number) => (n >= 1024 * 1024 ? `${(n / 1048576).toFixed(2)} MB` : `${Math.ceil(n / 1024)} KB`)
+const fmtSize = (n: number) => (n >= 1024 * 1024 ? `${(n / 1024).toFixed(2)} MB` : `${Math.ceil(n / 1024)} KB`)
 
 const onFiles = async (files: File[]) => {
   if (!files.length) return
@@ -23,8 +27,11 @@ const onFiles = async (files: File[]) => {
   }
   file.value = f
   frames.value = []
-  selectedIndex.value = null
+  selected.value = []
+  rangeFrom.value = ''
+  rangeTo.value = ''
   busy.value = true
+  decodeProgress.value = '准备解码…'
   try {
     const { parseGIF, decompressFrames } = await import('gifuct-js')
     const buf = await f.arrayBuffer()
@@ -37,6 +44,7 @@ const onFiles = async (files: File[]) => {
     canvas.height = gif.lsd.height
     const ctx = canvas.getContext('2d')!
     const out: { canvas: HTMLCanvasElement; delay: number }[] = []
+    let n = 0
     for (const fr of raw) {
       if (fr.disposalType === 2 || fr.disposalType === 3) {
         ctx.clearRect(fr.dims.left, fr.dims.top, fr.dims.width, fr.dims.height)
@@ -48,8 +56,15 @@ const onFiles = async (files: File[]) => {
       snap.height = gif.lsd.height
       snap.getContext('2d')!.drawImage(canvas, 0, 0)
       out.push({ canvas: snap, delay: fr.delay })
+      // rx4 解码进度：按已合成帧数刷新 + 分片让渡主线程
+      n++
+      decodeProgress.value = `已合成 ${n} / ${raw.length} 帧`
+      if (n % 12 === 0) {
+        await new Promise((r) => setTimeout(r, 0))
+      }
     }
     frames.value = out
+    decodeProgress.value = ''
     toast.ok(`共 ${out.length} 帧 · ${gif.lsd.width}×${gif.lsd.height}`)
   } catch (e) {
     toast.err((e as Error).message || 'GIF 解析失败')
@@ -59,7 +74,33 @@ const onFiles = async (files: File[]) => {
 }
 
 const pickFrame = (i: number) => {
-  selectedIndex.value = selectedIndex.value === i ? null : i
+  const k = selected.value.indexOf(i)
+  if (k >= 0) selected.value = selected.value.filter((x) => x !== i)
+  else selected.value = [...selected.value, i]
+}
+
+/** 导出集合 = 多选 ∪ 范围（rx3），命名沿用原序号 */
+const exportSet = computed(() => {
+  const set = new Set(selected.value)
+  const a = Number(rangeFrom.value)
+  const b = Number(rangeTo.value)
+  if (Number.isFinite(a) && Number.isFinite(b) && a >= 1 && b >= a) {
+    for (let i = a - 1; i <= Math.min(b - 1, frames.value.length - 1); i++) set.add(i)
+  }
+  return [...set].sort((x, y) => x - y)
+})
+
+const downloadSelected = async () => {
+  if (!exportSet.value.length) return
+  const files: { name: string; blob: Blob }[] = []
+  for (const i of exportSet.value) {
+    const f = frames.value[i]
+    if (!f) continue
+    const blob = await new Promise<Blob>((r) => f.canvas.toBlob((b) => r(b!), 'image/png'))
+    files.push({ name: `frame${String(i + 1).padStart(3, '0')}.png`, blob })
+  }
+  await saveMany(files, `${file.value?.name.replace(/\.gif$/i, '') ?? 'gif'}-所选帧.zip`)
+  toast.ok(`已导出所选 ${files.length} 帧`)
 }
 
 const downloadOne = async (i: number) => {
@@ -87,7 +128,7 @@ const totalDelay = () => frames.value.reduce((s, f) => s + f.delay, 0)
   <div>
     <FileDrop accept="image/gif" :multiple="false" label="拖入 GIF 文件" hint="逐帧解码为 PNG · 帧延迟展示 · 全部本地处理" @files="onFiles" />
 
-    <div v-if="busy" class="muted small mt-2"><Loader2 :size="14" class="spin" /> 正在解码帧…</div>
+    <div v-if="busy" class="muted small mt-2"><Loader2 :size="14" class="spin" /> 正在解码帧… {{ decodeProgress }}</div>
 
     <div v-if="frames.length" class="mt-2">
       <div class="row row-wrap mb-2" style="gap: 10px">
@@ -95,12 +136,23 @@ const totalDelay = () => frames.value.reduce((s, f) => s + f.delay, 0)
         <span class="grow"></span>
         <button class="btn btn-primary btn-sm" @click="downloadAll"><Package :size="14" /> 打包全部帧 ZIP</button>
       </div>
+      <div class="row row-wrap mt-1" style="gap: 8px; align-items: center">
+        <span class="field-label">范围导出</span>
+        <input v-model.number="rangeFrom" type="number" min="1" :max="frames.length" class="input" style="width: 80px" placeholder="第 N" />
+        <span class="muted small">~</span>
+        <input v-model.number="rangeTo" type="number" min="1" :max="frames.length" class="input" style="width: 80px" placeholder="第 M" />
+        <button class="btn btn-soft btn-sm" :disabled="!exportSet.length" @click="downloadSelected">
+          导出所选帧 ZIP（{{ exportSet.length }} 帧）
+        </button>
+        <button v-if="selected.length" class="btn btn-ghost btn-sm" @click="selected = []">清空多选</button>
+        <span class="muted small">点击帧格可多选</span>
+      </div>
       <div class="frame-grid">
         <div
           v-for="(f, i) in frames"
           :key="i"
           class="frame-item"
-          :class="{ sel: selectedIndex === i }"
+          :class="{ sel: selected.includes(i) }"
           :title="`第 ${i + 1} 帧 · ${f.delay}ms`"
           @click="pickFrame(i)"
         >
@@ -125,7 +177,10 @@ const totalDelay = () => frames.value.reduce((s, f) => s + f.delay, 0)
   border-radius: 10px;
   overflow: hidden;
   cursor: pointer;
-  background: #fff;
+  /* rx5 主题化帧格：棋盘格底，透明帧边界在暗色模式下同样清晰 */
+  background:
+    repeating-conic-gradient(var(--panel-hover) 0% 25%, transparent 0% 50%) 0 0 / 14px 14px,
+    var(--panel-solid);
 }
 .frame-item.sel {
   border-color: var(--accent);

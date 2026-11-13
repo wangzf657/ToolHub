@@ -42,6 +42,8 @@ const props = withDefaults(
 const emit = defineEmits<{ loaded: [canvas: HTMLCanvasElement]; clear: [] }>()
 const toast = useToast()
 const loading = ref(false)
+/** 首用解码器提示（UX1.0 P0：HEIC/TIFF 需懒加载解码器，等待期给明确文案而非静默） */
+const decoderHint = ref('')
 const file = ref<File | null>(null)
 const source = shallowRef<HTMLCanvasElement | null>(null)
 const output = shallowRef<HTMLCanvasElement | null>(null)
@@ -72,12 +74,24 @@ watch(
   { flush: 'post' },
 )
 
+/** 检测需懒加载解码器的格式，等待期给出体积与提示（不再静默等待） */
+function decoderFor(f: File): string {
+  const type = (f.type || '').toLowerCase()
+  const name = (f.name || '').toLowerCase()
+  const isHeic = type === 'image/heic' || type === 'image/heif' || /\.heic$|\.heif$/.test(name)
+  const isTiff = type === 'image/tiff' || /\.tiff?$/.test(name)
+  if (isHeic) return '首次处理 HEIC 需加载解码器（约 1.4MB），完成后自动开始…'
+  if (isTiff) return '首次处理 TIFF 需加载解码器（约 60KB），完成后自动开始…'
+  return ''
+}
+
 async function onFiles(files: File[]) {
   if (!files.length) {
     resetAll()
     return
   }
   loading.value = true
+  decoderHint.value = decoderFor(files[0]!)
   try {
     const c = await decodeToCanvas(files[0])
     source.value = c
@@ -89,6 +103,7 @@ async function onFiles(files: File[]) {
     resetAll()
   } finally {
     loading.value = false
+    decoderHint.value = ''
   }
 }
 
@@ -173,7 +188,10 @@ defineExpose({ source, output, file, setOutput, download, reset: resetAll })
       @dragleave.prevent="onDragLeave"
       @drop.prevent="onReplaceDrop"
     >
-      <div v-if="loading" class="bt-loading"><Loader2 :size="18" class="spin" /> 正在解码图片…</div>
+      <div v-if="loading" class="bt-loading">
+        <Loader2 :size="18" class="spin" /> 正在解码图片…
+        <span v-if="decoderHint" class="bt-decoder">{{ decoderHint }}</span>
+      </div>
       <div v-show="shown" ref="stage" class="bt-stage"></div>
       <slot />
       <div v-if="!loading" class="row row-wrap mt-2">
@@ -226,10 +244,15 @@ defineExpose({ source, output, file, setOutput, download, reset: resetAll })
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-wrap: wrap;
   gap: 8px;
   padding: 28px 0;
   color: var(--text-2);
   font-size: 14px;
+}
+.bt-decoder {
+  color: var(--warn);
+  font-size: 13px;
 }
 .spin {
   animation: spin 0.8s linear infinite;

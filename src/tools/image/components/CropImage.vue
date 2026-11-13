@@ -1,39 +1,43 @@
 <script setup lang="ts">
-/** 裁剪图片：拖拽选区 + 比例锁定（自由/1:1/4:3/16:9）+ 显示选区像素坐标 */
+/**
+ * 裁剪图片：拖拽选区 + 比例锁定 + 8 手柄调整/整体移动 + 三分参考线（UX1.0）。
+ * 结果前置（P0）：确认裁剪后结果与下载按钮替换原编辑器位置，首屏无需滚动即可见。
+ * 触屏：pointer 事件 + setPointerCapture + touch-action:none。几何逻辑见 cropSel.ts。
+ */
 import { ref, shallowRef, watch, nextTick } from 'vue'
 import { Crop, RefreshCw, Download } from 'lucide-vue-next'
 import { decodeToCanvas, canvasToBlob } from '@/lib/imageEngine'
 import { saveBlob, baseName } from '@/lib/download'
 import { useToast } from '@/composables/useToast'
 import FileDrop from '@/components/common/FileDrop.vue'
+import { HANDLES, handlePts, hitHandle, cursorFor, clampSel, fitRatio, type Sel, type Hit } from './cropSel'
 
 const toast = useToast()
 const file = ref<File | null>(null)
 const src = shallowRef<HTMLCanvasElement | null>(null)
 const overlayEl = ref<HTMLCanvasElement | null>(null)
 const stage = ref<HTMLElement | null>(null)
-const ratio = ref(0) // 0 = 自由，其余为 宽/高
-const sel = ref<{ x: number; y: number; w: number; h: number } | null>(null)
+const stageResult = ref<HTMLElement | null>(null)
+const ratio = ref(0)
+const thirds = ref(false)
+const sel = ref<Sel | null>(null)
 const result = shallowRef<HTMLCanvasElement | null>(null)
-const dragging = ref(false)
-const start = ref<{ x: number; y: number } | null>(null)
 const saving = ref(false)
 
 const RATIOS = [
-  { v: 0, t: '自由' },
-  { v: 1, t: '1:1' },
-  { v: 4 / 3, t: '4:3' },
-  { v: 16 / 9, t: '16:9' },
+  { v: 0, t: '自由' }, { v: 1, t: '1:1' }, { v: 4 / 3, t: '4:3' }, { v: 3 / 4, t: '3:4' },
+  { v: 16 / 9, t: '16:9' }, { v: 9 / 16, t: '9:16' }, { v: 3 / 2, t: '3:2' }, { v: 2 / 3, t: '2:3' },
 ]
 
-/* 原图预览画布与结果画布都由 JS 创建后挂载 */
+/* 源图预览画布：进入编辑态（含从结果返回）都要重新挂载 */
 let mountedView: HTMLCanvasElement | null = null
-watch(src, async (c) => {
+async function mountView() {
   await nextTick()
   if (mountedView) {
     mountedView.remove()
     mountedView = null
   }
+  const c = src.value
   if (!c || !stage.value) return
   const v = document.createElement('canvas')
   v.width = c.width
@@ -41,27 +45,34 @@ watch(src, async (c) => {
   v.getContext('2d')!.drawImage(c, 0, 0)
   stage.value.insertBefore(v, stage.value.firstChild)
   mountedView = v
-})
+  const o = overlayEl.value
+  if (o) {
+    o.width = c.width
+    o.height = c.height
+    drawOverlay()
+  }
+}
+watch(src, mountView)
 
+/* 结果画布挂载 */
 let mountedResult: HTMLCanvasElement | null = null
 watch(result, async (c) => {
   await nextTick()
-  const el = stageResult.value
   if (mountedResult) {
     mountedResult.remove()
     mountedResult = null
   }
-  if (c && el) {
+  if (c && stageResult.value) {
     c.style.maxWidth = '100%'
+    c.style.maxHeight = 'min(60vh, 640px)'
+    c.style.width = 'auto'
     c.style.height = 'auto'
     c.style.display = 'block'
     c.style.margin = '0 auto'
-    el.appendChild(c)
+    stageResult.value.appendChild(c)
     mountedResult = c
   }
 })
-
-const stageResult = ref<HTMLElement | null>(null)
 
 async function onFiles(files: File[]) {
   if (!files.length) {
@@ -73,13 +84,7 @@ async function onFiles(files: File[]) {
     file.value = files[0]
     sel.value = null
     result.value = null
-    await nextTick()
-    const o = overlayEl.value
-    if (o) {
-      o.width = src.value.width
-      o.height = src.value.height
-      drawOverlay()
-    }
+    await mountView()
   } catch (e) {
     toast.err((e as Error).message || '图片解码失败')
   }
@@ -105,6 +110,29 @@ function drawOverlay() {
   ctx.strokeStyle = '#4f7dff'
   ctx.lineWidth = Math.max(1.5, o.width / 400)
   ctx.strokeRect(x, y, w, h)
+  if (thirds.value && w > 12 && h > 12) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.55)'
+    ctx.lineWidth = Math.max(1, o.width / 800)
+    ctx.setLineDash([6, 6])
+    for (let i = 1; i <= 2; i++) {
+      ctx.beginPath()
+      ctx.moveTo(x + (w * i) / 3, y)
+      ctx.lineTo(x + (w * i) / 3, y + h)
+      ctx.stroke()
+      ctx.beginPath()
+      ctx.moveTo(x, y + (h * i) / 3)
+      ctx.lineTo(x + w, y + (h * i) / 3)
+      ctx.stroke()
+    }
+    ctx.setLineDash([])
+  }
+  const hs = Math.max(6, o.width / 160)
+  ctx.fillStyle = '#ffffff'
+  ctx.strokeStyle = '#4f7dff'
+  for (const [hx, hy] of handlePts(sel.value)) {
+    ctx.fillRect(hx - hs / 2, hy - hs / 2, hs, hs)
+    ctx.strokeRect(hx - hs / 2, hy - hs / 2, hs, hs)
+  }
 }
 
 function toImage(e: PointerEvent) {
@@ -116,36 +144,84 @@ function toImage(e: PointerEvent) {
   }
 }
 
+/* ---- 选区交互状态 ---- */
+let hit: Hit = null
+let dragging = false
+let dragStart: { x: number; y: number } | null = null
+let selStart: Sel | null = null
+
 function onDown(e: PointerEvent) {
-  // 只响应主指针：触屏多指/笔+手并用时不误重置选区
   if (!overlayEl.value || !e.isPrimary) return
   e.preventDefault()
-  // 捕获指针：手指/笔拖出画布仍持续跟踪，松开自动释放（触屏拖拽不再触发页面滚动）
   ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
-  dragging.value = true
-  start.value = toImage(e)
-  sel.value = null
-  result.value = null
+  const p = toImage(e)
+  hit = hitHandle(sel.value, p, handleThr())
+  dragStart = p
+  selStart = sel.value ? { ...sel.value } : null
+  dragging = true
+  if (!hit) {
+    sel.value = null
+    result.value = null
+  }
   drawOverlay()
 }
 
+function handleThr(): number {
+  const o = overlayEl.value!
+  return Math.max(8, (o.width / o.getBoundingClientRect().width) * 12)
+}
+
 function onMove(e: PointerEvent) {
-  if (!dragging.value || !start.value || !src.value || !e.isPrimary) return
+  if (!src.value || !e.isPrimary) return
   const p = toImage(e)
-  let x = Math.max(0, Math.min(Math.min(p.x, start.value.x), src.value.width))
-  let y = Math.max(0, Math.min(Math.min(p.y, start.value.y), src.value.height))
-  let w = Math.min(Math.abs(p.x - start.value.x), src.value.width - x)
-  let h = Math.min(Math.abs(p.y - start.value.y), src.value.height - y)
-  if (ratio.value > 0 && w > 0 && h > 0) {
-    if (w / h > ratio.value) w = h * ratio.value
-    else h = w / ratio.value
+  const c = src.value
+  if (!dragging) {
+    overlayEl.value!.style.cursor = cursorFor(hitHandle(sel.value, p, handleThr()))
+    return
   }
-  sel.value = { x, y, w, h }
+  if (!hit || !selStart || !dragStart) {
+    // 新画选区
+    const x = Math.max(0, Math.min(p.x, dragStart!.x))
+    const y = Math.max(0, Math.min(p.y, dragStart!.y))
+    sel.value = { x, y, w: Math.abs(p.x - dragStart!.x), h: Math.abs(p.y - dragStart!.y) }
+    fitRatio(sel.value, ratio.value, c.width, c.height)
+  } else if (hit === 'move') {
+    const dx = p.x - dragStart.x
+    const dy = p.y - dragStart.y
+    sel.value = {
+      x: Math.max(0, Math.min(selStart.x + dx, c.width - selStart.w)),
+      y: Math.max(0, Math.min(selStart.y + dy, c.height - selStart.h)),
+      w: selStart.w,
+      h: selStart.h,
+    }
+  } else {
+    // 手柄调整：以对边/对角为锚点，比例约束后回补锚点侧
+    const h = HANDLES.find((x) => x.k === hit)!
+    const x1 = h.dx === 0 ? Math.max(0, Math.min(p.x, selStart.x + selStart.w - 4)) : selStart.x
+    const x2 = h.dx === 1 ? Math.min(c.width, Math.max(p.x, selStart.x + 4)) : selStart.x + selStart.w
+    const y1 = h.dy === 0 ? Math.max(0, Math.min(p.y, selStart.y + selStart.h - 4)) : selStart.y
+    const y2 = h.dy === 1 ? Math.min(c.height, Math.max(p.y, selStart.y + 4)) : selStart.y + selStart.h
+    const s: Sel = { x: x1, y: y1, w: x2 - x1, h: y2 - y1 }
+    const rw = s.w
+    const rh = s.h
+    fitRatio(s, ratio.value, c.width, c.height)
+    if (ratio.value > 0) {
+      if (h.dx === 0) s.x = x1 + rw - s.w
+      if (h.dy === 0) s.y = y1 + rh - s.h
+      if (h.dx === 0.5) s.x = selStart.x + selStart.w / 2 - s.w / 2
+      if (h.dy === 0.5) s.y = selStart.y + selStart.h / 2 - s.h / 2
+      clampSel(s, c.width, c.height)
+    }
+    sel.value = s
+  }
   drawOverlay()
 }
 
 function onUp() {
-  dragging.value = false
+  dragging = false
+  hit = null
+  dragStart = null
+  selStart = null
 }
 
 function confirmCrop() {
@@ -174,6 +250,26 @@ async function download() {
     saving.value = false
   }
 }
+
+function applyRatioChip(v: number) {
+  ratio.value = v
+  if (sel.value) {
+    fitRatio(sel.value, v, src.value!.width, src.value!.height)
+    drawOverlay()
+  }
+}
+
+/** 返回编辑态：重挂源图画布与覆盖层 */
+async function backToEdit() {
+  result.value = null
+  await mountView()
+}
+
+async function reselect() {
+  sel.value = null
+  result.value = null
+  await mountView()
+}
 </script>
 
 <template>
@@ -183,51 +279,54 @@ async function download() {
       accept="image/*"
       :multiple="false"
       label="拖放图片到此处"
-      hint="在图片上拖拽出裁剪区域，支持比例锁定"
+      hint="在图片上拖拽出裁剪区域，支持比例锁定与手柄微调"
       @files="onFiles"
     />
     <div v-else>
-      <div class="row row-wrap mt-1" style="gap: 8px">
-        <button v-for="r in RATIOS" :key="r.t" class="chip" :class="{ active: ratio === r.v }" @click="ratio = r.v">
-          {{ r.t }}
-        </button>
-        <span class="row" style="margin-left: auto; gap: 6px">
-          <button class="btn btn-ghost btn-sm" @click="((sel = null), (result = null), drawOverlay())">
-            <RefreshCw :size="14" /> 重新框选
+      <template v-if="!result">
+        <div class="row row-wrap mt-1" style="gap: 8px">
+          <button v-for="r in RATIOS" :key="r.t" class="chip" :class="{ active: ratio === r.v }" @click="applyRatioChip(r.v)">
+            {{ r.t }}
           </button>
-          <button class="btn btn-ghost btn-sm" @click="resetAll">换一张</button>
-        </span>
-      </div>
-
-      <div class="stage-wrap mt-2">
-        <div ref="stage" class="stage">
-          <canvas
-            v-show="src"
-            ref="overlayEl"
-            class="overlay-cv"
-            @pointerdown="onDown"
-            @pointermove="onMove"
-            @pointerup="onUp"
-            @pointerleave="onUp"
-            @pointercancel="onUp"
-          ></canvas>
+          <label class="check"><input v-model="thirds" type="checkbox" @change="drawOverlay" /> 三分参考线</label>
+          <span class="row" style="margin-left: auto; gap: 6px">
+            <button class="btn btn-ghost btn-sm" @click="reselect"><RefreshCw :size="14" /> 重新框选</button>
+            <button class="btn btn-ghost btn-sm" @click="resetAll">换一张</button>
+          </span>
         </div>
-      </div>
 
-      <p class="muted small mt-1">
-        <template v-if="sel">选区：X {{ Math.round(sel.x) }}，Y {{ Math.round(sel.y) }}，宽 {{ Math.round(sel.w) }}，高 {{ Math.round(sel.h) }} px</template>
-        <template v-else>在图上按住拖拽即可框选（支持鼠标、触摸与手写笔）</template>
-      </p>
+        <div class="stage-wrap mt-2">
+          <div ref="stage" class="stage">
+            <canvas
+              v-show="src"
+              ref="overlayEl"
+              class="overlay-cv"
+              @pointerdown="onDown"
+              @pointermove="onMove"
+              @pointerup="onUp"
+              @pointerleave="onUp"
+              @pointercancel="onUp"
+            ></canvas>
+          </div>
+        </div>
 
-      <div class="row mt-2">
-        <button class="btn btn-primary" @click="confirmCrop"><Crop :size="16" /> 确认裁剪</button>
-      </div>
+        <p class="muted small mt-1">
+          <template v-if="sel">选区：X {{ Math.round(sel.x) }}，Y {{ Math.round(sel.y) }}，宽 {{ Math.round(sel.w) }}，高 {{ Math.round(sel.h) }} px · 拖手柄改尺寸，拖内部移动</template>
+          <template v-else>在图上按住拖拽即可框选（支持鼠标、触摸与手写笔）</template>
+        </p>
 
-      <div v-if="result" class="mt-3">
+        <div class="row mt-2">
+          <button class="btn btn-primary" @click="confirmCrop"><Crop :size="16" /> 确认裁剪</button>
+        </div>
+      </template>
+
+      <!-- 结果前置（P0）：替换编辑器位置，首屏即可下载 -->
+      <div v-else>
         <div class="field-label">裁剪结果（{{ result.width }} × {{ result.height }} px）</div>
         <div ref="stageResult" class="result-stage mt-1"></div>
         <div class="row mt-2">
           <button class="btn btn-primary" :disabled="saving" @click="download"><Download :size="16" /> 下载 PNG</button>
+          <button class="btn btn-ghost" @click="backToEdit">返回调整选区</button>
         </div>
       </div>
     </div>
@@ -246,7 +345,6 @@ async function download() {
   display: inline-block;
   max-width: 100%;
   line-height: 0;
-  /* 触屏拖拽框选时禁止浏览器默认滚动/缩放手势 */
   touch-action: none;
 }
 .stage :deep(canvas:first-child) {

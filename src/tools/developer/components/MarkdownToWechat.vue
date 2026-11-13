@@ -26,12 +26,55 @@ const render = async () => {
   busy.value = true
   try {
     html.value = await mdToWechatHtml(input.value, theme.value)
+    html.value = await inlineHighlight(html.value)
     copied.value = false
   } catch (e) {
     toast.err((e as Error).message || '渲染失败')
   } finally {
     busy.value = false
   }
+}
+
+/** 代码高亮（rx4）：公众号不执行外部 CSS，token 全部内联着色 */
+const HL_COLORS: Record<string, string> = {
+  'hljs-keyword': '#c678dd',
+  'hljs-string': '#98c379',
+  'hljs-number': '#d19a66',
+  'hljs-comment': '#7f848e',
+  'hljs-title': '#61afef',
+  'hljs-function': '#61afef',
+  'hljs-attr': '#d19a66',
+  'hljs-built_in': '#e5c07b',
+  'hljs-literal': '#56b6c2',
+  'hljs-type': '#e5c07b',
+  'hljs-variable': '#e06c75',
+}
+const inlineHighlight = async (htmlStr: string): Promise<string> => {
+  const div = document.createElement('div')
+  div.innerHTML = htmlStr
+  const codes = div.querySelectorAll('pre code')
+  if (!codes.length) return htmlStr
+  try {
+    const hljs = (await import('highlight.js/lib/common')).default
+    codes.forEach((el) => {
+      const lang = [...el.classList].find((c) => c.startsWith('language-'))?.slice(9)
+      const src = el.textContent ?? ''
+      try {
+        const res = lang && hljs.getLanguage(lang) ? hljs.highlight(src, { language: lang }) : hljs.highlightAuto(src)
+        el.innerHTML = res.value
+        // class 着色改内联（公众号剥外部 CSS）
+        el.querySelectorAll('span[class^="hljs-"]').forEach((sp) => {
+          const color = HL_COLORS[sp.className]
+          if (color) sp.setAttribute('style', `color:${color};`)
+        })
+      } catch {
+        /* 未知语言保留原文 */
+      }
+    })
+  } catch {
+    /* highlight.js 加载失败则不做高亮 */
+  }
+  return div.innerHTML
 }
 
 const copyRich = async () => {
@@ -95,7 +138,8 @@ const copyRich = async () => {
   background: #ffffff;
   padding: 18px 16px;
   min-height: 400px;
-  max-height: 560px;
+  /* 弹性高度（rx5）：随视口伸展，长文预览少滚屏 */
+  max-height: max(560px, calc(100vh - 330px));
   overflow: auto;
   color: #333;
 }

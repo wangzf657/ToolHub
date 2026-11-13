@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { provide, reactive, ref, watch } from 'vue'
-import { Search, Expand, Shrink, Binary } from 'lucide-vue-next'
+import { onBeforeUnmount, onMounted, provide, reactive, ref, watch } from 'vue'
+import { Search, Expand, Shrink, Binary, RefreshCw, Maximize } from 'lucide-vue-next'
 import JsonTreeNode from './JsonTreeNode.vue'
 import { useToast } from '@/composables/useToast'
 
@@ -10,6 +10,10 @@ const parsed = ref<unknown>(null)
 const errMsg = ref('')
 const keyword = ref('')
 const stats = ref<{ nodes: number; depth: number; keys: number } | null>(null)
+/** 树区全屏（fixed 覆盖整页，含侧栏） */
+const fullscreen = ref(false)
+/** 搜索命中数：自身键名或标量值含关键词的节点总数 */
+const hitCount = ref(0)
 
 /** 全站展开状态：路径集合（默认展开前两层） */
 const expanded = reactive(new Set<string>())
@@ -62,7 +66,10 @@ const doParse = () => {
   expanded.clear()
   parsed.value = null
   const t = input.value.trim()
-  if (!t) return
+  if (!t) {
+    hitCount.value = 0
+    return
+  }
   try {
     const data = JSON.parse(t)
     parsed.value = data
@@ -80,20 +87,53 @@ const doParse = () => {
     const acc = { nodes: 0, depth: 0, keys: 0 }
     measure(data, 0, acc)
     stats.value = acc
+    recountHits()
     if (acc.nodes > 50000) toast.warn('JSON 规模较大（超过 5 万节点），已按懒展开渲染，展开深层节点可能稍慢')
   } catch (e) {
     errMsg.value = `JSON 解析失败：${(e as Error).message}`
+    hitCount.value = 0
   }
+}
+
+/** 重新解析：回到根视图（默认两层展开），保留输入内容 */
+const reparse = () => doParse()
+
+/** 统计自身命中节点数（键名或标量值含关键词，容器节点按键名计） */
+function countSelfHits(v: unknown, kw: string, name?: string): number {
+  let n = 0
+  if (name && name.toLowerCase().includes(kw)) n++
+  if (Array.isArray(v)) {
+    for (const x of v) n += countSelfHits(x, kw)
+  } else if (v !== null && typeof v === 'object') {
+    for (const [k, x] of Object.entries(v as Record<string, unknown>)) n += countSelfHits(x, kw, k)
+  } else {
+    const s = v === null ? 'null' : typeof v === 'string' ? JSON.stringify(v) : String(v)
+    if (s.toLowerCase().includes(kw)) n++
+  }
+  return n
+}
+
+const recountHits = () => {
+  const k = keyword.value.trim().toLowerCase()
+  hitCount.value = parsed.value !== null && k ? countSelfHits(parsed.value, k) : 0
 }
 
 watch(keyword, (kw) => {
   if (!parsed.value) return
   const k = kw.trim().toLowerCase()
+  recountHits()
   if (!k) return
   const hits: string[] = []
   collectHitPaths(parsed.value, '', k, hits)
   for (const p of hits) expanded.add(p)
 })
+
+/* ---------- 全屏：Esc 退出 ---------- */
+const onKey = (e: KeyboardEvent) => {
+  if (e.key === 'Escape') fullscreen.value = false
+}
+onMounted(() => window.addEventListener('keydown', onKey))
+onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 
 const expandAll = () => {
   if (!parsed.value) return
@@ -115,7 +155,10 @@ const collapseAll = () => {
 
 <template>
   <div class="jv">
-    <span class="field-label">粘贴 JSON（对象或数组，实时解析）</span>
+    <div class="row row-wrap" style="align-items: center; gap: 8px">
+      <span class="field-label">粘贴 JSON（对象或数组，实时解析）</span>
+      <button class="btn btn-ghost btn-sm" :disabled="!input.trim()" @click="reparse"><RefreshCw :size="13" /> 重新解析</button>
+    </div>
     <textarea v-model="input" class="textarea mono" style="min-height: 110px" placeholder='如 {"name": "百宝", "tags": ["dev", "tools"], "meta": {"ok": true}}'></textarea>
 
     <div v-if="errMsg" class="notice notice-err mt-2 small">{{ errMsg }}</div>
@@ -125,19 +168,24 @@ const collapseAll = () => {
         <div class="search-box">
           <Search :size="14" />
           <input v-model="keyword" class="input" placeholder="搜索键名或值（命中自动展开并高亮）" />
+          <span v-if="keyword.trim()" class="hit-badge small">命中 {{ hitCount }} 处</span>
         </div>
         <button class="btn btn-soft btn-sm" @click="expandAll"><Expand :size="14" /> 全部展开</button>
         <button class="btn btn-ghost btn-sm" @click="collapseAll"><Shrink :size="14" /> 全部折叠</button>
+        <button class="btn btn-ghost btn-sm" @click="fullscreen = true"><Maximize :size="14" /> 全屏</button>
         <span class="muted small stats" v-if="stats">
           <Binary :size="13" style="vertical-align: -2px" />
           {{ stats.nodes }} 个节点 · 最大层级 {{ stats.depth + 1 }} · {{ stats.keys }} 个键值对
         </span>
       </div>
 
-      <div class="tree mt-2">
+      <div class="tree mt-2" :class="{ full: fullscreen }">
+        <div v-if="fullscreen" class="row full-bar">
+          <button class="btn btn-ghost btn-sm" @click="fullscreen = false"><Shrink :size="14" /> 退出全屏（Esc）</button>
+        </div>
         <JsonTreeNode :value="parsed" path="" :keyword="keyword" is-root />
       </div>
-      <p class="muted small mt-2">提示：点击键名复制路径（如 data.list[0].id），点击值复制原值；点击箭头或括号折叠展开，深层节点懒渲染不卡顿。</p>
+      <p class="muted small mt-2">提示：点击键名复制路径，右键键名复制 JSONPath（$ 格式，可直接粘贴到 JSONPath 测试器）；点击值复制原值；点击箭头或括号折叠展开，深层节点懒渲染不卡顿。</p>
     </div>
   </div>
 </template>
@@ -146,13 +194,38 @@ const collapseAll = () => {
 .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .search-box { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 220px; color: var(--text-3); }
 .search-box .input { flex: 1; }
+.hit-badge {
+  flex: none;
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-weight: 600;
+}
 .stats { margin-left: auto; }
+/* 树区弹性高度：视口为主，下限 480px；全屏时 fixed 覆盖整页（含侧栏） */
 .tree {
   padding: 12px 14px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: color-mix(in srgb, var(--panel-solid) 55%, transparent);
-  max-height: 480px;
+  height: max(480px, calc(100vh - 380px));
   overflow: auto;
+}
+.tree.full {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  height: 100vh;
+  max-height: none;
+  border-radius: 0;
+  background: var(--bg);
+}
+.tree.full .full-bar {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg);
+  padding-bottom: 6px;
 }
 </style>

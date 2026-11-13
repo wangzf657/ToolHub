@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Scissors, Download, Sparkles } from 'lucide-vue-next'
 import FileDrop from '@/components/common/FileDrop.vue'
 import { optimizeSvg } from '@/lib/jsEngine'
 import { saveBlob } from '@/lib/download'
 import { useToast } from '@/composables/useToast'
+import { debounceRun } from '@/composables/usePasteRun'
 
 const toast = useToast()
 const input = ref('')
@@ -36,6 +37,7 @@ const runOptimize = () => {
     afterSize.value = bytes(output.value)
     savedPct.value = beforeSize.value ? Math.max(0, Math.round((1 - afterSize.value / beforeSize.value) * 100)) : 0
     toast.ok(`优化完成，节省 ${savedPct.value}%`)
+    previewDoc.value = output.value // 优化成功即自动刷新预览（rx2）
   } catch (e) {
     toast.err(`优化失败：${(e as Error).message}`)
   }
@@ -51,6 +53,27 @@ const showPreview = () => {
   if (!output.value) return
   previewDoc.value = output.value
 }
+
+/* 对比滑块（rx4）：左右拖动比较原始与优化结果 */
+const splitPct = ref(50)
+const dragging = ref(false)
+const onDrag = (e: MouseEvent | TouchEvent) => {
+  if (!dragging.value) return
+  const stage = (e.currentTarget as HTMLElement)
+  const rect = stage.getBoundingClientRect()
+  const x = 'touches' in e ? e.touches[0]!.clientX : e.clientX
+  splitPct.value = Math.min(100, Math.max(0, ((x - rect.left) / rect.width) * 100))
+}
+
+/* 预览实时化（rx2）：优化成功即刷新预览；精度/开关/输入变化 400ms 防抖自动重跑 */
+let deb: { call: () => void; cancel: () => void } | null = null
+onMounted(() => {
+  deb = debounceRun(() => {
+    if (input.value.trim()) runOptimize()
+  }, 400)
+})
+onBeforeUnmount(() => deb?.cancel())
+watch([input, precision, removeMeta], () => deb?.call())
 
 const download = () => {
   if (!output.value) return
@@ -99,8 +122,24 @@ const download = () => {
       <button class="btn btn-primary btn-sm" :disabled="!output" @click="download"><Download :size="14" /> 下载 SVG</button>
     </div>
 
-    <div v-if="previewDoc" class="preview mt-2">
-      <img :src="`data:image/svg+xml;utf8,${encodeURIComponent(previewDoc)}`" alt="SVG 预览" />
+    <div v-if="previewDoc && input.trim()" class="preview mt-2">
+      <span class="field-label">原 / 优对比（拖动分割线比较细节）</span>
+      <div
+        class="cmp-stage"
+        @mousedown="dragging = true"
+        @mousemove="onDrag"
+        @mouseup="dragging = false"
+        @mouseleave="dragging = false"
+        @touchstart.prevent="dragging = true"
+        @touchmove.prevent="onDrag"
+        @touchend="dragging = false"
+      >
+        <img class="layer" :src="`data:image/svg+xml;utf8,${encodeURIComponent(input)}`" alt="原始 SVG" />
+        <img class="layer clip" :style="{ width: splitPct + '%' }" :src="`data:image/svg+xml;utf8,${encodeURIComponent(previewDoc)}`" alt="优化后 SVG" />
+        <div class="split" :style="{ left: splitPct + '%' }"></div>
+        <span class="tag l">原始</span>
+        <span class="tag r">优化后</span>
+      </div>
     </div>
   </div>
 </template>
@@ -137,6 +176,13 @@ const download = () => {
   min-width: 64px;
   text-align: right;
 }
+.cmp-stage { position: relative; display: block; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; max-height: 380px; cursor: col-resize; background: repeating-conic-gradient(#0002 0% 25%, transparent 0% 50%) 0 0 / 16px 16px; }
+.cmp-stage .layer { display: block; width: 100%; height: auto; }
+.cmp-stage .clip { position: absolute; inset: 0 auto 0 0; width: 50%; object-fit: contain; object-position: left top; max-width: 100%; }
+.cmp-stage .split { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--accent); pointer-events: none; }
+.cmp-stage .tag { position: absolute; top: 6px; font-size: 11px; padding: 1px 8px; border-radius: 999px; background: rgba(0,0,0,.55); color: #fff; }
+.cmp-stage .tag.l { left: 8px; }
+.cmp-stage .tag.r { right: 8px; }
 .preview {
   border: 1px solid var(--border);
   border-radius: 12px;

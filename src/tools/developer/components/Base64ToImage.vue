@@ -1,30 +1,47 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { Image as ImageIcon, Download } from 'lucide-vue-next'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { Image as ImageIcon, Download, ZoomIn } from 'lucide-vue-next'
 import { saveBlob, copyText } from '@/lib/download'
 import { useToast } from '@/composables/useToast'
+import { installPasteRun } from '@/composables/usePasteRun'
 
 const toast = useToast()
 const text = ref('')
 const src = ref('')
 const info = ref<{ w: number; h: number; bytes: number; mime: string } | null>(null)
 const error = ref('')
+/** 点击预览放大查看（max-height 80vh） */
+const zoomed = ref(false)
+const textEl = ref<HTMLTextAreaElement | null>(null)
+let unbindPaste: (() => void) | null = null
 
-/** 归一化输入为 data URI，并推断 mime */
+onMounted(() => {
+  // rx2 粘贴即解码：粘贴落地后自动预览
+  unbindPaste = installPasteRun(textEl.value, preview)
+})
+onBeforeUnmount(() => unbindPaste?.())
+
+/** 归一化输入为 data URI，并推断 mime；兼容 URL-safe（-_）字符并自动补齐 */
 function normalize(input: string): string | null {
   let s = input.trim()
   if (!s) return null
   s = s.replace(/^["']|["'];?$/g, '').replace(/\s+/g, '')
   const m = s.match(/^data:([^;,]+)?(;base64)?,(.*)$/s)
-  if (m) return `data:${m[1] || 'image/png'};base64,${m[3]}`
-  // 纯 base64：猜测 mime
+  if (m) return `data:${m[1] || 'image/png'};base64,${m[3].replace(/-/g, '+').replace(/_/g, '/')}`
+  // 纯 base64（含 URL-safe 变体）：归一化 + 补齐后猜测 mime
   if (/^[A-Za-z0-9+/\-_]+={0,2}$/.test(s)) {
-    const head = atob(s.slice(0, 24).padEnd(24, 'A')).slice(0, 4)
-    let mime = 'image/png'
-    if (head.startsWith('ÿØ')) mime = 'image/jpeg'
-    else if (head.startsWith('GIF8')) mime = 'image/gif'
-    else if (head.startsWith('RIFF')) mime = 'image/webp'
-    return `data:${mime};base64,${s}`
+    const std = s.replace(/-/g, '+').replace(/_/g, '/')
+    try {
+      const probe = std.slice(0, 24).padEnd(24, 'A')
+      const head = atob(probe).slice(0, 4)
+      let mime = 'image/png'
+      if (head.startsWith('ÿØ')) mime = 'image/jpeg'
+      else if (head.startsWith('GIF8')) mime = 'image/gif'
+      else if (head.startsWith('RIFF')) mime = 'image/webp'
+      return `data:${mime};base64,${std}`
+    } catch {
+      return null
+    }
   }
   return null
 }
@@ -34,7 +51,7 @@ const preview = () => {
   info.value = null
   const uri = normalize(text.value)
   if (!uri) {
-    error.value = '无法识别输入：请粘贴 data URI（data:image/png;base64,…）或纯 Base64 字符串。'
+    error.value = '无法识别输入：请粘贴 data URI（data:image/png;base64,…）或纯 Base64 字符串（支持 URL-safe 变体）。'
     return
   }
   const img = new Image()
@@ -74,29 +91,49 @@ const download = () => {
 
 const sizeLabel = (n: number) => (n > 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(2)} MB` : n > 1024 ? `${(n / 1024).toFixed(1)} KB` : `${n} B`)
 
-const copyUri = async () => {
+const copyAs = async (kind: 'uri' | 'img' | 'css') => {
   if (!src.value) return
-  const okFlag = await copyText(src.value)
-  okFlag ? toast.ok('data URI 已复制') : toast.err('复制失败')
+  const textMap = {
+    uri: src.value,
+    img: `<img src="${src.value}" alt="" />`,
+    css: `background-image:url(${src.value});`,
+  }
+  const okFlag = await copyText(textMap[kind])
+  const label = kind === 'uri' ? 'data URI' : kind === 'img' ? 'img 标签' : 'CSS background'
+  okFlag ? toast.ok(`${label} 已复制`) : toast.err('复制失败')
 }
 </script>
 
 <template>
   <div class="b64img">
     <span class="field-label">Base64 / Data URI 输入</span>
-    <textarea v-model="text" class="textarea mono" style="min-height: 130px" placeholder="data:image/png;base64,iVBORw0KGgo… 或纯 Base64 字符串"></textarea>
+    <textarea
+      ref="textEl"
+      v-model="text"
+      class="textarea mono"
+      style="min-height: 130px"
+      placeholder="data:image/png;base64,iVBORw0KGgo… 或纯 Base64 字符串（支持 URL-safe）"
+    ></textarea>
 
-    <div class="row mt-2">
+    <div class="row mt-2 row-wrap">
       <button class="btn btn-primary" @click="preview"><ImageIcon :size="16" /> 加载预览</button>
       <button v-if="src" class="btn btn-ghost" @click="download"><Download :size="16" /> 下载 .{{ ext() }}</button>
-      <button v-if="src" class="btn btn-ghost" @click="copyUri">复制 Data URI</button>
+      <button v-if="src" class="btn btn-ghost" @click="copyAs('uri')">复制 Data URI</button>
+      <button v-if="src" class="btn btn-ghost" @click="copyAs('img')">复制 img 标签</button>
+      <button v-if="src" class="btn btn-ghost" @click="copyAs('css')">复制 CSS background</button>
+      <RouterLink class="btn btn-ghost btn-sm" to="/t/image-to-base64">反向操作：图片转 Base64 →</RouterLink>
+    </div>
+
+    <div v-if="!text && !src" class="notice notice-info mt-2">
+      把图片的 Base64 或 data URI 粘贴到上方即可预览与还原文件；需要反向操作请用 <RouterLink to="/t/image-to-base64">图片转 Base64</RouterLink>。
     </div>
 
     <div v-if="error" class="notice notice-err mt-2">{{ error }}</div>
 
     <div v-if="src" class="grid-2 mt-3" style="gap: 16px; align-items: start">
-      <div class="preview-card">
-        <img :src="src" alt="预览" />
+      <div class="preview-card" :title="zoomed ? '点击还原' : '点击放大查看'" @click="zoomed = !zoomed">
+        <img :src="src" alt="预览" :class="{ zoomed }" />
+        <span class="zoom-hint muted small"><ZoomIn :size="13" /> {{ zoomed ? '点击还原' : '点击放大' }}</span>
       </div>
       <div v-if="info" class="meta">
         <div class="meta-row"><span>尺寸</span><b>{{ info.w }} × {{ info.h }} px</b></div>
@@ -118,11 +155,26 @@ const copyUri = async () => {
   display: grid;
   place-items: center;
   min-height: 160px;
+  cursor: zoom-in;
+  gap: 8px;
+}
+.preview-card:has(.zoomed) {
+  cursor: zoom-out;
 }
 .preview-card img {
   max-width: 100%;
   max-height: 320px;
   border-radius: 6px;
+  transition: max-height 0.2s ease;
+}
+.preview-card img.zoomed {
+  max-height: 80vh;
+  max-width: 100%;
+}
+.zoom-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 .meta {
   display: grid;

@@ -157,8 +157,9 @@ export function nextRuns(expr: string, count = 5): { runs: Date[]; error?: strin
 </script>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { CalendarClock, Timer } from 'lucide-vue-next'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { CalendarClock, Copy, Timer } from 'lucide-vue-next'
+import { copyText } from '@/lib/download'
 import { useToast } from '@/composables/useToast'
 
 const toast = useToast()
@@ -166,12 +167,62 @@ const expr = ref('*/5 9-18 * * 1-5')
 const result = ref<ReturnType<typeof explainCron> | null>(null)
 const runs = ref<Date[]>([])
 const runError = ref('')
+const liveError = ref('')
+/** 光标所在字段（0-4），字段表联动高亮 */
+const activeField = ref(-1)
+
+/* 实时解读：400ms 防抖；非法中间态保留上次合法结果 + 错误条 */
+let timer: number | null = null
+watch(expr, () => {
+  if (timer !== null) window.clearTimeout(timer)
+  timer = window.setTimeout(() => {
+    const ex = explainCron(expr.value)
+    if (ex.ok) {
+      result.value = ex
+      const r = nextRuns(expr.value, 3)
+      runs.value = r.runs
+      runError.value = r.error ?? ''
+      liveError.value = ''
+    } else {
+      liveError.value = ex.error ?? '表达式无效'
+    }
+  }, 400)
+})
+onBeforeUnmount(() => {
+  if (timer !== null) window.clearTimeout(timer)
+})
+
+/* Quartz 提示：6/7 字段或含 ? 时提示本工具仅支持 5 字段 */
+const quartzHint = computed(() => {
+  const t = expr.value.trim()
+  if (!t) return ''
+  const n = t.split(/\s+/).length
+  if (n >= 6 || t.includes('?')) return '疑似 Quartz 语法（秒 年，或使用 ? 占位）：本工具仅支持 5 字段标准 crontab，请去掉秒与年份字段、把 ? 改为 * 后重试。'
+  return ''
+})
+
+/* 字段联动：光标定位到第几个字段 */
+const trackField = (e: Event) => {
+  const el = e.target as HTMLInputElement
+  const before = expr.value.slice(0, el.selectionStart ?? 0)
+  const tokens = before.split(/\s+/)
+  activeField.value = tokens.length - 1
+}
+
+/* 复制解读：summary + 未来执行时间（本地格式，共 N 行） */
+const copyExplain = async () => {
+  if (!result.value?.ok) return
+  const lines = [result.value.summary, ...runs.value.map((r, i) => `第 ${i + 1} 次：${r.toLocaleString('zh-CN', { hour12: false })}`)]
+  if (await copyText(lines.join('\n'))) toast.ok(`已复制解读（共 ${lines.length} 行）`)
+  else toast.err('复制失败')
+}
 
 const run = () => {
   const ex = explainCron(expr.value)
   result.value = ex
   runs.value = []
   runError.value = ''
+  liveError.value = ''
   if (!ex.ok) {
     toast.err(ex.error ?? '表达式无效')
     return
@@ -181,29 +232,54 @@ const run = () => {
   runError.value = r.error ?? ''
   toast.ok('解读完成')
 }
+
+/* 初始即解读一次（与实时口径一致） */
+{
+  const ex = explainCron(expr.value)
+  if (ex.ok) {
+    result.value = ex
+    const r = nextRuns(expr.value, 3)
+    runs.value = r.runs
+  }
+}
 </script>
 
 <template>
   <div class="cron-explainer">
     <span class="field-label">Cron 表达式（5 字段：分 时 日 月 星期）</span>
     <div class="row" style="gap: 8px">
-      <input v-model="expr" type="text" class="input mono grow" placeholder="*/5 9-18 * * 1-5" spellcheck="false" @keyup.enter="run" />
+      <input
+        v-model="expr"
+        type="text"
+        class="input mono grow"
+        placeholder="*/5 9-18 * * 1-5"
+        spellcheck="false"
+        @keyup.enter="run"
+        @keyup="trackField"
+        @click="trackField"
+        @focus="trackField"
+      />
       <button class="btn btn-primary" @click="run"><CalendarClock :size="16" /> 解读</button>
     </div>
 
-    <div v-if="result && !result.ok" class="notice notice-err mt-2">{{ result.error }}</div>
+    <div v-if="quartzHint" class="notice notice-warn mt-2 small">{{ quartzHint }}</div>
+    <div v-if="result && !result.ok && !liveError" class="notice notice-err mt-2">{{ result.error }}</div>
+    <div v-else-if="liveError" class="notice notice-err mt-2">{{ liveError }}（下方保留最近一次合法解读）</div>
 
     <p class="muted small mt-1">
       想可视化搭建而不是手写表达式？去
-      <RouterLink to="/t/crontab-builder">Cron 表达式生成器</RouterLink>
-      逐字段拼好再粘回来解读。
+      <RouterLink :to="{ path: '/t/crontab-builder', query: { re: expr } }">Cron 表达式生成器</RouterLink>
+      逐字段拼好再粘回来解读（表达式会自动带入）。
     </p>
 
     <template v-if="result && result.ok">
-      <div class="notice notice-ok mt-2">{{ result.summary }}</div>
+      <div class="notice notice-ok mt-2 explain-card">
+        <span class="grow">{{ result.summary }}</span>
+        <button class="btn btn-ghost btn-sm" @click="copyExplain"><Copy :size="13" /> 复制解读</button>
+      </div>
 
       <div class="mt-3 field-table">
-        <div v-for="f in result.fields" :key="f.name" class="field-row">
+        <div v-for="(f, i) in result.fields" :key="f.name" class="field-row" :class="{ active: activeField === i }">
           <span class="f-name">{{ f.name }}</span>
           <code class="f-raw mono">{{ f.raw }}</code>
           <span class="f-desc">{{ f.desc }}</span>
@@ -243,6 +319,16 @@ const run = () => {
   border-radius: 9px;
   font-size: 13.5px;
   background: color-mix(in srgb, var(--panel-solid) 55%, transparent);
+  transition: border-color 0.15s, background 0.15s;
+}
+.field-row.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.explain-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 .f-name {
   flex: none;

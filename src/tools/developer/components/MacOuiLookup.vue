@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Wifi, Loader2, Search } from 'lucide-vue-next'
+import { Wifi, Loader2, Search, Copy, Download } from 'lucide-vue-next'
 import { normalizeMac, macToEui64 } from '@/lib/devExt'
+import { saveText, copyText } from '@/lib/download'
 import { useToast } from '@/composables/useToast'
 
 const toast = useToast()
-const mode = ref<'single' | 'batch'>('single')
+const mode = ref<'single' | 'batch' | 'vendor'>('single')
 const macInput = ref('')
 const batchInput = ref('')
 const loading = ref(false)
@@ -31,14 +32,56 @@ interface OuiEntry { p: string; o: string }
 let ouiMap: Map<string, string> | null = null
 let ouiExtra: OuiEntry[] = []
 
-/** 懒加载并缓存 /data/oui.json（约 2MB，IEEE OUI 注册数据整理） */
+/** 懒加载并缓存 /data/oui.json（约 2MB，IEEE OUI 注册数据整理）；Cache API 持久缓存 + 加载进度（rx2/rx4） */
+const loadPct = ref(0)
 async function ensureData(): Promise<number> {
   if (loaded && ouiMap) return ouiMap.size
   loading.value = true
+  loadPct.value = 0
   try {
-    const res = await fetch('/data/oui.json')
+    let res: Response | null = null
+    // Cache API 持久缓存：二次访问不产生网络请求（rx4）
+    try {
+      if ('caches' in window) {
+        const cache = await caches.open('toolhub-oui')
+        const hit = await cache.match('/data/oui.json')
+        if (hit) res = hit
+        else {
+          res = await fetch('/data/oui.json')
+          if (res.ok) await cache.put('/data/oui.json', res.clone())
+        }
+      }
+    } catch {
+      res = null
+    }
+    res = res ?? (await fetch('/data/oui.json'))
     if (!res.ok) throw new Error(`厂商数据库加载失败（HTTP ${res.status}）`)
-    const arr = (await res.json()) as OuiEntry[]
+    // 流式读取 + 进度（rx2）
+    let text: string
+    const lenHeader = Number(res.headers.get('content-length') ?? 0)
+    if (res.body && lenHeader > 0) {
+      const reader = res.body.getReader()
+      const chunks: Uint8Array[] = []
+      let got = 0
+      for (;;) {
+        const { done, value } = await reader.read()
+        if (done) break
+        chunks.push(value)
+        got += value.length
+        loadPct.value = Math.min(99, Math.round((got / lenHeader) * 100))
+      }
+      const all = new Uint8Array(got)
+      let p = 0
+      for (const c of chunks) {
+        all.set(c, p)
+        p += c.length
+      }
+      text = new TextDecoder().decode(all)
+    } else {
+      text = await res.text()
+    }
+    loadPct.value = 100
+    const arr = JSON.parse(text) as OuiEntry[]
     const map = new Map<string, string>()
     const extra: OuiEntry[] = []
     for (const e of arr) {
@@ -53,6 +96,7 @@ async function ensureData(): Promise<number> {
     return map.size
   } finally {
     loading.value = false
+    setTimeout(() => (loadPct.value = 0), 1200)
   }
 }
 
@@ -127,6 +171,57 @@ const runBatch = async () => {
     toast.err((e as Error).message)
   }
 }
+
+/** 批量统计摘要（rx5） */
+const batchSummary = () => {
+  const total = batchRows.value.length
+  const global = batchRows.value.filter((r) => r.universal && !r.unknown).length
+  const local = batchRows.value.filter((r) => !r.universal).length
+  const unknown = batchRows.value.filter((r) => r.unknown && r.universal).length
+  return { total, global, local, unknown }
+}
+
+/** 复制单条结果（rx1） */
+const copyResult = async () => {
+  if (!result.value) return
+  const r = result.value
+  const lines = [`MAC: ${r.hex}`, `厂商: ${r.vendor}`, `OUI: ${r.oui}`]
+  if (r.bytes === 6) lines.push(`EUI-64: ${r.eui64}`, `链路本地: ${r.linkLocal}`)
+  const ok = await copyText(lines.join('\n'))
+  ok ? toast.ok('结果已复制') : toast.err('复制失败')
+}
+
+/** 批量下载 CSV（rx1） */
+const downloadCsv = () => {
+  if (!batchRows.value.length) return
+  const esc = (s: string) => (/["\n,]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s)
+  const head = '输入,规整后,OUI,厂商,类型'
+  const body = batchRows.value.map((r) => [r.raw, r.hex, r.oui, r.vendor, `${r.multicast ? '组播' : '单播'}/${r.universal ? '全局' : '本地'}`].map(esc).join(','))
+  saveText('\ufeff' + head + '\n' + body.join('\n') + '\n', 'mac-oui.csv', 'text/csv;charset=utf-8')
+  toast.ok('已下载 CSV（UTF-8 BOM，Excel 可直接打开）')
+}
+
+/** 厂商反查（rx3）：按厂商名搜前缀，点击回填单查框 */
+const vendorQuery = ref('')
+const vendorHits = ref<{ oui: string; vendor: string }[]>([])
+const searchVendor = () => {
+  const q = vendorQuery.value.trim().toLowerCase()
+  if (!q || !ouiMap) return
+  const out: { oui: string; vendor: string }[] = []
+  for (const [p, o] of ouiMap) {
+    if (o.toLowerCase().includes(q)) {
+      out.push({ oui: p.toUpperCase().match(/../g)!.join(':'), vendor: o })
+      if (out.length >= 30) break
+    }
+  }
+  vendorHits.value = out
+  if (!out.length) toast.warn('未找到该厂商的前缀（仅收录 OUI 注册名）')
+}
+const fillFromVendor = (h: { oui: string }) => {
+  macInput.value = h.oui + ':00:00:01'
+  mode.value = 'single'
+  runSingle()
+}
 </script>
 
 <template>
@@ -134,7 +229,35 @@ const runBatch = async () => {
     <div class="row row-wrap" style="gap: 12px">
       <label class="seg" :class="{ active: mode === 'single' }"><input v-model="mode" type="radio" value="single" class="sr" /> 单个查询</label>
       <label class="seg" :class="{ active: mode === 'batch' }"><input v-model="mode" type="radio" value="batch" class="sr" /> 批量查询</label>
-      <span v-if="loading" class="muted small"><Loader2 :size="13" class="spin" style="vertical-align: -2px" /> 正在加载厂商数据库（约 2MB，仅首次）…</span>
+      <label class="seg" :class="{ active: mode === 'vendor' }"><input v-model="mode" type="radio" value="vendor" class="sr" /> 按厂商查前缀</label>
+      <span v-if="loading" class="muted small"><Loader2 :size="13" class="spin" style="vertical-align: -2px" /> 正在加载厂商数据库（约 2MB，仅首次）… 已加载 {{ loadPct }}%</span>
+    </div>
+    <div v-if="loading && loadPct" class="mt-1">
+      <div class="load-track"><div class="load-bar" :style="{ width: loadPct + '%' }"></div></div>
+    </div>
+
+    <!-- 按厂商查前缀（rx3） -->
+    <div v-if="mode === 'vendor'" class="mt-2">
+      <span class="field-label">厂商名称（如 Huawei、Apple、Ruijie）</span>
+      <div class="row" style="gap: 10px; align-items: center">
+        <input v-model="vendorQuery" class="input grow" placeholder="输入厂商英文名关键词" @keyup.enter="searchVendor" />
+        <button class="btn btn-primary btn-sm" :disabled="loading" @click="searchVendor"><Search :size="15" /> 搜索前缀</button>
+      </div>
+      <div v-if="vendorHits.length" class="mt-2 table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr><th>OUI 前缀</th><th>厂商</th><th></th></tr>
+          </thead>
+          <tbody>
+            <tr v-for="h in vendorHits" :key="h.oui">
+              <td class="mono">{{ h.oui }}</td>
+              <td>{{ h.vendor }}</td>
+              <td style="width: 90px"><button class="btn btn-ghost btn-sm" @click="fillFromVendor(h)">回填查询 →</button></td>
+            </tr>
+          </tbody>
+        </table>
+        <p v-if="vendorHits.length >= 30" class="muted small mt-1">仅显示前 30 条匹配。</p>
+      </div>
     </div>
 
     <div v-if="mode === 'single'" class="mt-2">
@@ -158,6 +281,8 @@ const runBatch = async () => {
       <div class="row row-wrap" style="gap: 16px; align-items: baseline">
         <span class="mac mono">{{ result.hex }}</span>
         <span class="vendor" :class="{ unknown: result.unknown }">{{ result.vendor }}</span>
+        <span class="grow"></span>
+        <button class="btn btn-ghost btn-sm" @click="copyResult"><Copy :size="13" /> 复制结果</button>
       </div>
       <div class="detail mt-2">
         <div class="d-row"><span class="d-k">OUI 前缀</span><code class="mono">{{ result.oui }}</code><span class="d-note">前 3 字节由 IEEE 分配给厂商</span></div>
@@ -169,7 +294,13 @@ const runBatch = async () => {
     </div>
 
     <!-- 批量结果 -->
-    <div v-if="batchRows.length" class="mt-3 table-wrap">
+    <div v-if="batchRows.length" class="mt-3">
+      <div class="row row-wrap" style="gap: 10px; align-items: center; margin-bottom: 8px">
+        <span class="small">共 {{ batchSummary().total }} 行：全局 {{ batchSummary().global }}／本地 {{ batchSummary().local }}／未收录 {{ batchSummary().unknown }}</span>
+        <span class="grow"></span>
+        <button class="btn btn-ghost btn-sm" @click="downloadCsv"><Download :size="13" /> 下载 CSV</button>
+      </div>
+      <div class="table-wrap">
       <table class="data-table">
         <thead>
           <tr><th>输入</th><th>规整后</th><th>OUI</th><th>厂商</th><th>类型</th></tr>
@@ -184,6 +315,7 @@ const runBatch = async () => {
           </tr>
         </tbody>
       </table>
+      </div>
     </div>
 
     <div class="notice notice-info mt-3 small">
@@ -205,6 +337,8 @@ const runBatch = async () => {
 .d-k { flex: none; width: 118px; color: var(--text-2); font-weight: 600; font-size: 12.5px; }
 .d-note { color: var(--muted); font-size: 12px; }
 td.unknown { color: var(--muted); }
+.load-track { height: 6px; border-radius: 999px; background: color-mix(in srgb, var(--border) 60%, transparent); overflow: hidden; }
+.load-bar { height: 100%; background: var(--accent); border-radius: 999px; transition: width 0.2s ease; }
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 </style>

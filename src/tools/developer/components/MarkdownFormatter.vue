@@ -1,17 +1,32 @@
 <script setup lang="ts">
-/** Markdown 格式化：Prettier standalone（markdown 解析插件）——表格对齐、列表符号统一、换行策略 */
-import { ref } from 'vue'
+/** Markdown 格式化：Prettier standalone（markdown 解析插件）——表格对齐、列表符号统一、换行策略、围栏代码块内嵌排版 */
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { Wand2, Loader2 } from 'lucide-vue-next'
 import ResultBox from '@/components/common/ResultBox.vue'
 import { useToast } from '@/composables/useToast'
+import { installPasteRun, debounceRun } from '@/composables/usePasteRun'
 
 const toast = useToast()
 const input = ref('# 标题\n\n|名称|数量|\n|---|---|\n|苹果|3|\n*项目一*\n+  混乱的列表\n\n很长的   段落   里有   多余空格。')
 const output = ref('')
 const busy = ref(false)
 const proseWrap = ref('preserve')
-const bullet = ref('-')
+const bullet = ref<'-' | '*' | '+'>('-')
 const useTabs = ref(false)
+/** 行宽：proseWrap=always 时按此列宽折行（rx3） */
+const printWidth = ref(80)
+/** 粘贴即处理（rx2，1s 防抖可关） */
+const autoRun = ref(true)
+
+const inputEl = ref<HTMLTextAreaElement | null>(null)
+let unbindPaste: (() => void) | null = null
+onMounted(() => {
+  const deb = debounceRun(() => {
+    if (autoRun.value && input.value.trim()) run()
+  }, 1000)
+  unbindPaste = installPasteRun(inputEl.value, () => deb.call())
+})
+onBeforeUnmount(() => unbindPaste?.())
 
 const run = async () => {
   if (!input.value.trim()) return toast.warn('请输入 Markdown 内容')
@@ -24,11 +39,11 @@ const run = async () => {
       plugins: [markdown],
       proseWrap: proseWrap.value as 'preserve' | 'always' | 'never',
       useTabs: useTabs.value,
+      bullet: bullet.value,
+      printWidth: printWidth.value,
+      // 围栏代码块内嵌排版（js/css 等，rx5）：auto 时需加载对应语言插件
+      embeddedLanguageFormatting: 'auto',
     } as never)
-    // 列表符号统一由 prettier bullet 选项不完全覆盖，这里做轻量规范化
-    if (bullet.value !== '*') {
-      output.value = output.value.replace(/^(\s*)\*\s/gm, `$1${bullet.value} `)
-    }
     toast.ok('格式化完成')
   } catch (e) {
     toast.err(`格式化失败：${(e as Error).message.slice(0, 120)}`)
@@ -50,13 +65,24 @@ const run = async () => {
         </select>
       </label>
       <label class="opt">
+        <span class="field-label">行宽（按列宽换行时生效）</span>
+        <select v-model="printWidth" class="select" style="width: 110px">
+          <option :value="60">60 列</option>
+          <option :value="80">80 列</option>
+          <option :value="100">100 列</option>
+          <option :value="120">120 列</option>
+        </select>
+      </label>
+      <label class="opt">
         <span class="field-label">列表符号</span>
         <select v-model="bullet" class="select" style="width: 110px">
           <option value="-">-（短横）</option>
           <option value="*">*（星号）</option>
+          <option value="+">+（加号）</option>
         </select>
       </label>
       <label class="opt check"><input v-model="useTabs" type="checkbox" /><span>用 Tab 缩进</span></label>
+      <label class="opt check" title="粘贴后 1s 自动格式化，可关"><input v-model="autoRun" type="checkbox" /><span>粘贴即处理</span></label>
       <button class="btn btn-primary" :disabled="busy" @click="run">
         <Loader2 v-if="busy" :size="16" class="spin" />
         <Wand2 v-else :size="16" /> 格式化
@@ -66,12 +92,12 @@ const run = async () => {
     <div class="grid-2" style="gap: 12px">
       <div>
         <span class="field-label">输入</span>
-        <textarea v-model="input" class="textarea mono" style="min-height: 300px" spellcheck="false"></textarea>
+        <textarea ref="inputEl" v-model="input" class="textarea mono" style="min-height: 300px" spellcheck="false"></textarea>
       </div>
       <ResultBox v-model="output" title="规范输出" download="md" min-height="300px" />
     </div>
 
-    <p class="notice notice-info mt-2 small">使用 Prettier 浏览器版（markdown 解析插件，首次加载解析器）；表格列自动对齐、标题前后空行规范化——入库前跑一遍，仓库 diff 更干净。</p>
+    <p class="notice notice-info mt-2 small">使用 Prettier 浏览器版（markdown 解析插件，首次加载解析器）；表格列自动对齐、列表符号统一（不会误伤行首强调）；```js 代码块按内嵌语言排版；围栏代码块格式化仅支持已内置的语言（JS/CSS 等）。</p>
   </div>
 </template>
 

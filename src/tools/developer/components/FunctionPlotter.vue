@@ -8,6 +8,10 @@ const toast = useToast()
 const exprText = ref('sin(x)\nx^2 / 4 - 2\n2x + 1')
 const xmin = ref(-10)
 const xmax = ref(10)
+/** y 轴手动控制（rx3）：锁定后按输入值定范围 */
+const yLock = ref(false)
+const yminIn = ref(-5)
+const ymaxIn = ref(5)
 const colors = ['#3b82f6', '#f97316', '#10b981', '#8b5cf6', '#ec4899', '#eab308', '#14b8a6', '#ef4444']
 
 interface Series {
@@ -19,6 +23,8 @@ interface Series {
   pts: (number | null)[]
 }
 const series = ref<Series[]>([])
+/** 图例开关（rx4）：点击切换曲线显隐 */
+const hidden = ref(new Set<number>())
 const canvas = ref<HTMLCanvasElement | null>(null)
 const tip = ref<{ x: number; y: number; lines: string[] } | null>(null)
 let math: typeof import('mathjs') | null = null
@@ -97,21 +103,24 @@ function draw() {
   let hi = Math.max(xmin.value, xmax.value)
   if (!Number.isFinite(lo) || !Number.isFinite(hi) || hi - lo < 1e-9) { lo = -10; hi = 10 }
   const N = Math.max(100, Math.min(1200, Math.round(W)))
-  // 采样
-  for (const s of series.value) {
+  // 采样（隐藏的曲线不参与采样与 y 范围统计，rx4）
+  series.value.forEach((s, idx) => {
     s.pts = []
-    if (!s.fn) continue
+    if (!s.fn || hidden.value.has(idx)) return
     for (let i = 0; i <= N; i++) {
       const x = lo + ((hi - lo) * i) / N
       const y = s.fn(x)
       s.pts.push(y === null || !Number.isFinite(y) ? null : y)
     }
-  }
-  // y 范围：用有限样本的 2%~98% 分位防渐近线撑爆画布
+  })
+  // y 范围：锁定时用输入值（rx3）；否则用有限样本的 2%~98% 分位防渐近线撑爆画布
   const ys = series.value.flatMap((s) => s.pts.filter((v): v is number => v !== null)).sort((a, b) => a - b)
   let yLo = -1
   let yHi = 1
-  if (ys.length) {
+  if (yLock.value && Number.isFinite(yminIn.value) && Number.isFinite(ymaxIn.value) && ymaxIn.value > yminIn.value) {
+    yLo = yminIn.value
+    yHi = ymaxIn.value
+  } else if (ys.length) {
     const q = (p: number) => ys[Math.min(ys.length - 1, Math.max(0, Math.round((ys.length - 1) * p)))]!
     yLo = q(0.02)
     yHi = q(0.98)
@@ -146,8 +155,8 @@ function draw() {
   ctx.beginPath(); ctx.moveTo(X(0), 0); ctx.lineTo(X(0), H); ctx.stroke()
   // 曲线
   ctx.lineWidth = 1.8
-  for (const s of series.value) {
-    if (!s.fn) continue
+  series.value.forEach((s, idx) => {
+    if (!s.fn || hidden.value.has(idx)) return
     ctx.strokeStyle = s.color
     ctx.beginPath()
     let pen = false
@@ -159,7 +168,7 @@ function draw() {
       if (!pen) { ctx.moveTo(px, py); pen = true } else ctx.lineTo(px, py)
     })
     ctx.stroke()
-  }
+  })
 }
 
 watch([exprText], () => {
@@ -167,6 +176,8 @@ watch([exprText], () => {
   drawTimer = window.setTimeout(rebuild, 300)
 })
 watch([xmin, xmax], () => draw())
+watch([hidden], () => draw(), { deep: true })
+watch([yLock, yminIn, ymaxIn], () => draw())
 
 const onWheel = (e: WheelEvent) => {
   e.preventDefault()
@@ -230,16 +241,20 @@ onBeforeUnmount(() => {
         <span class="field-label">x 最大值</span>
         <input v-model.number="xmax" type="number" class="input" style="width: 110px" step="any" />
       </div>
+      <div>
+        <span class="field-label">y 轴（锁定后固定范围）</span>
+        <div class="row" style="gap: 6px; align-items: center; flex-wrap: nowrap">
+          <input v-model.number="yminIn" type="number" class="input" style="width: 88px" step="any" :disabled="!yLock" />
+          <input v-model.number="ymaxIn" type="number" class="input" style="width: 88px" step="any" :disabled="!yLock" />
+          <label class="check" style="gap: 4px; font-size: 12px; white-space: nowrap"><input v-model="yLock" type="checkbox" /> 锁定</label>
+        </div>
+      </div>
       <button class="btn btn-soft btn-sm" @click="resetView"><RotateCcw :size="14" /> 重置视图</button>
       <button class="btn btn-primary btn-sm" @click="exportPng"><Download :size="14" /> 导出 PNG</button>
       <span class="muted small">在图上滚动滚轮可缩放（以鼠标为中心），移动鼠标可查看取值</span>
     </div>
 
-    <div class="mt-2">
-      <span class="field-label">表达式（每行一条，最多 8 条，自动配色）</span>
-      <textarea v-model="exprText" class="textarea mono" style="min-height: 84px" placeholder="如 sin(x)*x^2、sqrt(x)、1/x、exp(-x/3)"></textarea>
-    </div>
-
+    <!-- 画布置顶（rx1）：首屏即见图，表达式输入下移 -->
     <div class="cv-wrap mt-2">
       <canvas ref="canvas" class="cv" @wheel="onWheel" @mousemove="onMove" @mouseleave="tip = null"></canvas>
       <div v-if="tip" class="tip mono" :style="{ left: Math.min(tip.x + 14, (canvas?.clientWidth ?? 400) - 170) + 'px', top: Math.max(6, tip.y - 10) + 'px' }">
@@ -247,12 +262,17 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
+    <div class="mt-2">
+      <span class="field-label">表达式（每行一条，最多 8 条，自动配色）</span>
+      <textarea v-model="exprText" class="textarea mono" style="min-height: 84px" placeholder="如 sin(x)*x^2、sqrt(x)、1/x、exp(-x/3)"></textarea>
+    </div>
+
     <div class="legend mt-2">
-      <span v-for="s in series" :key="s.expr + s.color" class="lg">
+      <button v-for="(s, idx) in series" :key="s.expr + s.color" class="lg" :class="{ off: hidden.has(idx) }" :title="hidden.has(idx) ? '点击显示该曲线' : '点击隐藏该曲线'" @click="hidden.has(idx) ? hidden.delete(idx) : hidden.add(idx); hidden = new Set(hidden)">
         <i :style="{ background: s.color }"></i>
         <code class="mono">{{ s.expr }}</code>
         <em v-if="s.error" class="err">{{ s.error }}</em>
-      </span>
+      </button>
     </div>
 
     <div class="notice notice-info mt-2 small">
@@ -263,7 +283,7 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .cv-wrap { position: relative; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
-.cv { display: block; width: 100%; height: 400px; cursor: crosshair; }
+.cv { display: block; width: 100%; height: clamp(320px, calc(100vh - 380px), 640px); cursor: crosshair; }
 .tip {
   position: absolute;
   pointer-events: none;

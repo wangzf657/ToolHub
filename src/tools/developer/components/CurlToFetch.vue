@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { Terminal, Zap } from 'lucide-vue-next'
 import ResultBox from '@/components/common/ResultBox.vue'
 import { curlToFetch } from '@/lib/jsEngine'
 import { useToast } from '@/composables/useToast'
+import { installPasteRun } from '@/composables/usePasteRun'
 
 const toast = useToast()
 const cmd = ref(`curl 'https://api.example.com/v1/users' \\
@@ -29,12 +30,20 @@ const convert = () => {
     toast.err('转换失败')
   }
 }
+
+/** 粘贴即转换 */
+const cmdEl = ref<HTMLTextAreaElement | null>(null)
+let unbindPaste: (() => void) | null = null
+onMounted(() => {
+  unbindPaste = installPasteRun(cmdEl.value, convert)
+})
+onBeforeUnmount(() => unbindPaste?.())
 </script>
 
 <template>
   <div class="curl-f">
-    <span class="field-label">cURL 命令（支持反斜杠续行）</span>
-    <textarea v-model="cmd" class="textarea mono" style="min-height: 150px" spellcheck="false"></textarea>
+    <span class="field-label">cURL 命令（支持反斜杠续行，粘贴后自动转换）</span>
+    <textarea ref="cmdEl" v-model="cmd" class="textarea mono" style="min-height: 150px" spellcheck="false"></textarea>
 
     <div class="row mt-2">
       <button class="btn btn-primary" @click="convert"><Zap :size="16" /> 转换为 fetch</button>

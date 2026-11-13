@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { Keyboard, MousePointerClick } from 'lucide-vue-next'
+import { Keyboard, MousePointerClick, Copy, Check } from 'lucide-vue-next'
+import { copyText } from '@/lib/download'
+import { useToast } from '@/composables/useToast'
+
+const toast = useToast()
 
 /** 最近一次按键事件信息 */
 interface KeyInfo {
@@ -13,15 +17,24 @@ interface KeyInfo {
   meta: boolean
   repeat: boolean
   type: 'keydown' | 'keyup'
+  capsLock: boolean
 }
 const info = ref<KeyInfo | null>(null)
 const box = ref<HTMLDivElement | null>(null)
+/** 事件流回看（rx4）：最近 20 条 */
+const history = ref<(KeyInfo & { mods: string })[]>([])
+/** 复制反馈（rx3） */
+const copiedTile = ref('')
 
-/** 需要阻止默认行为的键（防滚动/快捷搜索，不影响复制刷新） */
-const PREVENT = new Set(['Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ', 'Home', 'End', 'PageUp', 'PageDown', 'Slash', 'Quote'])
+/** 需要阻止默认行为的键（按 e.code 判定防误伤，rx2；不影响复制刷新） */
+const PREVENT = new Set(['Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'Home', 'End', 'PageUp', 'PageDown', 'Slash', 'Quote'])
+
+const modsOf = (e: KeyboardEvent) => [e.shiftKey && 'Shift', e.ctrlKey && 'Ctrl', e.altKey && 'Alt', e.metaKey && 'Meta'].filter(Boolean).join('+')
 
 const onKey = (e: KeyboardEvent) => {
-  if (PREVENT.has(e.key)) e.preventDefault()
+  // 统一按物理键位拦截（Firefox 下 "/" 不再触发快速查找，rx2）
+  if (PREVENT.has(e.code) || (PREVENT.has(e.key) && e.code !== 'NumpadAdd')) e.preventDefault()
+  const caps = e.getModifierState('CapsLock')
   info.value = {
     key: e.key,
     code: e.code,
@@ -32,13 +45,35 @@ const onKey = (e: KeyboardEvent) => {
     meta: e.metaKey,
     repeat: e.repeat,
     type: e.type as 'keydown' | 'keyup',
+    capsLock: caps,
   }
+  if (e.type === 'keydown') {
+    history.value = [{ ...info.value, mods: modsOf(e) || '—' }, ...history.value].slice(0, 20)
+  }
+}
+
+/** 失焦复位（rx5）：弹窗/切走后「按下」chip 不残留 */
+const onBlur = () => {
+  info.value = null
+}
+
+const copyTile = async (label: string, value: string) => {
+  const ok = await copyText(value)
+  if (ok) {
+    copiedTile.value = label
+    setTimeout(() => (copiedTile.value = ''), 1500)
+    toast.ok(`已复制 ${value}`)
+  } else toast.err('复制失败')
 }
 
 onMounted(() => {
   box.value?.focus()
+  window.addEventListener('blur', onBlur)
 })
-onBeforeUnmount(() => info.value = null)
+onBeforeUnmount(() => {
+  info.value = null
+  window.removeEventListener('blur', onBlur)
+})
 
 /** 常用键码速查表 */
 const COMMON: { key: string; code: string; kc: string }[] = [
@@ -90,16 +125,42 @@ const filtered = computed(() => {
       <p class="cap-tip">点击此区域，然后按下键盘上的任意键（组合键也支持）</p>
       <template v-if="info">
         <div class="trio">
-          <div class="tile"><span class="t-k">event.key</span><span class="t-v mono">{{ info.key === ' ' ? '(空格)' : info.key }}</span></div>
-          <div class="tile"><span class="t-k">event.code</span><span class="t-v mono">{{ info.code }}</span></div>
-          <div class="tile"><span class="t-k">keyCode（已废弃）</span><span class="t-v mono">{{ info.keyCode }}</span></div>
+          <div class="tile">
+            <span class="t-k">event.key</span>
+            <span class="t-v mono">{{ info.key === ' ' ? '(空格)' : info.key }}</span>
+            <button class="tile-copy" title="复制" @click="copyTile('key', info.key)"><Check v-if="copiedTile === 'key'" :size="12" color="#34d399" /><Copy v-else :size="12" /></button>
+          </div>
+          <div class="tile">
+            <span class="t-k">event.code</span>
+            <span class="t-v mono">{{ info.code }}</span>
+            <button class="tile-copy" title="复制" @click="copyTile('code', info.code)"><Check v-if="copiedTile === 'code'" :size="12" color="#34d399" /><Copy v-else :size="12" /></button>
+          </div>
+          <div class="tile">
+            <span class="t-k">keyCode（已废弃）</span>
+            <span class="t-v mono">{{ info.keyCode }}</span>
+            <button class="tile-copy" title="复制" @click="copyTile('kc', String(info.keyCode))"><Check v-if="copiedTile === 'kc'" :size="12" color="#34d399" /><Copy v-else :size="12" /></button>
+          </div>
         </div>
         <div class="mods">
           <span v-for="(v, k) in { Shift: info.shift, Ctrl: info.ctrl, Alt: info.alt, Meta: info.meta }" :key="k" class="mod" :class="{ on: v }">{{ k }}</span>
+          <span class="mod" :class="{ on: info.capsLock }" title="按 getModifierState('CapsLock') 实时判定">CapsLock{{ info.capsLock ? ' 开' : ' 关' }}</span>
           <span v-if="info.repeat" class="mod on">长按重复</span>
           <span class="mod" :class="{ on: true }">{{ info.type === 'keydown' ? '按下' : '松开' }}</span>
         </div>
       </template>
+    </div>
+
+    <div v-if="history.length" class="mt-3">
+      <span class="field-label">最近按键（{{ history.length }} 条，倒序）</span>
+      <div class="hist-list mt-2">
+        <div v-for="(h, i) in history" :key="i" class="hist-row mono">
+          <b>{{ h.key === ' ' ? '(空格)' : h.key }}</b>
+          <span>{{ h.code }}</span>
+          <span>{{ h.keyCode }}</span>
+          <span class="muted">{{ h.type === 'keydown' ? '按下' : '松开' }}{{ h.mods !== '—' ? ` · ${h.mods}` : '' }}</span>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-sm mt-1" @click="history = []">清空记录</button>
     </div>
 
     <div class="mt-3">
@@ -140,7 +201,13 @@ const filtered = computed(() => {
 .capture:focus { border-color: var(--accent); }
 .cap-tip { color: var(--muted); font-size: 13px; margin: 8px 0 0; }
 .trio { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-top: 18px; }
-.tile { padding: 14px 12px; border: 1px solid var(--border); border-radius: 12px; background: color-mix(in srgb, var(--panel-solid) 70%, transparent); display: flex; flex-direction: column; gap: 6px; }
+.tile { padding: 14px 12px; border: 1px solid var(--border); border-radius: 12px; background: color-mix(in srgb, var(--panel-solid) 70%, transparent); display: flex; flex-direction: column; gap: 6px; position: relative; }
+.tile-copy { position: absolute; top: 8px; right: 8px; border: 1px solid var(--border); background: var(--panel-solid); color: var(--text-3); border-radius: 6px; width: 22px; height: 22px; display: grid; place-items: center; cursor: pointer; opacity: 0; transition: opacity 0.12s; padding: 0; }
+.tile:hover .tile-copy { opacity: 1; }
+@media (hover: none) { .tile-copy { opacity: 0.55; } }
+.hist-list { display: grid; gap: 4px; max-height: 220px; overflow: auto; }
+.hist-row { display: flex; gap: 16px; padding: 5px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 12.5px; background: color-mix(in srgb, var(--panel-solid) 55%, transparent); }
+.hist-row b { min-width: 90px; color: var(--accent-text); }
 .t-k { font-size: 12px; color: var(--muted); }
 .t-v { font-size: 24px; font-weight: 700; color: var(--accent-text); overflow-wrap: anywhere; }
 .mods { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin-top: 14px; }

@@ -36,6 +36,10 @@ const splitSlides = (md: string): string[] => {
 
 const slides = computed(() => splitSlides(input.value))
 const previews = ref<string[]>([])
+/** 备注提取（rx3）：每页的 <!-- note … --> 注释收集为导出 HTML 折叠备注区 */
+const notesOf = (md: string): string[] =>
+  [...md.matchAll(/<!--\s*note[:：]?\s*([\s\S]*?)-->/gi)].map((m) => m[1]!.trim()).filter(Boolean)
+const slideNotes = computed(() => slides.value.map(notesOf))
 
 const render = async () => {
   const parts: string[] = []
@@ -69,7 +73,10 @@ const exportHtml = async () => {
 .slide blockquote{border-left:4px solid ${t.accent};margin:0;padding-left:16px;color:${t.sub}}
 .slide img{max-width:80%}
 .page{position:fixed;bottom:18px;right:26px;color:${t.sub};font-size:14px}
-.hint{position:fixed;bottom:18px;left:26px;color:${t.sub};font-size:13px}`
+.hint{position:fixed;bottom:18px;left:26px;color:${t.sub};font-size:13px}
+details.notes{position:fixed;bottom:60px;left:26px;max-width:40vw;color:${t.sub};font-size:13px}
+details.notes summary{cursor:pointer}
+@media print{.slide{display:flex !important;position:static;page-break-after:always;min-height:96vh}.page,.hint,details.notes{display:none}}`
   const script = `const slides=[...document.querySelectorAll('.slide')];let cur=0;
 function show(i){cur=Math.max(0,Math.min(slides.length-1,i));slides.forEach((s,j)=>s.classList.toggle('active',j===cur));document.getElementById('pg').textContent=(cur+1)+' / '+slides.length}
 document.addEventListener('keydown',e=>{if(['ArrowRight','PageDown',' '].includes(e.key)){e.preventDefault();show(cur+1)}if(['ArrowLeft','PageUp'].includes(e.key)){e.preventDefault();show(cur-1)}if(e.key==='Home')show(0);if(e.key==='End')show(slides.length-1)});
@@ -101,13 +108,13 @@ ${slides.value.map((s, i) => `<section class="slide${i === 0 ? ' active' : ''}">
         <button class="btn btn-primary btn-sm" @click="exportHtml"><Presentation :size="15" /> 导出 HTML 幻灯片</button>
         <span class="hint">用 `---` 单独一行分页，共 {{ slides.length }} 页</span>
       </div>
-      <textarea v-model="input" class="input area mono mt-2" rows="10" spellcheck="false"></textarea>
+      <textarea v-model="input" class="input area mono mt-2" rows="10" spellcheck="false" style="min-height: calc(100vh - 420px)"></textarea>
       <p class="hint mt-1">导出的是零依赖单文件 HTML：双击打开即可全屏演示，方向键/空格/点击翻页，适合快速分享讲稿。</p>
     </div>
 
     <div v-if="previews.length" class="mt-2">
       <h4 class="h4">页面预览（逐页）</h4>
-      <div v-for="(s, i) in previews" :key="i" class="slide-card" v-html="s"></div>
+      <div v-for="(s, i) in previews" :key="i" class="slide-card" :style="{ background: THEMES[theme].bg, color: THEMES[theme].fg }" v-html="s"></div>
     </div>
   </div>
 </template>

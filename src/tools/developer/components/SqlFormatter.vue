@@ -1,15 +1,65 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Database, Loader2 } from 'lucide-vue-next'
 import ResultBox from '@/components/common/ResultBox.vue'
 import { useToast } from '@/composables/useToast'
+import { installPasteRun, debounceRun } from '@/composables/usePasteRun'
 
 const toast = useToast()
 const sql = ref('select u.id, u.name, count(o.id) as orders from users u left join orders o on o.user_id = u.id where u.created_at >= \'2024-01-01\' and u.status = \'active\' group by u.id, u.name having count(o.id) > 5 order by orders desc limit 20;')
-const dialect = ref<'postgresql' | 'mysql' | 'sqlite'>('postgresql')
+const dialect = ref<'postgresql' | 'mysql' | 'sqlite' | 'mariadb' | 'transactsql' | 'plsql' | 'bigquery' | 'hive' | 'redshift' | 'snowflake' | 'spark' | 'trino' | 'db2' | 'n1ql'>('postgresql')
 const keywordCase = ref<'upper' | 'lower' | 'preserve'>('upper')
 const output = ref('')
 const busy = ref(false)
+/** 离线兜底横幅（rx5）：走轻量格式化时诚实披露 */
+const fallbackNotice = ref(false)
+/** 缩进 2/4/8（记忆，rx4） */
+const tabWidth = ref(Number(localStorage.getItem('toolhub.sql-tab') || 2))
+watch(tabWidth, (v) => localStorage.setItem('toolhub.sql-tab', String(v)))
+
+/** 粘贴即处理（rx2，800ms 防抖可关） */
+const autoRun = ref(true)
+const inputEl = ref<HTMLTextAreaElement | null>(null)
+let unbindPaste: (() => void) | null = null
+onMounted(() => {
+  const deb = debounceRun(() => {
+    if (autoRun.value && sql.value.trim()) run()
+  }, 800)
+  unbindPaste = installPasteRun(inputEl.value, () => deb.call())
+})
+onBeforeUnmount(() => unbindPaste?.())
+
+const DIALECT_GROUPS: { group: string; items: { id: typeof dialect.value; label: string }[] }[] = [
+  {
+    group: '主流',
+    items: [
+      { id: 'postgresql', label: 'PostgreSQL' },
+      { id: 'mysql', label: 'MySQL' },
+      { id: 'sqlite', label: 'SQLite' },
+      { id: 'mariadb', label: 'MariaDB' },
+      { id: 'transactsql', label: 'SQL Server (T-SQL)' },
+      { id: 'plsql', label: 'Oracle PL/SQL' },
+    ],
+  },
+  {
+    group: '数仓 / 分析',
+    items: [
+      { id: 'bigquery', label: 'BigQuery' },
+      { id: 'hive', label: 'Hive' },
+      { id: 'redshift', label: 'Redshift' },
+      { id: 'snowflake', label: 'Snowflake' },
+      { id: 'spark', label: 'Spark SQL' },
+      { id: 'trino', label: 'Trino/Presto' },
+    ],
+  },
+  {
+    group: '其他',
+    items: [
+      { id: 'db2', label: 'DB2' },
+      { id: 'n1ql', label: 'N1QL (Couchbase)' },
+    ],
+  },
+]
 
 /** 内置轻量格式化（sql-formatter 加载失败时的兜底）：关键字大写 + 主子句换行缩进 */
 function lightFormat(src: string): string {
@@ -49,14 +99,16 @@ function lightFormat(src: string): string {
 const run = async () => {
   if (!sql.value.trim()) return toast.warn('请先粘贴 SQL')
   busy.value = true
+  fallbackNotice.value = false
   try {
     const { format } = await import('sql-formatter')
-    output.value = format(sql.value, { language: dialect.value, keywordCase: keywordCase.value, tabWidth: 2 })
+    output.value = format(sql.value, { language: dialect.value, keywordCase: keywordCase.value, tabWidth: tabWidth.value })
     toast.ok('SQL 已格式化')
   } catch {
     try {
       output.value = lightFormat(sql.value)
-      toast.ok('使用内置轻量格式化完成（未联网加载库）')
+      fallbackNotice.value = true
+      toast.ok('使用内置轻量格式化完成')
     } catch (e) {
       toast.err(`格式化失败：${(e as Error).message}`)
     }
@@ -70,10 +122,10 @@ const run = async () => {
   <div class="sql-fmt">
     <div class="row row-wrap mb-2" style="gap: 12px; align-items: center">
       <span class="field-label" style="margin: 0">方言</span>
-      <select v-model="dialect" class="select" style="width: 130px">
-        <option value="postgresql">PostgreSQL</option>
-        <option value="mysql">MySQL</option>
-        <option value="sqlite">SQLite</option>
+      <select v-model="dialect" class="select" style="width: 160px">
+        <optgroup v-for="g in DIALECT_GROUPS" :key="g.group" :label="g.group">
+          <option v-for="d in g.items" :key="d.id" :value="d.id">{{ d.label }}</option>
+        </optgroup>
       </select>
       <span class="field-label" style="margin: 0">关键字</span>
       <select v-model="keywordCase" class="select" style="width: 110px">
@@ -81,6 +133,13 @@ const run = async () => {
         <option value="lower">小写</option>
         <option value="preserve">保持原样</option>
       </select>
+      <span class="field-label" style="margin: 0">缩进</span>
+      <select v-model="tabWidth" class="select" style="width: 100px">
+        <option :value="2">2 空格</option>
+        <option :value="4">4 空格</option>
+        <option :value="8">8 空格</option>
+      </select>
+      <label class="check" title="粘贴后 800ms 自动格式化，可关"><input v-model="autoRun" type="checkbox" /> 粘贴即处理</label>
       <span class="grow"></span>
       <button class="btn btn-primary" :disabled="busy" @click="run">
         <Loader2 v-if="busy" :size="15" class="spin" />
@@ -91,9 +150,12 @@ const run = async () => {
     <div class="grid-2" style="gap: 12px">
       <div>
         <span class="field-label">SQL 输入</span>
-        <textarea v-model="sql" class="textarea mono" style="min-height: 300px" spellcheck="false"></textarea>
+        <textarea ref="inputEl" v-model="sql" class="textarea mono" style="min-height: 300px" spellcheck="false"></textarea>
       </div>
-      <ResultBox v-model="output" title="格式化结果" download="sql" min-height="300px" />
+      <div class="out-col">
+        <div v-if="fallbackNotice" class="notice notice-warn small">简化排版（离线兜底），未做语法校验 —— sql-formatter 库未加载成功，仅做关键字大写与主子句换行。</div>
+        <ResultBox v-model="output" title="格式化结果" download="sql" min-height="300px" />
+      </div>
     </div>
   </div>
 </template>
@@ -101,6 +163,11 @@ const run = async () => {
 <style scoped>
 .spin {
   animation: sql-spin 0.8s linear infinite;
+}
+.out-col {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
 }
 @keyframes sql-spin {
   to {

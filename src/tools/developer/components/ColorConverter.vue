@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /** 颜色转换器：任意格式自动识别 → HEX/RGB/HSL/OKLCH/CMYK 全量互转（手写公式，零依赖） */
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { Copy, Check } from 'lucide-vue-next'
 import { useToast } from '@/composables/useToast'
 
@@ -134,12 +134,14 @@ const outputs = computed(() => {
   const ok = rgbToOklch(c)
   const k = 1 - Math.max(c.r, c.g, c.b) / 255
   const cmyk = k >= 1 ? [0, 0, 0, 1] : [(1 - c.r / 255 - k) / (1 - k), (1 - c.g / 255 - k) / (1 - k), (1 - c.b / 255 - k) / (1 - k), k]
-  const a = c.a !== undefined ? c.a : 1
+  const hasA = c.a !== undefined
+  const a = c.a ?? 1
+  const aTail = hasA ? ` / ${Number(a).toFixed(2)}` : ''
   return [
-    { label: 'HEX', value: hexOf(c).toUpperCase() },
-    { label: 'RGB', value: `rgb(${c.r}, ${c.g}, ${c.b})` },
-    { label: 'HSL', value: `hsl(${Math.round(hsl.h)}, ${Math.round(hsl.s * 100)}%, ${Math.round(hsl.l * 100)}%)` },
-    { label: 'OKLCH', value: `oklch(${ok.l.toFixed(3)} ${ok.c.toFixed(3)} ${Math.round(ok.h)})` },
+    { label: 'HEX', value: hasA ? hexWithAlpha.value : hexOf(c).toUpperCase() },
+    { label: 'RGB', value: `rgb(${c.r} ${c.g} ${c.b}${hasA ? ` / ${Number(a).toFixed(2)}` : ''})` },
+    { label: 'HSL', value: `hsl(${Math.round(hsl.h)} ${Math.round(hsl.s * 100)}% ${Math.round(hsl.l * 100)}%${aTail})` },
+    { label: 'OKLCH', value: `oklch(${ok.l.toFixed(3)} ${ok.c.toFixed(3)} ${Math.round(ok.h)}${aTail})` },
     { label: 'CMYK', value: `cmyk(${Math.round(cmyk[0] * 100)}%, ${Math.round(cmyk[1] * 100)}%, ${Math.round(cmyk[2] * 100)}%, ${Math.round(cmyk[3] * 100)}%)` },
     { label: 'RGBA（含透明度）', value: `rgba(${c.r}, ${c.g}, ${c.b}, ${Number(a).toFixed(2)})` },
   ]
@@ -153,38 +155,217 @@ const doCopy = async (v: string, label: string) => {
     setTimeout(() => (copied.value = ''), 1200)
   } else toast.err('复制失败')
 }
+
+/* ---- alpha 全格式保留（rx1） ---- */
+const alpha = computed(() => parsed.value?.a ?? undefined)
+const hexWithAlpha = computed(() => {
+  const c = parsed.value
+  if (!c) return ''
+  let hex = hexOf(c).toUpperCase()
+  if (c.a !== undefined) hex += c.a.toString(16).padStart(2, '0').toUpperCase()
+  return hex
+})
+
+/* ---- 取色器 + 透明度滑杆（rx2）：与文本输入双向同步 ---- */
+const pickerHex = computed({
+  get: () => (parsed.value ? hexOf(parsed.value) : '#000000'),
+  set: (v: string) => (input.value = v),
+})
+const pickerAlpha = computed({
+  get: () => Math.round((parsed.value?.a ?? 1) * 100),
+  set: (pct: number) => {
+    const c = parsed.value
+    if (!c) return
+    input.value = `${hexOf(c)}${Math.round((pct / 100) * 255).toString(16).padStart(2, '0')}`
+  },
+})
+
+/* ---- 调色板联想（rx3）：和弦色 + 明暗 9 阶 ---- */
+interface Swatch {
+  name: string
+  hex: string
+}
+const palette = computed<Swatch[]>(() => {
+  const c = parsed.value
+  if (!c) return []
+  const { h, s } = rgbToHsl(c)
+  const chord = (dh: number, name: string): Swatch => {
+    const hh = (h + dh + 360) % 360
+    return { name, hex: hslToHex(hh / 360, s, 0.5) }
+  }
+  const shades: Swatch[] = []
+  for (let i = 9; i >= 1; i--) {
+    const l = i / 10
+    shades.push({ name: `${(10 - i) * 10} 阶`, hex: hslToHex(h / 360, s, l) })
+  }
+  return [chord(180, '互补'), chord(30, '类似 +30°'), chord(-30, '类似 −30°'), chord(120, '三角 A'), chord(120 * 2, '三角 B'), ...shades]
+})
+function hslToHex(h: number, s: number, l: number): string {
+  const f = (n: number) => {
+    const k = (n + h * 12) % 12
+    const a = s * Math.min(l, 1 - l)
+    const v = l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1))
+    return Math.round(v * 255).toString(16).padStart(2, '0')
+  }
+  return `#${f(0)}${f(8)}${f(4)}`
+}
+
+/* ---- 历史条（rx5）：最近 10 色 ---- */
+const history = ref<string[]>(JSON.parse(localStorage.getItem('toolhub.color-history') || '[]') as string[])
+watch(input, (v) => {
+  const c = parseColor(v)
+  if (!c) return
+  const hex = hexOf(c).toUpperCase()
+  history.value = [hex, ...history.value.filter((h) => h !== hex)].slice(0, 10)
+  localStorage.setItem('toolhub.color-history', JSON.stringify(history.value))
+})
+onMounted(() => {
+  /* 历史在挂载时即从 localStorage 恢复（ref 初始化已完成） */
+})
+
+/* ---- 批量转换（rx4） ---- */
+const mode = ref<'single' | 'batch'>('single')
+const batchInput = ref('')
+const batchRows = computed(() =>
+  batchInput.value
+    .split('\n')
+    .map((line, i) => ({ i: i + 1, line: line.trim(), hex: (() => {
+      const c = parseColor(line)
+      return c ? hexOf(c).toUpperCase() : null
+    })() }))
+    .filter((r) => r.line),
+)
+const copyBatch = async () => {
+  const text = batchRows.value.map((r) => `${r.line} → ${r.hex ?? '（无法识别）'}`).join('\n')
+  const ok = await navigator.clipboard.writeText(text).then(() => true).catch(() => false)
+  ok ? toast.ok('批量结果已复制') : toast.err('复制失败')
+}
 </script>
 
 <template>
   <div>
-    <div class="row row-wrap mb-2" style="gap: 8px">
-      <input v-model="input" class="input mono" style="width: 320px" spellcheck="false" placeholder="#3b82f6 / rgb(59,130,246) / hsl(217,91%,60%) / oklch(0.62 0.17 259)" />
-      <span v-if="parsed" class="swatch" :style="{ background: hexOf(parsed) }"></span>
-      <span v-else class="notice notice-err" style="flex: 1">无法识别颜色，支持 HEX / rgb() / hsl() / oklch() / cmyk() / 常用英文色名</span>
+    <div class="row row-wrap mb-2" style="gap: 10px; align-items: center">
+      <span class="kf" :class="{ on: mode === 'single' }" @click="mode = 'single'">单个</span>
+      <span class="kf" :class="{ on: mode === 'batch' }" @click="mode = 'batch'">批量</span>
     </div>
 
-    <div v-if="outputs.length" class="rows">
-      <div v-for="o in outputs" :key="o.label" class="crow">
-        <span class="clabel">{{ o.label }}</span>
-        <code class="cval mono">{{ o.value }}</code>
-        <button class="icon-btn" :title="`复制 ${o.label}`" @click="doCopy(o.value, o.label)">
-          <Check v-if="copied === o.label" :size="14" class="copied" />
-          <Copy v-else :size="14" />
-        </button>
+    <template v-if="mode === 'single'">
+      <div class="row row-wrap mb-2" style="gap: 8px; align-items: center">
+        <input v-model="pickerHex" type="color" class="color-pick" title="取色器" />
+        <input v-model="input" class="input mono grow" style="min-width: 220px; max-width: 420px" spellcheck="false" placeholder="#3b82f680 / rgb(59,130,246) / hsl(217,91%,60%) / oklch(0.62 0.17 259)" />
+        <label class="check" style="gap: 6px" title="拖动同步 8 位 HEX 的透明度">
+          alpha
+          <input type="range" min="0" max="100" :value="pickerAlpha" class="range" @input="pickerAlpha = Number(($event.target as HTMLInputElement).value)" />
+          <b class="mono small">{{ pickerAlpha }}%</b>
+        </label>
       </div>
-    </div>
 
-    <p class="notice notice-info mt-2 small">OKLCH 按 CSS Color 4 标准矩阵换算（感知均匀，适合配色系统）；CMYK 为屏幕近似值，印刷请以专色系统为准。</p>
+      <div v-if="history.length" class="row row-wrap mb-2" style="gap: 6px; align-items: center">
+        <span class="muted small">最近：</span>
+        <button v-for="h in history" :key="h" class="swatch" :style="{ background: h }" :title="`回填 ${h}`" @click="input = h"></button>
+      </div>
+
+      <span v-if="!parsed && input.trim()" class="notice notice-err" style="display: block; margin-bottom: 8px">无法识别颜色，支持 HEX / rgb() / hsl() / oklch() / cmyk() / 常用英文色名</span>
+
+      <div v-if="outputs.length" class="rows">
+        <div v-for="o in outputs" :key="o.label" class="crow">
+          <span class="clabel">{{ o.label }}</span>
+          <code class="cval mono">{{ o.value }}</code>
+          <button class="icon-btn" :title="`复制 ${o.label}`" @click="doCopy(o.value, o.label)">
+            <Check v-if="copied === o.label" :size="14" class="copied" />
+            <Copy v-else :size="14" />
+          </button>
+        </div>
+      </div>
+
+      <!-- 调色板联想（rx3）：和弦色 + 明暗 9 阶，点击回填 -->
+      <div v-if="palette.length" class="mt-3">
+        <span class="field-label">衍生色板（点击回填输入）</span>
+        <div class="row row-wrap" style="gap: 6px; margin-top: 6px">
+          <button v-for="p in palette" :key="p.name + p.hex" class="pal" :title="`${p.name} ${p.hex}`" :style="{ background: p.hex }" @click="input = p.hex">
+            <span class="pal-name">{{ p.name }}</span>
+          </button>
+        </div>
+      </div>
+    </template>
+
+    <template v-else>
+      <span class="field-label">批量输入（每行一个颜色，混合格式均可）</span>
+      <textarea v-model="batchInput" class="textarea mono" style="min-height: 150px" placeholder="#3b82f6&#10;rgb(255, 99, 71)&#10;hsl(120, 60%, 50%)&#10;rebeccapurple 不在词表内会标注行号"></textarea>
+      <div v-if="batchRows.length" class="mt-2">
+        <div class="rows">
+          <div v-for="r in batchRows" :key="r.i" class="crow">
+            <span class="clabel">第 {{ r.i }} 行</span>
+            <code class="cval mono" :style="r.hex ? '' : 'color: var(--err)'">{{ r.line }} → {{ r.hex ?? '（无法识别）' }}</code>
+            <button v-if="r.hex" class="icon-btn" title="复制 HEX" @click="doCopy(r.hex!, `第 ${r.i} 行`)">
+              <Check v-if="copied === `第 ${r.i} 行`" :size="14" class="copied" />
+              <Copy v-else :size="14" />
+            </button>
+          </div>
+        </div>
+        <button class="btn btn-ghost btn-sm mt-2" @click="copyBatch">复制全部</button>
+      </div>
+    </template>
+
+    <p class="notice notice-info mt-2 small">OKLCH 按 CSS Color 4 标准矩阵换算；含透明度时 HEX 输出 8 位（#RRGGBBAA）、RGB/HSL/OKLCH 追加 / alpha；最近 10 色本地记忆。CMYK 为屏幕近似值，印刷请以专色系统为准。</p>
   </div>
 </template>
 
 <style scoped>
+.kf {
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 3px 12px;
+  cursor: pointer;
+  color: var(--text-2);
+  font-size: 12.5px;
+}
+.kf.on {
+  border-color: var(--accent);
+  color: var(--accent-text);
+  background: var(--accent-soft);
+}
+.color-pick {
+  width: 42px;
+  height: 36px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: none;
+  padding: 2px;
+  cursor: pointer;
+}
+.range {
+  width: 130px;
+  accent-color: var(--accent);
+}
 .swatch {
-  width: 44px;
-  height: 34px;
-  border-radius: 8px;
+  width: 34px;
+  height: 24px;
+  border-radius: 6px;
   border: 1px solid var(--border);
   flex: none;
+  cursor: pointer;
+  padding: 0;
+}
+.pal {
+  width: 74px;
+  height: 52px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  position: relative;
+}
+.pal-name {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  font-size: 10px;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  border-radius: 0 0 7px 7px;
+  pointer-events: none;
 }
 .rows {
   display: grid;

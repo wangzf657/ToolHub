@@ -26,6 +26,7 @@ const render = async () => {
     html.value = await mdToHtml(input.value, { math: withMath.value, mermaid: withMermaid.value })
     await nextTick()
     if (previewRef.value) await renderMermaidIn(previewRef.value)
+    await highlightCodeBlocks(previewRef.value)
   } catch (e) {
     renderErr.value = `渲染失败：${(e as Error).message}`
   } finally {
@@ -39,6 +40,26 @@ watch([input, withMath, withMermaid], () => {
   debTimer = window.setTimeout(() => void render(), 300)
 })
 
+/** 代码高亮（rx4）：围栏代码块 token 着色（懒加载 highlight.js） */
+const highlightCodeBlocks = async (root: HTMLElement | null) => {
+  if (!root) return
+  try {
+    const hljs = (await import('highlight.js/lib/common')).default
+    root.querySelectorAll('pre code').forEach((el) => {
+      const lang = [...el.classList].find((c) => c.startsWith('language-'))?.slice(9)
+      try {
+        const res = lang && hljs.getLanguage(lang) ? hljs.highlight(el.textContent ?? '', { language: lang }) : hljs.highlightAuto(el.textContent ?? '')
+        el.innerHTML = res.value
+        el.classList.add('hljs')
+      } catch {
+        /* 未知语言保留原文 */
+      }
+    })
+  } catch {
+    /* highlight.js 加载失败忽略 */
+  }
+}
+
 const copyHtml = async () => {
   if (!html.value) return toast.warn('请先渲染内容')
   const okFlag = await copyText(html.value)
@@ -51,6 +72,34 @@ const downloadHtml = async () => {
   const doc = `<!DOCTYPE html>\n<html lang="zh-CN">\n<head>\n<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width, initial-scale=1.0">\n<title>Markdown 导出</title>\n${katexCss}<style>body{max-width:760px;margin:40px auto;padding:0 20px;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;line-height:1.7;color:#24292f}code{background:#f0f1f4;padding:2px 5px;border-radius:4px}pre{background:#f6f8fa;padding:14px;border-radius:8px;overflow:auto}blockquote{border-left:4px solid #d0d7de;margin:0;padding-left:14px;color:#57606a}table{border-collapse:collapse}th,td{border:1px solid #d0d7de;padding:6px 12px}.mermaid-src svg{max-width:100%}</style>\n</head>\n<body>\n${html.value}\n</body>\n</html>`
   saveBlob(new Blob([doc], { type: 'text/html;charset=utf-8' }), 'markdown.html')
   toast.ok('已下载独立 HTML 文件')
+}
+
+/* 滚动同步（rx3）：按行号比例联动（可开关） */
+const syncScroll = ref(true)
+const fullscreen = ref(false)
+const inputEl = ref<HTMLTextAreaElement | null>(null)
+let syncing = false
+const onInputScroll = (e: Event) => {
+  if (!syncScroll.value || syncing) return
+  const ta = e.target as HTMLTextAreaElement
+  const box = previewRef.value
+  if (!box) return
+  const maxIn = ta.scrollHeight - ta.clientHeight
+  if (maxIn <= 0) return
+  syncing = true
+  box.scrollTop = (ta.scrollTop / maxIn) * Math.max(0, box.scrollHeight - box.clientHeight)
+  requestAnimationFrame(() => (syncing = false))
+}
+const onPreviewScroll = (e: Event) => {
+  if (!syncScroll.value || syncing) return
+  const box = e.target as HTMLElement
+  const ta = inputEl.value
+  if (!ta) return
+  const maxP = box.scrollHeight - box.clientHeight
+  if (maxP <= 0) return
+  syncing = true
+  ta.scrollTop = (box.scrollTop / maxP) * Math.max(0, ta.scrollHeight - ta.clientHeight)
+  requestAnimationFrame(() => (syncing = false))
 }
 
 const loadSample = () => {
@@ -73,11 +122,15 @@ const loadSample = () => {
     <div class="grid-2" style="gap: 12px">
       <div>
         <span class="field-label">Markdown 输入（$行内公式$、$$独立公式$$、```mermaid 代码块）</span>
-        <textarea v-model="input" class="textarea mono" style="min-height: 380px"></textarea>
+        <textarea ref="inputEl" v-model="input" class="textarea mono" style="min-height: 380px" @scroll="onInputScroll"></textarea>
       </div>
       <div>
-        <span class="field-label">渲染预览（已净化）</span>
-        <div ref="previewRef" class="preview-box prose" v-html="html"></div>
+        <div class="row row-wrap" style="gap: 8px; align-items: center">
+          <span class="field-label">渲染预览（已净化）</span>
+          <label class="check" style="gap: 4px; font-size: 12px"><input v-model="syncScroll" type="checkbox" /> 滚动同步</label>
+          <button class="btn btn-ghost btn-sm" @click="fullscreen = true" :disabled="!html">全屏</button>
+        </div>
+        <div ref="previewRef" class="preview-box prose" :class="{ fs: fullscreen }" v-html="html" @scroll="onPreviewScroll"></div>
       </div>
     </div>
 
@@ -92,12 +145,27 @@ const loadSample = () => {
   border-radius: 10px;
   background: color-mix(in srgb, var(--panel-solid) 80%, transparent);
   padding: 18px 20px;
-  min-height: 380px;
-  max-height: 520px;
+  /* 弹性高度（rx2） */
+  min-height: 480px;
+  max-height: max(480px, calc(100vh - 330px));
   overflow: auto;
   font-size: 14.5px;
   line-height: 1.75;
   overflow-wrap: anywhere;
+}
+.preview-box :deep(.hljs-keyword) { color: #c678dd; }
+.preview-box :deep(.hljs-string) { color: #98c379; }
+.preview-box :deep(.hljs-comment) { color: #7f848e; }
+.preview-box :deep(.hljs-number) { color: #d19a66; }
+.preview-box :deep(.hljs-title) { color: #61afef; }
+.preview-box.fs {
+  position: fixed;
+  inset: 16px;
+  z-index: 80;
+  max-height: none;
+  height: calc(100vh - 32px);
+  background: var(--panel-solid);
+  box-shadow: 0 24px 70px rgb(0 0 0 / 0.35);
 }
 .preview-box :deep(img) {
   max-width: 100%;

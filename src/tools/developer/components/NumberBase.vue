@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { Binary, Copy } from 'lucide-vue-next'
 import { copyText } from '@/lib/download'
 import { useToast } from '@/composables/useToast'
@@ -9,6 +9,21 @@ const input = ref('255')
 const fromBase = ref(10)
 const customBase = ref(32)
 const results = ref<{ copied: boolean }[]>([])
+
+/* 家族互链转料：位运算/其他工具跳转过来时回显输入与进制 */
+onMounted(() => {
+  const t = sessionStorage.getItem('toolhub.transfer.number-base-converter')
+  if (t) {
+    try {
+      const { input: v, base } = JSON.parse(t) as { input: string; base?: number }
+      input.value = v
+      if (base) fromBase.value = base
+      sessionStorage.removeItem('toolhub.transfer.number-base-converter')
+    } catch {
+      /* 转料损坏则忽略 */
+    }
+  }
+})
 
 const R = [
   { base: 2, label: '二进制' },
@@ -71,11 +86,15 @@ const outputs = computed(() => {
   const target = [...R.map((r) => r.base)]
   const cb = clampCustom()
   if (!target.includes(cb)) target.unshift(cb)
-  return target.map((base) => ({
-    base,
-    label: R.find((r) => r.base === base)?.label ?? `${base} 进制`,
-    value: parsed.ok ? fromBigInt(parsed.value, base) : '—',
-  }))
+  return target.map((base) => {
+    let value = parsed.ok ? fromBigInt(parsed.value, base) : '—'
+    if (base === 16 && hexUpper.value && parsed.ok) value = value.toUpperCase()
+    return {
+      base,
+      label: R.find((r) => r.base === base)?.label ?? `${base} 进制`,
+      value,
+    }
+  })
 })
 
 const bits32 = computed(() => {
@@ -84,6 +103,32 @@ const bits32 = computed(() => {
   const v = parsed.value
   if (v < 0n || v > 0xffffffffn) return ''
   return v.toString(2).padStart(32, '0').replace(/(.{4})(?=.)/g, '$1 ')
+})
+
+/* ---- 前缀纠偏：0x/0b/0o 前缀与当前进制不符时提供一键重解析（rx1） ---- */
+const prefixHint = computed(() => {
+  const t = input.value.trim().toLowerCase()
+  if (/^0x/.test(t) && fromBase.value !== 16) return { base: 16, label: '16' }
+  if (/^0b/.test(t) && fromBase.value !== 2) return { base: 2, label: '2' }
+  if (/^0o/.test(t) && fromBase.value !== 8) return { base: 8, label: '8' }
+  return null
+})
+const applyPrefix = () => {
+  if (prefixHint.value) fromBase.value = prefixHint.value.base
+}
+
+/* ---- 大写十六进制（rx3） ---- */
+const hexUpper = ref(false)
+
+/* ---- 补码视图：按所选位宽显示补码位模式（rx2） ---- */
+const compWidth = ref(32)
+const complement = computed(() => {
+  const parsed = toBigInt.value
+  if (!parsed.ok) return ''
+  const w = BigInt(compWidth.value)
+  const mod = 1n << w
+  const v = ((parsed.value % mod) + mod) % mod
+  return v.toString(2).padStart(Number(w), '0').replace(/(.{4})(?=.)/g, '$1 ')
 })
 
 const copy = async (value: string, i: number) => {
@@ -118,6 +163,11 @@ const copy = async (value: string, i: number) => {
       </div>
     </div>
 
+    <div v-if="prefixHint && input.trim()" class="notice notice-warn mt-2">
+      输入含 <code class="mono">{{ input.trim().slice(0, 4) }}</code> 前缀，与当前所选进制不符。
+      <button class="btn btn-ghost btn-sm" style="margin-left: 8px" @click="applyPrefix">按 {{ prefixHint.label }} 进制重新解析</button>
+    </div>
+
     <div v-if="!toBigInt.ok && input.trim()" class="notice notice-err mt-2">无法按当前进制解析该数值，请检查字符是否属于对应进制。</div>
 
     <div class="mt-3 res-list">
@@ -137,7 +187,17 @@ const copy = async (value: string, i: number) => {
       <p class="muted small mt-1">仅当数值落在 0 ~ 4294967295 范围内时展示。</p>
     </div>
 
-    <p class="notice notice-info mt-3 small">内部使用 BigInt 运算，支持超大整数；输入可带负号。</p>
+    <div class="mt-3">
+      <div class="row row-wrap" style="gap: 10px; align-items: center">
+        <span class="field-label" style="margin: 0"><Binary :size="14" style="vertical-align: -2px" /> 补码位模式</span>
+        <span v-for="w in [8, 16, 32, 64]" :key="w" class="kf" :class="{ on: compWidth === w }" @click="compWidth = w">{{ w }} 位</span>
+        <label class="check"><input v-model="hexUpper" type="checkbox" /> 大写十六进制</label>
+      </div>
+      <div v-if="complement" class="bits mono mt-2">{{ complement }}</div>
+      <p class="muted small mt-1">负数按所选位宽显示补码（如 -1 在 8 位下为 1111 1111）；结果行复制时仍为原进制字符串。</p>
+    </div>
+
+    <p class="notice notice-info mt-3 small">内部使用 BigInt 运算，支持超大整数；输入可带负号。小数进制冷暂不支持（仅整数）。</p>
   </div>
 </template>
 
@@ -204,5 +264,18 @@ const copy = async (value: string, i: number) => {
   letter-spacing: 2px;
   color: var(--text-2);
   overflow-x: auto;
+}
+.kf {
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 2px 10px;
+  cursor: pointer;
+  color: var(--text-2);
+  font-size: 12.5px;
+}
+.kf.on {
+  border-color: var(--accent);
+  color: var(--accent-text);
+  background: var(--accent-soft);
 }
 </style>

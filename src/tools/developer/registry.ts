@@ -1,8 +1,13 @@
 import type { ToolDef, CalcResultRow } from '@/types'
-import { jsonToJava } from '@/lib/jsEngine'
+import {
+  base64Transform, urlTransform, jsonToCsvTransform, jsonToYamlTransform, yamlToJsonTransform,
+  jsonToXmlTransform, xmlToJsonTransform, jsonEscapeTransform, base32Transform, htmlEntityTransform,
+  csvToMarkdownTransform, jsonToJavaTransform, gzipTransform, punycodeTransform, caseStyleTransform,
+  caseStyleDefault, cookieTransform, coordCompute,
+} from './textDefs'
 import { b64encode, b64decode, urlEncode, urlDecode, htmlEntityEncode, htmlEntityDecode, jsonEscapeEncode, jsonEscapeDecode, b32encode, b32decode } from '@/lib/textEngine'
-import { formatJson, minifyJson, validateJson, jsonToYaml, yamlToJson, yamlToJsonHeavy, jsonToXml, xmlToJson, jsonToTs, jsonSchemaFrom, jsonPathQuery, generateMock, fakeRows, FAKE_FIELDS, uaParse, curlToFetch, HTTP_STATUS, formatXml, chmodToSymbol, chmodFromSymbol } from '@/lib/jsEngine'
-import { bytesToBase64, bytesToLatin1, base64ToBytes, latin1ToBytes, convertIdentifier, CASE_TARGETS, type CaseTarget, parseCookieInput, cookieJsonToHeader, dockerRunToCompose, dockerComposeToRun, convertCoord, COORD_LABELS, outOfChina, type CoordSys } from '@/lib/devExt'
+import { formatJson, minifyJson, validateJson, jsonToTs, jsonSchemaFrom, jsonPathQuery, generateMock, fakeRows, FAKE_FIELDS, uaParse, curlToFetch, HTTP_STATUS, formatXml, chmodToSymbol, chmodFromSymbol } from '@/lib/jsEngine'
+import { dockerRunToCompose, dockerComposeToRun, CASE_TARGETS } from '@/lib/devExt'
 
 /** 开发工具注册表（91 项） */
 const tools: ToolDef[] = [
@@ -12,18 +17,28 @@ const tools: ToolDef[] = [
   { slug: 'text-diff', title: '文本差异对比', category: 'developer', desc: '逐行对比两段文本，绿色新增、红色删除，适合代码与文档审阅。', keywords: ['对比', 'diff', '差异'], component: () => import('./components/TextDiff.vue') },
   {
     slug: 'base64-encoder', title: 'Base64 编解码', category: 'developer',
-    desc: '文本与 Base64 双向转换，完整支持 UTF-8 中文，也可编码文件。',
-    keywords: ['base64', '编码', '解码'],
+    desc: '文本与 Base64 双向转换，完整支持 UTF-8 中文，兼容 URL-safe 变体；文件转 Base64 请用「图片转 Base64」工具。',
+    keywords: ['base64', '编码', '解码', 'urlsafe'],
+    steps: ['粘贴文本或 Base64 串', '选择方向与变体（标准 / URL-safe）', '复制结果（下载 TXT 可存档）'],
     textDef: {
-      options: [{ key: 'dir', label: '方向', type: 'select', default: 'encode', choices: [
-        { value: 'encode', label: '编码（文本 → Base64）' }, { value: 'decode', label: '解码（Base64 → 文本）' },
-      ] }],
-      transform: (t, o) => (o.dir === 'decode' ? b64decode(t) : b64encode(t)),
+      options: [
+        { key: 'dir', label: '方向', type: 'select', default: 'encode', choices: [
+          { value: 'encode', label: '编码（文本 → Base64）' }, { value: 'decode', label: '解码（Base64 → 文本）' },
+        ] },
+        { key: 'variant', label: '变体', type: 'select', default: 'standard', choices: [
+          { value: 'standard', label: '标准（+ / /）' }, { value: 'urlsafe', label: 'URL-safe（- / _，无填充）' },
+        ] },
+        { key: 'wrap', label: '换行宽度', type: 'select', default: 'none', choices: [
+          { value: 'none', label: '不换行' }, { value: '76', label: '76 字符（MIME）' }, { value: '64', label: '64 字符' },
+        ] },
+      ],
+      transform: (t, o) => base64Transform(t, o),
+      placeholder: '粘贴文本或 Base64 串…（解码自动兼容 URL-safe 的 - _ 与换行）',
     },
   },
   {
     slug: 'url-encoder', title: 'URL 编解码', category: 'developer',
-    desc: '对 URL 组件或整个地址进行百分号编码与解码，处理中文与特殊字符。',
+    desc: '对 URL 组件或整个地址进行百分号编码与解码，处理中文与特殊字符；+ 号行为可选（保留 / form 档）。',
     keywords: ['url', '编码', 'encode'],
     textDef: {
       options: [
@@ -32,9 +47,14 @@ const tools: ToolDef[] = [
         ] },
         { key: 'scope', label: '范围', type: 'select', default: 'component', choices: [
           { value: 'component', label: 'URI 组件（常用）' }, { value: 'full', label: '整个 URI' },
+          { value: 'component', label: '表单（form-urlencoded，空格→+）' },
+        ] },
+        { key: 'plus', label: '+ 号处理（解码）', type: 'select', default: 'keep', choices: [
+          { value: 'keep', label: '保留字面 +（默认）' }, { value: 'form', label: '还原为空格（form 档）' },
         ] },
       ],
-      transform: (t, o) => (o.dir === 'decode' ? urlDecode(t, o.scope === 'component') : urlEncode(t, o.scope === 'component')),
+      transform: (t, o) => urlTransform(t, o),
+      placeholder: '如 https://example.com/搜索?q=百宝工具箱&tag=a+b',
     },
   },
   { slug: 'jwt-decoder', title: 'JWT 解析器', category: 'developer', desc: '解码 JWT 的 Header 与 Payload 为可读 JSON，校验过期时间，不发送令牌。', keywords: ['jwt', 'token', '解析'], component: () => import('./components/JwtDecoder.vue') },
@@ -85,15 +105,18 @@ const tools: ToolDef[] = [
     slug: 'json-to-yaml', title: 'JSON 转 YAML', category: 'developer',
     desc: 'JSON 转 YAML，适合编写 Docker Compose、Kubernetes 与 CI 配置。',
     keywords: ['json', 'yaml', 'k8s'],
-    textDef: { transform: (t) => jsonToYaml(t), placeholder: '粘贴 JSON…' },
+    textDef: {
+      transform: (t) => jsonToYamlTransform(t),
+      placeholder: '粘贴 JSON…（数字/布尔/日期样字符串自动加引号，避免 YAML 重解析改类型）',
+    },
   },
   {
     slug: 'yaml-to-json', title: 'YAML 转 JSON', category: 'developer',
     desc: 'YAML 配置转 JSON，支持嵌套映射、序列与常见标量类型。',
     keywords: ['yaml', 'json', '配置'],
     textDef: {
-      transform: (t) => yamlToJson(t),
-      placeholder: '粘贴 YAML…',
+      transform: (t) => yamlToJsonTransform(t),
+      placeholder: '粘贴 YAML…（错误提示含行列号；--- 多文档仅转换第 1 个）',
     },
   },
   {
@@ -101,26 +124,37 @@ const tools: ToolDef[] = [
     desc: 'JSON 转 XML，可自定义根元素名，供仍需 XML 的系统对接。',
     keywords: ['json', 'xml', '转换'],
     textDef: {
-      options: [{ key: 'root', label: '根元素名', type: 'text', default: 'root' }],
-      transform: (t, o) => jsonToXml(t, String(o.root || 'root')),
-      placeholder: '粘贴 JSON…',
+      options: [
+        { key: 'root', label: '根元素名', type: 'text', default: 'root' },
+        { key: 'arrayItem', label: '数组项元素名', type: 'text', default: '', placeholder: '留空沿用键名，可填 item' },
+      ],
+      transform: (t, o) => jsonToXmlTransform(t, o),
+      placeholder: '粘贴 JSON…（不合法键名自动清洗，输出尾部附往返自检结论）',
     },
   },
   {
     slug: 'xml-to-json', title: 'XML 转 JSON', category: 'developer',
     desc: '解析 XML 为 JSON 结构，属性以 @ 前缀保留，可直接粘贴到应用中。',
     keywords: ['xml', 'json', '解析'],
-    textDef: { transform: (t) => xmlToJson(t), placeholder: '粘贴 XML…' },
+    textDef: {
+      options: [{ key: 'forceArray', label: '单元素也输出数组', type: 'toggle', default: false }],
+      transform: (t, o) => xmlToJsonTransform(t, o),
+      placeholder: '粘贴 XML…（输出首行附属性/数组合并口径说明）',
+    },
   },
   {
     slug: 'json-escape', title: 'JSON 转义 / 反转义', category: 'developer',
     desc: '把任意文本转成合法 JSON 字符串字面量，或反转义回原文。',
     keywords: ['json', '转义', 'escape'],
     textDef: {
-      options: [{ key: 'dir', label: '方向', type: 'select', default: 'escape', choices: [
-        { value: 'escape', label: '转义（文本 → JSON 字符串）' }, { value: 'unescape', label: '反转义' },
-      ] }],
-      transform: (t, o) => (o.dir === 'unescape' ? jsonEscapeDecode(t) : jsonEscapeEncode(t)),
+      options: [
+        { key: 'dir', label: '方向', type: 'select', default: 'escape', choices: [
+          { value: 'escape', label: '转义（文本 → JSON 字符串）' }, { value: 'unescape', label: '反转义' },
+        ] },
+        { key: 'unicode', label: '非 ASCII 转 \\uXXXX', type: 'toggle', default: false },
+      ],
+      transform: (t, o) => jsonEscapeTransform(t, o),
+      placeholder: '粘贴文本或 JSON 字符串字面量…（首字符为 " 且含 \\ 时自动按反转义处理）',
     },
   },
   { slug: 'toml-to-json', title: 'TOML 与 JSON 互转', category: 'developer',
@@ -135,10 +169,19 @@ const tools: ToolDef[] = [
     desc: 'RFC 4648 Base32 编码与解码，完整 UTF-8 支持，本地即时计算。',
     keywords: ['base32', '编码'],
     textDef: {
-      options: [{ key: 'dir', label: '方向', type: 'select', default: 'encode', choices: [
-        { value: 'encode', label: '编码' }, { value: 'decode', label: '解码' },
-      ] }],
-      transform: (t, o) => (o.dir === 'decode' ? b32decode(t) : b32encode(t)),
+      options: [
+        { key: 'dir', label: '方向', type: 'select', default: 'encode', choices: [
+          { value: 'encode', label: '编码' }, { value: 'decode', label: '解码' },
+        ] },
+        { key: 'alphabet', label: '字母表', type: 'select', default: 'standard', choices: [
+          { value: 'standard', label: '标准 RFC 4648' }, { value: 'base32hex', label: 'base32hex（0-9A-V）' }, { value: 'crockford', label: 'Crockford（无 I/L/O/U）' },
+        ] },
+        { key: 'group', label: '输出分组', type: 'select', default: 'plain', choices: [
+          { value: 'plain', label: '连续' }, { value: 'group8', label: '8 字符分组' },
+        ] },
+      ],
+      transform: (t, o) => base32Transform(t, o),
+      placeholder: '粘贴文本或 Base32 串…（解码自动容错空格/连字符/填充）',
     },
   },
   {
@@ -146,10 +189,16 @@ const tools: ToolDef[] = [
     desc: '把 < > & 引号转成 HTML 实体防止转义问题，或解码实体回原文。',
     keywords: ['html', '实体', 'entity'],
     textDef: {
-      options: [{ key: 'dir', label: '方向', type: 'select', default: 'encode', choices: [
-        { value: 'encode', label: '编码' }, { value: 'decode', label: '解码' },
-      ] }],
-      transform: (t, o) => (o.dir === 'decode' ? htmlEntityDecode(t) : htmlEntityEncode(t)),
+      options: [
+        { key: 'dir', label: '方向', type: 'select', default: 'encode', choices: [
+          { value: 'encode', label: '编码' }, { value: 'decode', label: '解码' },
+        ] },
+        { key: 'scope', label: '转义范围', type: 'select', default: 'basic', choices: [
+          { value: 'basic', label: '仅保留字符（& < > " \')' }, { value: 'extended', label: '扩展命名集（&copy; &nbsp; 等）' }, { value: 'all', label: '全部非 ASCII → 数字实体' },
+        ] },
+      ],
+      transform: (t, o) => htmlEntityTransform(t, o),
+      placeholder: '如 a & "b" <c> © 中文…（输出首行附已转义计数）',
     },
   },
   { slug: 'hmac-generator', title: 'HMAC 签名生成', category: 'developer', desc: '用共享密钥生成 HMAC-SHA1/256/512 签名，支持 Hex 与 Base64 输出。', keywords: ['hmac', '签名', 'secret'], component: () => import('./components/HmacGenerator.vue') },
@@ -165,16 +214,11 @@ const tools: ToolDef[] = [
       options: [
         { key: 'delim', label: 'CSV 分隔符', type: 'select', default: ',', choices: [{ value: ',', label: '逗号' }, { value: ';', label: '分号' }, { value: '\t', label: '制表符' }] },
         { key: 'align', label: '对齐', type: 'select', default: 'left', choices: [{ value: 'left', label: '左对齐' }, { value: 'center', label: '居中' }, { value: 'right', label: '右对齐' }] },
+        { key: 'pad', label: '列宽对齐（按最长补空格）', type: 'toggle', default: false },
+        { key: 'header', label: '首行为表头', type: 'toggle', default: true },
       ],
-      transform: (t, o) => {
-        const rows = t.replace(/\r\n?/g, '\n').split('\n').filter((l) => l.trim()).map((l) => l.split(String(o.delim)).map((c) => c.replace(/^"|"$/g, '').trim()))
-        if (!rows.length) return ''
-        const align = String(o.align)
-        const sepRow = rows[0].map(() => (align === 'center' ? ':---:' : align === 'right' ? '---:' : '---'))
-        const fmt = (r: string[]) => `| ${r.join(' | ')} |`
-        return [fmt(rows[0]), fmt(sepRow), ...rows.slice(1).map(fmt)].join('\n')
-      },
-      placeholder: '粘贴 CSV…',
+      transform: (t, o) => csvToMarkdownTransform(t, o),
+      placeholder: '粘贴 CSV…（如 姓名,城市\n"张三, Jr",北京；引号字段与换行全兼容；拖入 .csv 文件亦可）',
     },
   },
   { slug: 'cron-explainer', title: 'Cron 表达式解读', category: 'developer', desc: '把 crontab 表达式翻译成中文说明，并给出接下来几次的执行时间。', keywords: ['cron', 'crontab', '定时'], component: () => import('./components/CronExplainer.vue') },
@@ -211,15 +255,17 @@ const tools: ToolDef[] = [
   { slug: 'code-screenshot', title: '代码截图美化', category: 'developer', desc: '粘贴代码生成 Carbon 风格卡片：主题、窗口条、渐变背景，导出高清 PNG。', keywords: ['代码截图', 'carbon', '代码图片', '分享'], component: () => import('./components/CodeScreenshot.vue') },
   {
     slug: 'json-to-java-entity', title: 'JSON 转 Java 实体类', category: 'developer',
-    desc: 'JSON 生成 Java POJO（可选 Lombok），嵌套对象自动拆子类，后端开发提效。',
+    desc: 'JSON 生成 Java POJO（可选 Lombok/Jackson 注解），嵌套对象生成为根类内部 public static class，贴入 IDE 即可编译。',
     keywords: ['json', 'java', 'pojo', '实体类'],
     textDef: {
       options: [
         { key: 'cls', label: '根类名', type: 'text', default: 'Demo', placeholder: '如 User' },
         { key: 'lombok', label: '使用 Lombok @Data', type: 'toggle', default: true },
+        { key: 'pkg', label: 'package 声明', type: 'text', default: '', placeholder: '如 com.example.dto（留空不生成）' },
+        { key: 'jackson', label: '非驼峰键加 @JsonProperty', type: 'toggle', default: false },
       ],
       placeholder: '粘贴 JSON（顶层对象或对象数组），生成 Java 实体类…',
-      transform: (t, o) => jsonToJava(t, String(o.cls || 'Demo'), o.lombok !== false),
+      transform: (t, o) => jsonToJavaTransform(t, o),
     },
   },
   /* ---- P2 新增：开发者进阶工具 17 件 ---- */
@@ -242,25 +288,12 @@ const tools: ToolDef[] = [
         { key: 'enc', label: '压缩串编码', type: 'select', default: 'base64', choices: [
           { value: 'base64', label: 'Base64' }, { value: 'latin1', label: 'Latin1 二进制字符串' },
         ] },
+        { key: 'level', label: '压缩级别', type: 'select', default: '6', choices: [
+          { value: '1', label: '级别 1（最快）' }, { value: '6', label: '级别 6（默认）' }, { value: '9', label: '级别 9（最小）' },
+        ] },
       ],
-      transform: async (t, o) => {
-        const pako = await import('pako')
-        try {
-          if (o.dir === 'compress') {
-            const bytes = new TextEncoder().encode(t)
-            const out = o.algo === 'gzip' ? pako.gzip(bytes) : o.algo === 'deflate' ? pako.deflate(bytes) : pako.deflateRaw(bytes)
-            return o.enc === 'base64' ? bytesToBase64(out) : bytesToLatin1(out)
-          }
-          const bytes = o.enc === 'base64' ? base64ToBytes(t) : latin1ToBytes(t)
-          const out = o.algo === 'gzip' ? pako.ungzip(bytes) : o.algo === 'deflate' ? pako.inflate(bytes) : pako.inflateRaw(bytes)
-          return new TextDecoder().decode(out)
-        } catch (e) {
-          throw new Error(o.dir === 'decompress'
-            ? `解压失败：输入不是合法的${o.enc === 'base64' ? ' Base64' : ''}压缩串或已损坏，且需与压缩算法一致（${(e as Error).message}）`
-            : `压缩失败：${(e as Error).message}`)
-        }
-      },
-      placeholder: '输入要压缩的文本，或粘贴压缩串进行解压…',
+      transform: (t, o) => gzipTransform(t, o),
+      placeholder: '输入要压缩的文本，或粘贴压缩串进行解压…（输出尾部附压缩统计；粘贴已压缩串会自动改为解压）',
     },
   },
   {
@@ -277,37 +310,9 @@ const tools: ToolDef[] = [
   },
   {
     slug: 'code-minifier', title: 'JS/CSS 压缩混淆', category: 'developer',
-    desc: 'terser 压缩 JS（mangle+compress），csso 压缩 CSS，自动识别语言并报告压缩率。',
+    desc: 'terser 压缩 JS（mangle+compress，仅重命名标识符非强混淆），csso 压缩 CSS，压缩率统计独立展示、产物纯净。',
     keywords: ['压缩', 'minify', 'terser', '混淆', 'css', 'js'],
-    textDef: {
-      options: [{ key: 'lang', label: '语言', type: 'select', default: 'auto', choices: [
-        { value: 'auto', label: '自动识别' }, { value: 'js', label: 'JavaScript（terser）' }, { value: 'css', label: 'CSS（csso）' },
-      ] }],
-      transform: async (t, o) => {
-        if (!t.trim()) return ''
-        const cssHits = (t.match(/[{;]\s*[-\w]+\s*:\s*[^;{}]+;/g) ?? []).length + (t.match(/@(media|import|charset|font-face|keyframes|supports)\b/g) ?? []).length
-        const jsHits = (t.match(/\b(function|const|let|var|return|import|export|class)\b|=>/g) ?? []).length
-        const isCss = o.lang === 'css' || (o.lang === 'auto' && cssHits > jsHits)
-        let out: string
-        try {
-          if (isCss) {
-            const csso = await import('csso')
-            out = csso.minify(t).css
-          } else {
-            const { minify } = await import('terser')
-            const r = await minify(t, { module: true, compress: true, mangle: true, format: { comments: false } })
-            out = r.code ?? ''
-          }
-        } catch (e) {
-          throw new Error(`压缩失败：${(e as Error).message}（请确认代码语法正确，或手动指定语言）`)
-        }
-        const a = new Blob([t]).size
-        const b = new Blob([out]).size
-        const pct = a > 0 ? Math.round((1 - b / a) * 1000) / 10 : 0
-        return `${out}\n\n/* 压缩统计（${isCss ? 'CSS/csso' : 'JS/terser'}）：${a} B → ${b} B，减小 ${pct}% */`
-      },
-      placeholder: '粘贴 JS 或 CSS 代码，自动压缩…',
-    },
+    component: () => import('./components/CodeMinifier.vue'),
   },
   { slug: 'json-visualizer', title: 'JSON 可视化树', category: 'developer', desc: 'JSON 渲染为可折叠树：类型着色、搜索高亮、点击复制路径，超大数据懒展开。', keywords: ['json', '可视化', '树', '查看器', 'viewer', '折叠'], component: () => import('./components/JsonVisualizer.vue'), steps: ['粘贴 JSON 自动解析', '搜索键名自动展开高亮', '点击键名复制 a.b[0].c 路径'] },
   {
@@ -323,67 +328,26 @@ const tools: ToolDef[] = [
           { value: 'bd09', label: 'BD09（百度坐标）' },
         ] },
       ],
-      compute: (v) => {
-        const lines = String(v.input ?? '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean).slice(0, 200)
-        if (!lines.length) return [{ label: '请输入经纬度', value: '每行一个「经度,纬度」，如 116.404,39.915' }]
-        const from = String(v.from) as CoordSys
-        const rows: CalcResultRow[] = []
-        let outOfCn = false
-        lines.forEach((line, idx) => {
-          const nums = line.split(/[,，\s]+/).map(Number)
-          const lon = nums[0], lat = nums[1]
-          if (nums.length < 2 || !Number.isFinite(lon) || !Number.isFinite(lat) || Math.abs(lat!) > 90 || Math.abs(lon!) > 180) {
-            rows.push({ label: `第 ${idx + 1} 行`, value: '格式不合法：应为「经度,纬度」，纬度 ±90、经度 ±180 内' })
-            return
-          }
-          for (const to of ['wgs84', 'gcj02', 'bd09'] as const) {
-            const r = convertCoord(lon!, lat!, from, to)
-            const mark = to === from ? '（原坐标系）' : ''
-            rows.push({
-              label: `第 ${idx + 1} 行 · ${COORD_LABELS[to].split('（')[0]}`,
-              value: `${r.lon.toFixed(6)}, ${r.lat.toFixed(6)}${mark}`,
-              primary: idx === 0 && to !== from,
-            })
-          }
-          if (outOfChina(lon!, lat!)) outOfCn = true
-        })
-        if (outOfCn) rows.push({ label: '提示', value: '检测到中国境外坐标：纠偏算法仅对中国大陆生效，境外各坐标系结果一致' })
-        return rows
-      },
-      note: '口径：公开纠偏算法。GCJ02 为国测局加偏的「火星坐标」（高德/腾讯地图），BD09 在 GCJ02 基础上二次加偏（百度地图），WGS84 为 GPS 原始值（海外地图/卫星影像）；WGS84↔GCJ02 反算采用迭代逼近，误差约 1 米。',
+      compute: (v) => coordCompute(v) as CalcResultRow[],
+      note: '口径：公开纠偏算法。GCJ02 为国测局加偏的「火星坐标」（高德/腾讯地图），BD09 在 GCJ02 基础上二次加偏（百度地图），WGS84 为 GPS 原始值（海外地图/卫星影像）；WGS84↔GCJ02 反算采用迭代逼近，误差约 1 米；GCJ02 行附与 WGS84 的近似偏移米数；单行首值落在纬度域而次值落在经度域时提示顺序颠倒（按原样计算）；单次最多 200 行。',
     },
   },
   {
     slug: 'punycode-converter', title: '中文域名转码', category: 'developer',
-    desc: '中文域名与 xn-- Punycode 双向转换（IDN），支持批量，附 URL 合法性校验。',
+    desc: '中文域名与 xn-- Punycode 双向转换（IDN），支持批量、自动切向与逐标签对照；RFC3492 直转、未做 UTS46 折叠，域名注册以注册局为准。',
     keywords: ['punycode', '中文域名', 'idn', 'xn--', '域名'],
+    steps: ['粘贴中文域名或 xn-- 编码（每行一个）', '自动判定转换方向（可手动覆盖）', '复制结果或查看逐标签对照'],
     textDef: {
-      options: [{ key: 'dir', label: '方向', type: 'select', default: 'toAscii', choices: [
-        { value: 'toAscii', label: '中文域名 → xn-- 编码' }, { value: 'toUnicode', label: 'xn-- → 中文域名' },
-      ] }],
-      transform: async (t, o) => {
-        const mod = await import('punycode.js')
-        const p = mod.default ?? (mod as unknown as typeof mod.default)
-        const fn = o.dir === 'toAscii' ? p.toASCII : p.toUnicode
-        return t.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((l) => {
-          try {
-            const r = fn(l)
-            if (o.dir === 'toAscii') {
-              // 浏览器 URL API 校验：转换结果必须能构成合法 URL 才可直接用于解析
-              try {
-                new URL(`http://${r}`)
-                return r
-              } catch {
-                return `${r}（未通过 URL 校验：含非法字符或格式不完整）`
-              }
-            }
-            return r
-          } catch {
-            return `${l}（无法转换，请检查是否为合法域名）`
-          }
-        }).join('\n')
-      },
-      placeholder: '每行一个域名，如 百度.示例 或 xn--fsq092h…',
+      options: [
+        { key: 'dir', label: '方向', type: 'select', default: 'toAscii', choices: [
+          { value: 'toAscii', label: '中文域名 → xn-- 编码' }, { value: 'toUnicode', label: 'xn-- → 中文域名' },
+        ] },
+        { key: 'view', label: '输出视图', type: 'select', default: 'plain', choices: [
+          { value: 'plain', label: '纯文本' }, { value: 'perLabel', label: '逐标签对照' },
+        ] },
+      ],
+      transform: (t, o) => punycodeTransform(t, o),
+      placeholder: '每行一个域名，如 百度.示例 或 xn--fsq092h…（含 xn-- 自动转中文，含中文自动转编码）',
     },
   },
   { slug: 'mac-oui-lookup', title: 'MAC 厂商查询', category: 'developer', desc: '按 OUI 前缀查 MAC 地址厂商，支持批量与 EUI-64 展开，识别随机化地址。', keywords: ['mac', 'oui', '厂商', '网卡', 'eui64', 'ipv6'], needModel: true, component: () => import('./components/MacOuiLookup.vue'), steps: ['输入或批量粘贴 MAC 地址', '首次自动加载厂商库（约 2MB）', '查看厂商与 EUI-64 展开结果'] },
@@ -391,12 +355,18 @@ const tools: ToolDef[] = [
   { slug: 'snowflake-id-generator', title: '雪花 ID 生成解析', category: 'developer', desc: '批量生成 64 位雪花 ID（可配机器位与 epoch），支持从 ID 反查生成时间。', keywords: ['雪花id', 'snowflake', '分布式', 'id 生成', '时间戳'], component: () => import('./components/SnowflakeTool.vue'), steps: ['配置数据中心/机器 ID 与 epoch', '批量生成并复制', '粘贴 ID 反查生成时间'] },
   {
     slug: 'case-style-converter', title: '变量命名风格转换', category: 'developer',
-    desc: 'snake_case、camelCase、PascalCase、kebab-case、CONSTANT_CASE 五种风格批量互转。',
+    desc: 'snake_case、camelCase、PascalCase、kebab-case、CONSTANT_CASE 五种风格批量互转，支持一览对照与目标风格记忆；与「整段文本大小写转换」分工：本工具逐行处理变量名。',
     keywords: ['命名', 'camelcase', 'snake_case', 'kebab', '变量名', '驼峰'],
     textDef: {
-      options: [{ key: 'target', label: '目标风格', type: 'select', default: 'camel', choices: CASE_TARGETS.map((c) => ({ value: c.value, label: `${c.label}（如 ${c.example}）` })) }],
-      transform: (t, o) => t.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((l) => convertIdentifier(l, o.target as CaseTarget)).join('\n'),
-      placeholder: '每行一个变量名，任何风格皆可，如 user_name、userName、UserName、user-name…',
+      options: [
+        { key: 'target', label: '目标风格', type: 'select', default: caseStyleDefault, choices: CASE_TARGETS.map((c) => ({ value: c.value, label: `${c.label}（如 ${c.example}）` })) },
+        { key: 'view', label: '输出视图', type: 'select', default: 'single', choices: [
+          { value: 'single', label: '单风格' }, { value: 'overview', label: '五风格一览' },
+        ] },
+        { key: 'keepPrefix', label: '保留首段前缀（m_/_/等）', type: 'toggle', default: false },
+      ],
+      transform: (t, o) => caseStyleTransform(t, o),
+      placeholder: '每行一个变量名，任何风格皆可，如 user_name、userName、UserName、user-name…（输出首行附源风格检测摘要）',
     },
   },
   {
@@ -407,8 +377,8 @@ const tools: ToolDef[] = [
       options: [{ key: 'dir', label: '方向', type: 'select', default: 'parse', choices: [
         { value: 'parse', label: 'Cookie / Set-Cookie → JSON' }, { value: 'build', label: 'JSON → Cookie 字符串' },
       ] }],
-      transform: (t, o) => (o.dir === 'build' ? cookieJsonToHeader(t) : parseCookieInput(t)),
-      placeholder: '粘贴 document.cookie 串、Set-Cookie 响应头（可多行）或 JSON…',
+      transform: (t, o) => cookieTransform(t, o),
+      placeholder: '粘贴 document.cookie 串、Set-Cookie 响应头（可多行）或 JSON…（Expires 附中文相对时间；SameSite=None 无 Secure 时顶部告警）',
     },
   },
   { slug: 'keycode-lookup', title: '按键KeyCode查询', category: 'developer', desc: '按下任意键实时显示 event.key、event.code、keyCode 三元组与修饰键，附速查表。', keywords: ['keycode', '键盘', '按键', 'event', '快捷键'], component: () => import('./components/KeycodeLookup.vue'), steps: ['点击捕获区获得焦点', '按下任意键查看三元组', '下方速查表可搜索'] },

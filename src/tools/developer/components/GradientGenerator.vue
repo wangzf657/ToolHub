@@ -5,22 +5,35 @@ import { copyText } from '@/lib/download'
 import { useToast } from '@/composables/useToast'
 
 const toast = useToast()
-const type = ref<'linear' | 'radial'>('linear')
+const type = ref<'linear' | 'radial' | 'conic'>('linear')
 const angle = ref(135)
+interface Stop { color: string; pos: number; alpha: number }
 const stops = ref([
-  { color: '#6366f1', pos: 0 },
-  { color: '#22d3ee', pos: 100 },
+  { color: '#6366f1', pos: 0, alpha: 100 },
+  { color: '#22d3ee', pos: 100, alpha: 100 },
 ])
 const copied = ref(false)
 
-const stopsCss = computed(() => stops.value.map((s) => `${s.color} ${s.pos}%`).join(', '))
+const stopsCss = computed(() =>
+  stops.value
+    .map((s) => {
+      const hex = s.color.replace('#', '')
+      const n = Number.parseInt(hex.length === 3 ? [...hex].map((c) => c + c).join('') : hex, 16)
+      const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255
+      return s.alpha < 100 ? `rgba(${r}, ${g}, ${b}, ${(s.alpha / 100).toFixed(2)}) ${s.pos}%` : `${s.color} ${s.pos}%`
+    })
+    .join(', '))
 const css = computed(() =>
-  type.value === 'linear' ? `linear-gradient(${angle.value}deg, ${stopsCss.value})` : `radial-gradient(circle at 50% 50%, ${stopsCss.value})`,
+  type.value === 'linear'
+    ? `linear-gradient(${angle.value}deg, ${stopsCss.value})`
+    : type.value === 'conic'
+      ? `conic-gradient(from ${angle.value}deg at 50% 50%, ${stopsCss.value})`
+      : `radial-gradient(circle at 50% 50%, ${stopsCss.value})`,
 )
 
 const addStop = () => {
   if (stops.value.length >= 5) return toast.warn('最多支持 5 个色标')
-  stops.value.push({ color: '#fbbf24', pos: 50 })
+  stops.value.push({ color: '#fbbf24', pos: 50, alpha: 100 })
   sortStops()
 }
 
@@ -42,6 +55,28 @@ const doCopy = async () => {
     toast.ok('CSS 已复制')
   } else toast.err('复制失败')
 }
+
+/** 预设库（rx3）：点击全量载入色标与角度 */
+const PRESETS: { name: string; type: 'linear' | 'radial' | 'conic'; angle: number; stops: Stop[] }[] = [
+  { name: '淡出', type: 'linear', angle: 180, stops: [{ color: '#1e293b', pos: 0, alpha: 60 }, { color: '#1e293b', pos: 100, alpha: 0 }] },
+  { name: '霓虹', type: 'linear', angle: 45, stops: [{ color: '#22d3ee', pos: 0, alpha: 100 }, { color: '#a855f7', pos: 50, alpha: 100 }, { color: '#f43f5e', pos: 100, alpha: 100 }] },
+  { name: '落日', type: 'linear', angle: 120, stops: [{ color: '#fde68a', pos: 0, alpha: 100 }, { color: '#fb923c', pos: 55, alpha: 100 }, { color: '#dc2626', pos: 100, alpha: 100 }] },
+  { name: '薄荷', type: 'linear', angle: 90, stops: [{ color: '#ecfeff', pos: 0, alpha: 100 }, { color: '#14b8a6', pos: 100, alpha: 100 }] },
+  { name: '夜空', type: 'radial', angle: 0, stops: [{ color: '#1e1b4b', pos: 0, alpha: 100 }, { color: '#0f172a', pos: 100, alpha: 100 }] },
+  { name: '熔岩', type: 'conic', angle: 0, stops: [{ color: '#dc2626', pos: 0, alpha: 100 }, { color: '#f59e0b', pos: 40, alpha: 100 }, { color: '#dc2626', pos: 100, alpha: 100 }] },
+  { name: '扇形扫描', type: 'conic', angle: 0, stops: [{ color: '#3b82f6', pos: 0, alpha: 90 }, { color: '#3b82f6', pos: 25, alpha: 20 }, { color: '#3b82f6', pos: 100, alpha: 90 }] },
+  { name: '青金石', type: 'linear', angle: 135, stops: [{ color: '#0ea5e9', pos: 0, alpha: 100 }, { color: '#6366f1', pos: 60, alpha: 100 }, { color: '#1e1b4b', pos: 100, alpha: 100 }] },
+  { name: '蜜桃', type: 'radial', angle: 0, stops: [{ color: '#fecaca', pos: 0, alpha: 100 }, { color: '#fda4af', pos: 60, alpha: 100 }, { color: '#fb7185', pos: 100, alpha: 100 }] },
+  { name: '极光', type: 'conic', angle: 90, stops: [{ color: '#34d399', pos: 0, alpha: 100 }, { color: '#60a5fa', pos: 50, alpha: 100 }, { color: '#a78bfa', pos: 100, alpha: 100 }] },
+  { name: '单色淡出', type: 'linear', angle: 180, stops: [{ color: '#000000', pos: 0, alpha: 55 }, { color: '#000000', pos: 100, alpha: 0 }] },
+  { name: '琥珀', type: 'linear', angle: 30, stops: [{ color: '#fef3c7', pos: 0, alpha: 100 }, { color: '#f59e0b', pos: 100, alpha: 100 }] },
+]
+const loadPreset = (p: { type: 'linear' | 'radial' | 'conic'; angle: number; stops: Stop[] }) => {
+  type.value = p.type
+  angle.value = p.angle
+  stops.value = p.stops.map((s) => ({ ...s }))
+  toast.ok('预设已载入')
+}
 </script>
 
 <template>
@@ -50,13 +85,19 @@ const doCopy = async () => {
       <select v-model="type" class="select" style="width: 130px">
         <option value="linear">线性渐变</option>
         <option value="radial">径向渐变</option>
+        <option value="conic">锥形渐变</option>
       </select>
-      <template v-if="type === 'linear'">
-        <span class="field-label" style="margin: 0">角度 {{ angle }}°</span>
-        <input v-model.number="angle" type="range" min="0" max="360" step="5" style="width: 190px" />
+      <template v-if="type === 'linear' || type === 'conic'">
+        <span class="field-label" style="margin: 0">{{ type === 'conic' ? '起始角' : '角度' }} {{ angle }}°</span>
+        <input v-model.number="angle" type="range" min="0" max="360" step="1" style="width: 190px" />
       </template>
       <span class="grow"></span>
       <button class="btn btn-ghost btn-sm" @click="addStop"><Plus :size="14" /> 加色标</button>
+    </div>
+
+    <div class="row row-wrap mt-2" style="gap: 8px; align-items: center">
+      <span class="field-label" style="margin: 0">预设</span>
+      <button v-for="p in PRESETS" :key="p.name" class="chip" @click="loadPreset(p)">{{ p.name }}</button>
     </div>
 
     <div class="mt-2 stop-list">
@@ -65,6 +106,8 @@ const doCopy = async () => {
         <input v-model="s.color" type="text" class="input mono" style="width: 110px" spellcheck="false" />
         <input v-model.number="s.pos" type="range" min="0" max="100" step="1" class="grow" @change="sortStops" />
         <b class="pos mono">{{ s.pos }}%</b>
+        <input type="range" min="0" max="100" :value="s.alpha" title="色标不透明度" style="width: 80px" @input="s.alpha = Number(($event.target as HTMLInputElement).value)" />
+        <b class="pos mono" style="width: 44px">{{ s.alpha }}%</b>
         <button class="del-btn" title="删除色标" aria-label="删除色标" :disabled="stops.length <= 2" @click="removeStop(i)"><X :size="13" /></button>
       </div>
     </div>

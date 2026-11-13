@@ -95,6 +95,13 @@ const copyPath = async () => {
   if (await copyText(props.path)) toast.ok(`已复制路径 ${props.path}`)
   else toast.err('复制失败')
 }
+
+/** 右键复制 JSONPath（$ 格式）：$.store.book[0].title，与 jsonpath-tester 直接互通 */
+const copyJsonPath = async () => {
+  const dollar = '$' + (props.path ? (props.path.startsWith('[') ? props.path : '.' + props.path) : '')
+  if (await copyText(dollar)) toast.ok(`已复制 JSONPath ${dollar}`)
+  else toast.err('复制失败')
+}
 const copyValue = async () => {
   const raw = props.value
   const text = typeof raw === 'string' ? raw : JSON.stringify(raw)
@@ -110,7 +117,7 @@ const copyValue = async () => {
         <button class="jt-arrow" :aria-label="isOpen ? '折叠' : '展开'" @click="toggle">
           <ChevronRight :size="13" class="rot" :class="{ open: isOpen }" />
         </button>
-        <span v-if="name !== undefined" class="jt-key" title="点击复制路径" @click="copyPath">{{ name }}</span>
+        <span v-if="name !== undefined" class="jt-key" title="点击复制路径，右键复制 JSONPath（$ 格式）" @click="copyPath" @contextmenu.prevent="copyJsonPath">{{ name }}</span>
         <span class="jt-brace" @click="toggle">{{ isArr ? '[' : '{' }}</span>
         <span v-if="!isOpen" class="jt-meta" @click="toggle">…{{ summary }}</span>
         <span v-if="!isOpen" class="jt-brace" @click="toggle">{{ isArr ? ']' : '}' }}</span>
@@ -135,7 +142,7 @@ const copyValue = async () => {
     </template>
     <div v-else class="jt-row" :class="{ hit: matchSelf }">
       <span class="jt-pad"></span>
-      <span v-if="name !== undefined" class="jt-key" title="点击复制路径" @click="copyPath">{{ name }}</span>
+      <span v-if="name !== undefined" class="jt-key" title="点击复制路径，右键复制 JSONPath（$ 格式）" @click="copyPath" @contextmenu.prevent="copyJsonPath">{{ name }}</span>
       <span class="jt-val" :class="kind" title="点击复制值" @click="copyValue">{{ display }}</span>
     </div>
   </div>

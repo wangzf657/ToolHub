@@ -294,7 +294,6 @@ function pixelOp(d: Uint8ClampedArray, o: ImageOp): void {
         d[i + 1] = g + (v - g) * k
         d[i + 2] = b + (v - b) * k
       } else if (o.op === 'invert') {
-        d[i] = r + (255 - r - r) * 0 + (255 - 2 * r) * k + r - r // 简化：线性混合
         d[i] = r * (1 - k) + (255 - r) * k
         d[i + 1] = g * (1 - k) + (255 - g) * k
         d[i + 2] = b * (1 - k) + (255 - b) * k

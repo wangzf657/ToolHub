@@ -150,30 +150,47 @@ export function transformBuffer(buffer: AudioBuffer, ops: AudioOps): AudioBuffer
   return out
 }
 
-/** 变速不变调（简化实现：重采样 + 基频补偿的 granular 方式） */
+/** 变速不变调（OLA：50ms Hann 颗粒 + 50% 重叠叠加，窗和归一化消颗粒接缝爆音） */
 export function changeSpeed(buffer: AudioBuffer, speed: number): AudioBuffer {
-  if (speed === 1) return buffer
-  const newLen = Math.floor(buffer.length / speed)
+  if (speed === 1 || !Number.isFinite(speed) || speed <= 0) return buffer
   const numCh = buffer.numberOfChannels
+  const grain = Math.max(256, Math.floor(buffer.sampleRate * 0.05))
+  const hs = Math.max(1, Math.floor(grain / 2)) // 合成跳步（固定，50% 重叠）
+  // 分析跳步：输出时长/输入时长 = hs/ha，要等于 1/speed → ha = hs*speed
+  //（速度越快输入侧跳得越远；曾误写 hs/speed 导致内容截断+反向伸缩，冒烟脚本 qa/UX1.0_v2/logs 实测回归）
+  const ha = Math.max(1, Math.round(hs * speed))
+  const newLen = Math.max(1, Math.floor(buffer.length / speed))
+  const win = new Float32Array(grain)
+  for (let i = 0; i < grain; i++) win[i] = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / (grain - 1))
+  // 末颗粒按输出/输入边界裁剪：全程写满（无尾静音洞），输入仅丢末颗粒内不足一个跳步的样本
+  const grainLen = (inPos: number, outPos: number) =>
+    Math.min(grain, newLen - outPos, buffer.length - inPos)
+  // 窗和归一化序列（与通道无关，先累计一次；与下方写入循环同界）
+  const norm = new Float32Array(newLen)
+  {
+    let inPos = 0
+    let outPos = 0
+    while (outPos < newLen && inPos < buffer.length) {
+      const n = grainLen(inPos, outPos)
+      for (let i = 0; i < n; i++) norm[outPos + i] += win[i]
+      inPos += ha
+      outPos += hs
+    }
+  }
   const out = createBuffer(numCh, newLen, buffer.sampleRate)
-  // 颗粒拼接：以 50ms 粒度跳读，保持音高
-  const grain = Math.floor(buffer.sampleRate * 0.05)
-  const hopOut = Math.floor(grain / speed)
-  let outPos = 0
-  let inPos = 0
   for (let c = 0; c < numCh; c++) {
-    outPos = 0
-    inPos = 0
     const src = buffer.getChannelData(c)
     const dst = out.getChannelData(c)
-    while (outPos < newLen && inPos + grain < buffer.length) {
-      const n = Math.min(grain, newLen - outPos)
-      for (let i = 0; i < n; i++) {
-        // 线性插值 + 首尾 5ms 交叉淡化
-        dst[outPos + i] = src[inPos + i]
-      }
-      outPos += hopOut
-      inPos += grain
+    let inPos = 0
+    let outPos = 0
+    while (outPos < newLen && inPos < buffer.length) {
+      const n = grainLen(inPos, outPos)
+      for (let i = 0; i < n; i++) dst[outPos + i] += src[inPos + i] * win[i]
+      inPos += ha
+      outPos += hs
+    }
+    for (let i = 0; i < newLen; i++) {
+      if (norm[i] > 1e-4) dst[i] /= norm[i]
     }
   }
   return out
@@ -286,15 +303,23 @@ export function mergeBuffers(buffers: AudioBuffer[], gapSec = 0, targetRate?: nu
   const out = createBuffer(maxCh, Math.max(1, totalLen), rate)
   let pos = 0
   for (const b of buffers) {
+    // ratio = 输出样本数/输入样本数（rate/b.sampleRate）。
+    // 曾误写为 b.sampleRate/rate 却按输出/输入使用，跨采样率合并时时间轴被拉伸 (比)² 且错位（冒烟脚本实测）
+    const ratio = rate / b.sampleRate
+    const outLen = Math.ceil(b.length * ratio)
     for (let c = 0; c < maxCh; c++) {
       const src = b.getChannelData(Math.min(c, b.numberOfChannels - 1))
       const dst = out.getChannelData(c)
-      for (let i = 0; i < b.length; i++) {
-        const di = pos + Math.floor((i * rate) / b.sampleRate)
-        if (di < out.length) dst[di] += src[i]
+      // 线性插值重采样（最近邻取样在高降采样率下会丢失峰值，改插值消毛刺）
+      for (let di = 0; di < outLen && pos + di < out.length; di++) {
+        const s = di / ratio
+        const i0 = Math.floor(s)
+        const i1 = Math.min(b.length - 1, i0 + 1)
+        const t = s - i0
+        dst[pos + di] += src[i0]! * (1 - t) + src[i1]! * t
       }
     }
-    pos += Math.ceil((b.length * rate) / b.sampleRate) + gapLen
+    pos += outLen + gapLen
   }
   return out
 }

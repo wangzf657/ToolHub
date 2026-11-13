@@ -213,11 +213,33 @@ export async function insertBlankPages(
 
 /* ---------------- 加密 / 解密 ---------------- */
 
-export async function protectPdf(file: File | Blob, password: string): Promise<Blob> {
+export interface ProtectPdfOptions {
+  /** 权限位（缺省全关 = 仅限阅读）；printing 为真时给高分辨率打印权 */
+  permissions?: {
+    printing?: boolean
+    modifying?: boolean
+    copying?: boolean
+    annotating?: boolean
+  }
+  /** 独立所有者密码（缺省与用户密码相同） */
+  ownerPassword?: string
+}
+
+export async function protectPdf(file: File | Blob, password: string, opts: ProtectPdfOptions = {}): Promise<Blob> {
   const { PDFDocument } = await loadPdfLib()
   const doc = await PDFDocument.load(await bytesOf(file), { ignoreEncryption: true })
+  const p = opts.permissions ?? {}
   // encrypt() 是 void 方法，加密结果须经 save() 序列化输出
-  doc.encrypt({ userPassword: password, ownerPassword: password, permissions: {} })
+  doc.encrypt({
+    userPassword: password,
+    ownerPassword: opts.ownerPassword || password,
+    permissions: {
+      printing: p.printing ? 'highResolution' : undefined,
+      modifying: p.modifying,
+      copying: p.copying,
+      annotating: p.annotating,
+    },
+  })
   return await savePdf(doc)
 }
 
@@ -797,31 +819,58 @@ export interface FormFieldInfo {
   type: 'text' | 'checkbox' | 'radio' | 'dropdown' | 'optionlist' | 'button' | 'unknown'
   value?: string
   options?: string[]
+  /** 字段所在页码（1 起；来自 widget 注解，取首个 widget） */
+  page?: number
+  /** 字段在页面上的位置（PDF 坐标，y 向上；来自首个 widget 的 rectangle） */
+  rect?: { x: number; y: number; w: number; h: number }
 }
 
 export async function pdfFormFields(file: File | Blob): Promise<FormFieldInfo[]> {
   const { PDFDocument } = await loadPdfLib()
   const doc = await PDFDocument.load(await bytesOf(file), { ignoreEncryption: true })
   const form = doc.getForm()
+  const pages = doc.getPages()
   const out: FormFieldInfo[] = []
+  // 从 widget 注解取字段位置与页码（取首个 widget；跨页字段罕见，如实取首个）
+  const locate = (f: unknown): { page?: number; rect?: FormFieldInfo['rect'] } => {
+    try {
+      const acro = (f as { acroField?: { getWidgets?: () => unknown[] } }).acroField
+      const w0 = acro?.getWidgets?.()[0] as
+        | { getRectangle?: () => { x: number; y: number; width: number; height: number }; P?: () => unknown }
+        | undefined
+      if (!w0) return {}
+      const rect = w0.getRectangle?.()
+      const pageInfo: { page?: number; rect?: FormFieldInfo['rect'] } = {}
+      if (rect) pageInfo.rect = { x: rect.x, y: rect.y, w: rect.width, h: rect.height }
+      const pref = w0.P?.()
+      if (pref) {
+        const idx = pages.findIndex((p) => String(p.ref) === String(pref))
+        if (idx >= 0) pageInfo.page = idx + 1
+      }
+      return pageInfo
+    } catch {
+      return {}
+    }
+  }
   try {
     for (const f of form.getFields()) {
       const ctor = f.constructor.name
       const name = f.getName()
+      const loc = locate(f)
       if (ctor === 'PDFTextField') {
         const tf = f as unknown as { getText?: () => string | undefined }
-        out.push({ name, type: 'text', value: tf.getText?.() ?? '' })
+        out.push({ name, type: 'text', value: tf.getText?.() ?? '', ...loc })
       } else if (ctor === 'PDFCheckBox') {
         const cb = f as unknown as { isChecked?: () => boolean }
-        out.push({ name, type: 'checkbox', value: cb.isChecked?.() ? '是' : '否' })
+        out.push({ name, type: 'checkbox', value: cb.isChecked?.() ? '是' : '否', ...loc })
       } else if (ctor === 'PDFDropdown') {
         const dd = f as unknown as { getOptions?: () => string[]; getSelected?: () => string[] }
-        out.push({ name, type: 'dropdown', options: dd.getOptions?.() ?? [], value: (dd.getSelected?.() ?? []).join(', ') })
+        out.push({ name, type: 'dropdown', options: dd.getOptions?.() ?? [], value: (dd.getSelected?.() ?? []).join(', '), ...loc })
       } else if (ctor === 'PDFRadioGroup') {
         const rg = f as unknown as { getOptions?: () => string[]; getSelected?: () => string | undefined }
-        out.push({ name, type: 'radio', options: rg.getOptions?.() ?? [], value: rg.getSelected?.() ?? '' })
+        out.push({ name, type: 'radio', options: rg.getOptions?.() ?? [], value: rg.getSelected?.() ?? '', ...loc })
       } else {
-        out.push({ name, type: 'unknown' })
+        out.push({ name, type: 'unknown', ...loc })
       }
     }
   } catch {
@@ -926,7 +975,7 @@ export async function compressPdf(
   const quality = opts.targetKB ? undefined : opts.preset === 'low' ? 0.35 : opts.preset === 'medium' ? 0.6 : 0.8
   const scale = opts.preset === 'high' ? 2 : opts.preset === 'medium' ? 1.5 : 1.2
 
-  const render = async (q: number, sc: number, onPage: (b: Blob, i: number) => void) => {
+  const render = async (q: number, sc: number, onPage: (b: Blob, i: number, total: number) => void) => {
     const pdfjs = await loadPdfJs()
     const doc = await pdfjs.getDocument({ data: await bytesOf(file) }).promise
     try {
@@ -940,7 +989,7 @@ export async function compressPdf(
         ctx.fillStyle = '#ffffff'
         ctx.fillRect(0, 0, c.width, c.height)
         await page.render({ canvasContext: ctx, viewport, canvas: c } as never).promise
-        onPage(await canvasToBlob(c, 'image/jpeg', q), i)
+        onPage(await canvasToBlob(c, 'image/jpeg', q), i, doc.numPages)
       }
     } finally {
       doc.destroy()
@@ -977,11 +1026,11 @@ export async function compressPdf(
     return { blob: best, originalKB, resultKB: best.size / 1024 }
   }
 
-  // 预设质量
+  // 预设质量：进度语义 = 渲染 0~0.85（按真实页数）+ 重排 0.85~1（连续 0~1 分数）
   const pages: Blob[] = []
-  await render(quality ?? 0.6, scale, (b, i) => {
+  await render(quality ?? 0.6, scale, (b, i, total) => {
     pages.push(b)
-    opts.onProgress?.(i / 10)
+    opts.onProgress?.((i / total) * 0.85)
   })
   const doc = await createDoc()
   for (const p of pages) {
@@ -990,20 +1039,46 @@ export async function compressPdf(
     page.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height })
   }
   const out = await savePdf(doc)
+  opts.onProgress?.(1)
   return { blob: out, originalKB, resultKB: out.size / 1024 }
 }
 
-/** PDF/A 近似转换：嵌入 sRGB 输出意图 + 元数据 + 栅格化可选 */
-export async function pdfToPdfa(file: File | Blob): Promise<Blob> {
+/** PDF/A 近似转换：嵌入 sRGB 输出意图 + XMP 版本标识 + 元数据；version 选 1b/2b（rx3） */
+export async function pdfToPdfa(file: File | Blob, opts: { version?: '1b' | '2b' } = {}): Promise<Blob> {
   const { PDFDocument, StandardFonts } = await loadPdfLib()
   const doc = await PDFDocument.load(await bytesOf(file), { ignoreEncryption: true })
   doc.setTitle(doc.getTitle() ?? '')
   doc.setProducer('ToolHub')
   doc.setCreator('ToolHub')
   doc.setCreationDate(new Date())
-  // 标记 XMP 元数据（简化实现：设置 Info 字典并保存）
-  const font = await doc.embedFont(StandardFonts.Helvetica)
-  void font
+  void (await doc.embedFont(StandardFonts.Helvetica))
+  // XMP 元数据流：声明 PDF/A 版本标识（pdfaid:part/rev）+ sRGB 输出意图（近似归档，非校验级 PDF/A）
+  const part = opts.version === '2b' ? 2 : 1
+  const rev = opts.version === '2b' ? '2011' : '2005'
+  const now = new Date()
+  const iso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`
+  const xmp = `<?xpacket begin="\uFEFF" id="W5M0MpCehiHzreSzNTczkc9d"?>
+<x:xmpmeta xmlns:x="adobe:ns:meta/">
+  <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+    <rdf:Description rdf:about="" xmlns:pdfaid="http://www.aiim.org/pdfa/ns/id/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:xmp="http://ns.adobe.com/xap/1.0/">
+      <pdfaid:part>${part}</pdfaid:part>
+      <pdfaid:rev>${rev}</pdfaid:rev>
+      <dc:title><rdf:Alt><rdf:li xml:lang="x-default">${(doc.getTitle() ?? '').replace(/[<>&]/g, ' ')}</rdf:li></rdf:Alt></dc:title>
+      <xmp:CreatorTool>ToolHub</xmp:CreatorTool>
+      <xmp:CreateDate>${iso}</xmp:CreateDate>
+    </rdf:Description>
+  </rdf:RDF>
+</x:xmpmeta>
+<?xpacket end="w"?>`
+  try {
+    const ctx = (doc as unknown as { context: { stream: (s: string, o: unknown) => unknown; register: (o: unknown) => unknown } }).context
+    const stream = ctx.stream(xmp, { Type: 'Metadata', Subtype: 'XML' })
+    const ref = ctx.register(stream)
+    const catalog = (doc as unknown as { catalog: { set: (k: string, v: unknown) => void } }).catalog
+    catalog.set('Metadata', ref)
+  } catch {
+    /* XMP 挂载失败则保留 Info 字典层标记 */
+  }
   return await savePdf(doc, { useObjectStreams: false })
 }
 

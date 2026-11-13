@@ -10,6 +10,7 @@ const cfg = {
   subs: [],
   detailKeys: [{ key: 'a', label: '谜底' }],
   random: true,
+  favKey: 'xiehouyu',
 }
 </script>
 

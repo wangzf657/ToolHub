@@ -3,6 +3,7 @@
 import { computed, ref, shallowRef } from 'vue'
 import { Columns2, Rows2, X } from 'lucide-vue-next'
 import FfBase from './FfBase.vue'
+import FfExpectHint from './FfExpectHint.vue'
 import FileDrop from '@/components/common/FileDrop.vue'
 import { loadVideo, type VideoMeta } from '@/lib/videoEngine'
 import { useToast } from '@/composables/useToast'
@@ -110,6 +111,7 @@ const run = async () => {
       第二路视频会自动缩放到与第一路对齐（并排对齐高度、堆叠对齐宽度），不裁切不变形；
       长度不一致时以较长的一路为准（短的一路定格结束帧之后的黑屏由播放器决定）。混合音频要求两路都有音轨。
     </p>
+      <FfExpectHint text="双素材合成需重编码，耗时约为较长素材时长的 2~3 倍；首次使用需加载约 25MB 编解码核心。处理期间请保持页面打开。" />
   </FfBase>
 </template>
 

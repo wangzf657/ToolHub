@@ -3,6 +3,7 @@
 import { ref, shallowRef } from 'vue'
 import { FileImage } from 'lucide-vue-next'
 import FfBase from './FfBase.vue'
+import FfExpectHint from './FfExpectHint.vue'
 import FileDrop from '@/components/common/FileDrop.vue'
 import SliderRow from './SliderRow.vue'
 
@@ -46,7 +47,7 @@ const run = async () => {
       '-y', '-i', 'input', '-i', 'wm.png', '-filter_complex', fc,
       '-map', '[v]', '-map', '0:a?',
       '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23',
-      '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', b.outputName,
+      '-c:a', 'copy', '-movflags', '+faststart', b.outputName,
     ],
     { extraFiles: [{ name: 'wm.png', data: wmFile.value }], status: '正在合成水印…' },
   )
@@ -82,6 +83,7 @@ const run = async () => {
       <SliderRow v-model="scale" label="缩放" :min="10" :max="100" :step="5" unit="%" width="140px" />
       <SliderRow v-model="opacity" label="不透明度" :min="0.1" :max="1" :step="0.05" width="140px" />
     </div>
+      <FfExpectHint text="浏览器本地处理速度约为视频时长的 1/2~1/5（重编码类；流复制类通常秒级完成），首次使用需加载约 25MB 编解码核心。处理期间请保持页面打开，勿刷新或关闭标签页。" />
   </FfBase>
 </template>
 

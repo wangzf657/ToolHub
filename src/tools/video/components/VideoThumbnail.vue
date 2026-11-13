@@ -1,11 +1,13 @@
 <script setup lang="ts">
 /** 视频截帧（不用 ffmpeg）：单帧 JPG/PNG 下载，或按间隔批量抽帧打包 ZIP */
 import { onBeforeUnmount, ref, shallowRef } from 'vue'
-import { Camera, Images, Loader2 } from 'lucide-vue-next'
+import { Camera, Images, Loader2, Save } from 'lucide-vue-next'
 import FileDrop from '@/components/common/FileDrop.vue'
-import { loadVideo, seekTo, captureFrame, exportFrames, type VideoMeta } from '@/lib/videoEngine'
+import FrameStrip from './FrameStrip.vue'
+import { useFrameShot } from './useFrameShot'
+import { loadVideo, exportFrames, type VideoMeta } from '@/lib/videoEngine'
 import { canvasToBlob } from '@/lib/imageEngine'
-import { saveBlob, saveMany, baseName } from '@/lib/download'
+import { saveMany, baseName } from '@/lib/download'
 import { useToast } from '@/composables/useToast'
 
 const toast = useToast()
@@ -14,13 +16,12 @@ const meta = shallowRef<VideoMeta | null>(null)
 const mode = ref<'single' | 'batch'>('single')
 const time = ref(0)
 const format = ref<'image/jpeg' | 'image/png'>('image/jpeg')
+const ext = () => (format.value === 'image/png' ? 'png' : 'jpg')
 const interval = ref(5)
-const busy = ref(false)
 const progress = ref(0)
 const cur = ref(0)
-const previewUrl = ref('')
 
-const ext = () => (format.value === 'image/png' ? 'png' : 'jpg')
+const { busy, previewUrl, grab, saveShot, onStep, quickFrame } = useFrameShot(meta, file, time, format)
 
 const onFiles = async (files: File[]) => {
   if (meta.value) {
@@ -44,22 +45,10 @@ const onTime = () => {
 
 const setCur = () => (time.value = Number(cur.value.toFixed(2)))
 
-/** 抓取单帧：先更新预览画布 */
-const grab = async () => {
-  if (!meta.value) return
-  busy.value = true
-  try {
-    await seekTo(meta.value, time.value)
-    const c = captureFrame(meta.value, time.value)
-    previewUrl.value = c.toDataURL(format.value)
-    const blob = await canvasToBlob(c, format.value, 0.92)
-    saveBlob(blob, `${baseName(file.value!.name)}.${ext()}`)
-    toast.ok('已截取并下载')
-  } catch (e) {
-    toast.err((e as Error).message || '截帧失败')
-  } finally {
-    busy.value = false
-  }
+/** 候选帧条点击：回填时刻并刷新预览 */
+const onPick = async (t: number) => {
+  time.value = Number(t.toFixed(2))
+  await grab()
 }
 
 /** 批量抽帧 */
@@ -105,13 +94,21 @@ onBeforeUnmount(() => {
 
     <template v-if="meta && file">
       <div class="preview-wrap mt-2">
-        <video :src="meta.url" controls class="preview" @timeupdate="onTime"></video>
+        <video :src="meta.url" controls class="preview" tabindex="0" @timeupdate="onTime" @keydown="onStep"></video>
         <div class="meta-bar">
           <span>{{ meta.width }}×{{ meta.height }}</span>
           <span>时长 {{ Math.floor(meta.duration / 60) }}:{{ String(Math.floor(meta.duration % 60)).padStart(2, '0') }}</span>
           <span>预览当前 {{ cur.toFixed(2) }}s</span>
         </div>
+        <div class="row row-wrap" style="gap: 6px; margin-top: 6px">
+          <button class="btn btn-ghost btn-sm" @click="quickFrame('first')">首帧</button>
+          <button class="btn btn-ghost btn-sm" @click="quickFrame('mid')">中间帧</button>
+          <button class="btn btn-ghost btn-sm" @click="quickFrame('last')">末帧</button>
+          <span class="hint-s">预览聚焦时 ←/→ 逐帧步进，Shift+←/→ 0.1s</span>
+        </div>
       </div>
+
+      <FrameStrip :meta="meta" @pick="onPick" />
 
       <div class="opts">
         <div class="opt">
@@ -145,6 +142,11 @@ onBeforeUnmount(() => {
 
       <div v-if="previewUrl" class="shot-wrap mt-2">
         <img :src="previewUrl" class="shot" alt="截帧预览" />
+        <div class="row mt-1">
+          <button class="btn btn-primary btn-sm" :disabled="busy" @click="saveShot">
+            <Save :size="14" /> 保存这张（{{ time.toFixed(2) }}s）
+          </button>
+        </div>
       </div>
 
       <div v-if="busy" class="prog-wrap mt-2">
@@ -212,6 +214,11 @@ onBeforeUnmount(() => {
   width: 100%;
   border-radius: 10px;
   border: 1px solid var(--border);
+}
+.hint-s {
+  font-size: 11.5px;
+  color: var(--text-3);
+  align-self: center;
 }
 .prog-wrap {
   display: grid;

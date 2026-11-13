@@ -15,6 +15,7 @@ const cfg = {
     { key: 'ex', label: '例句' },
   ],
   random: true,
+  favKey: 'idiom',
 }
 </script>
 

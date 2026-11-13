@@ -2,6 +2,7 @@
 /** 视频局部打码：全屏模糊档位或指定区域模糊（可限定时段） */
 import { ref } from 'vue'
 import FfBase from './FfBase.vue'
+import FfExpectHint from './FfExpectHint.vue'
 import SliderRow from './SliderRow.vue'
 
 const base = ref<InstanceType<typeof FfBase> | null>(null)
@@ -86,6 +87,7 @@ const run = async () => {
     <p class="blur-note">
       区域坐标按输出视频的像素坐标填写（左上角为原点），可先用「视频截帧」查看尺寸。需要马赛克效果可把强度调到 15 以上。
     </p>
+      <FfExpectHint text="打码需重编码，耗时约为普通转码的 1.5 倍（即视频时长的 3/4~1/3）；首次使用需加载约 25MB 编解码核心。处理期间请保持页面打开，勿刷新页面。" />
   </FfBase>
 </template>
 

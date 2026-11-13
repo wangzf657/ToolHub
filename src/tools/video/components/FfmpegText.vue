@@ -2,6 +2,7 @@
 /** 视频加文字：drawtext + textfile（避免转义），支持字号/颜色/位置/时间段 */
 import { computed, ref, watch } from 'vue'
 import FfBase from './FfBase.vue'
+import FfExpectHint from './FfExpectHint.vue'
 
 const base = ref<InstanceType<typeof FfBase> | null>(null)
 const text = ref('')
@@ -98,6 +99,7 @@ const run = async () => {
       </template>
     </div>
     <p class="text-note">文字带浅色投影增强可读性；若提示字体相关错误，请改用「视频加水印」贴图方案。</p>
+      <FfExpectHint text="浏览器本地处理速度约为视频时长的 1/2~1/5（重编码类；流复制类通常秒级完成），首次使用需加载约 25MB 编解码核心。处理期间请保持页面打开，勿刷新或关闭标签页。" />
   </FfBase>
 </template>
 

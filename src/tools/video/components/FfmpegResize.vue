@@ -2,6 +2,7 @@
 /** 视频尺寸调整：预设分辨率 + 适配/裁满/拉伸三种画幅模式 */
 import { ref } from 'vue'
 import FfBase from './FfBase.vue'
+import FfExpectHint from './FfExpectHint.vue'
 
 const base = ref<InstanceType<typeof FfBase> | null>(null)
 const preset = ref('1280x720')
@@ -75,6 +76,7 @@ const run = async () => {
       竖屏平台（抖音/视频号）选 1080×1920；方形（小红书/微博）选 1:1。「裁满」会裁掉超出部分的画面，
       「适配」完整保留画面并填充黑边。
     </p>
+      <FfExpectHint text="浏览器本地处理速度约为视频时长的 1/2~1/5（重编码类；流复制类通常秒级完成），首次使用需加载约 25MB 编解码核心。处理期间请保持页面打开，勿刷新或关闭标签页。" />
   </FfBase>
 </template>
 

@@ -2,6 +2,7 @@
 /** 绿幕抠像：chromakey 抠成透明 WebM，或替换为纯色背景 */
 import { computed, ref } from 'vue'
 import FfBase from './FfBase.vue'
+import FfExpectHint from './FfExpectHint.vue'
 import SliderRow from './SliderRow.vue'
 
 const base = ref<InstanceType<typeof FfBase> | null>(null)
@@ -73,6 +74,7 @@ const run = async () => {
       透明模式输出 WebM（VP9 + alpha），可在支持透明视频的网页与剪辑软件中使用；MP4 不支持透明通道。
       相似度越高抠得越狠（连浅绿色衣服也会被抠掉），边缘混合控制锯齿柔化。
     </p>
+      <FfExpectHint text="抠像需重编码，耗时约为视频时长的 3~5 倍（VP9/WebM 输出更慢）；首次使用需加载约 25MB 编解码核心。处理期间请保持页面打开，勿刷新页面。" />
   </FfBase>
 </template>
 

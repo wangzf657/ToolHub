@@ -1,12 +1,16 @@
 <script setup lang="ts">
 /** 艺术二维码：qr-code-styling 圆点/液体风格 + 渐变 + 中心 Logo，PNG/SVG 下载（纠错 H 级） */
 import { ref, shallowRef } from 'vue'
+import { useRoute } from 'vue-router'
 import { Loader2, QrCode, Download, ImageUp } from 'lucide-vue-next'
 import { saveBlob } from '@/lib/download'
 import { useToast } from '@/composables/useToast'
 
 const toast = useToast()
-const data = ref('https://toolhub.example.com')
+const route = useRoute()
+// 支持 ?text= 带参预填（qr-code-repair「转艺术码」互链）
+const qtext = route.query.text
+const data = ref(typeof qtext === 'string' && qtext ? qtext : 'https://toolhub.example.com')
 const size = ref(320)
 const dotType = ref<'dots' | 'rounded' | 'classy' | 'classy-rounded' | 'extra-rounded' | 'square'>('dots')
 const grad = ref(true)
@@ -23,6 +27,9 @@ interface QrInstance {
 }
 let instance: QrInstance | null = null
 
+const eyeFrame = ref<'square' | 'dot' | 'extra-rounded'>('square')
+const eyeDot = ref<'square' | 'dot'>('square')
+
 const options = () => ({
   width: size.value,
   height: size.value,
@@ -35,10 +42,20 @@ const options = () => ({
     ? { type: dotType.value, gradient: { type: 'linear' as const, rotation: 30, colorStops: [{ offset: 0, color: c1.value }, { offset: 1, color: c2.value }] } }
     : { type: dotType.value, color: c1.value },
   backgroundOptions: { color: '#ffffff' },
-  cornersSquareOptions: { color: c1.value },
-  cornersDotOptions: { color: c2.value },
+  cornersSquareOptions: { color: c1.value, type: eyeFrame.value },
+  cornersDotOptions: { color: c2.value, type: eyeDot.value },
   imageOptions: { hideBackgroundDots: true, imageSize: 0.4 },
 })
+
+/* 处方1 实时预览：data/样式/颜色变化防抖 200ms 自动 update，无需点按钮 */
+let pvTimer: number | null = null
+function scheduleUpdate() {
+  if (pvTimer !== null) window.clearTimeout(pvTimer)
+  pvTimer = window.setTimeout(() => {
+    pvTimer = null
+    if (data.value.trim()) void ensure()
+  }, 200)
+}
 
 const ensure = async () => {
   if (!data.value.trim()) {
@@ -73,7 +90,9 @@ const download = async (t: 'png' | 'svg') => {
   try {
     const blob = await instance!.getRawData(t)
     if (!blob) throw new Error('生成失败')
-    saveBlob(blob, `艺术二维码.${t}`)
+    // 处方6 文件名含内容前 12 字符，避免连续下载互覆盖
+    const tag = data.value.trim().replace(/[\/:*?"<>|\s]/g, '').slice(0, 12) || 'qr'
+    saveBlob(blob, `艺术二维码-${tag}.${t}`)
     toast.ok(`已下载 ${t.toUpperCase()}`)
   } catch (e) {
     toast.err((e as Error).message || '导出失败')
@@ -92,7 +111,7 @@ const render = async () => {
     <div class="row row-wrap mt-2" style="gap: 14px; align-items: flex-end">
       <label class="opt wide">
         <span class="field-label">内容（链接 / 文本 / WiFi 信息）</span>
-        <input v-model="data" class="input" placeholder="https://…" @change="instance && ensure()" />
+        <input v-model="data" class="input" placeholder="https://…" @input="scheduleUpdate" />
       </label>
       <label class="opt">
         <span class="field-label">尺寸</span>
@@ -114,6 +133,19 @@ const render = async () => {
         </select>
       </label>
       <label class="opt check"><input v-model="grad" type="checkbox" @change="instance = null; ensure()" /><span>渐变色</span></label>
+      <label class="opt"><span class="field-label">眼框形状</span>
+        <select v-model="eyeFrame" class="select" style="width: 110px" @change="instance = null; ensure()">
+          <option value="square">方形</option>
+          <option value="dot">圆形</option>
+          <option value="extra-rounded">圆角</option>
+        </select>
+      </label>
+      <label class="opt"><span class="field-label">眼球形状</span>
+        <select v-model="eyeDot" class="select" style="width: 110px" @change="instance = null; ensure()">
+          <option value="square">方形</option>
+          <option value="dot">圆形</option>
+        </select>
+      </label>
       <label class="opt">
         <span class="field-label">主色</span>
         <input v-model="c1" type="color" class="input" style="width: 52px; padding: 2px" @change="instance = null; ensure()" />

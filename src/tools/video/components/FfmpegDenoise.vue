@@ -2,6 +2,7 @@
 /** 视频音频降噪：afftdn 去底噪 + loudnorm 响度标准化，画面流复制 */
 import { ref } from 'vue'
 import FfBase from './FfBase.vue'
+import FfExpectHint from './FfExpectHint.vue'
 import SliderRow from './SliderRow.vue'
 
 const base = ref<InstanceType<typeof FfBase> | null>(null)
@@ -35,6 +36,7 @@ const run = async () => {
       适合清理风扇声、嘶声与持续底噪；对突发的撞击声效果有限。降噪强度过高可能让声音发闷，建议从 10 附近微调。
       画面直接流复制，只处理音频。
     </p>
+      <FfExpectHint text="浏览器本地处理速度约为视频时长的 1/2~1/5（重编码类；流复制类通常秒级完成），首次使用需加载约 25MB 编解码核心。处理期间请保持页面打开，勿刷新或关闭标签页。" />
   </FfBase>
 </template>
 

@@ -35,7 +35,7 @@ const TZ_CHOICES = COMMON_TIMEZONES.map((t) => ({ value: t.value, label: t.label
 
 /** 实用工具注册表（132 项）—— 文本/编码类走内联 textDef，其余为自定义组件 */
 const tools: ToolDef[] = [
-  { slug: 'qr-code-generator', title: '二维码生成器', category: 'utility', desc: '为链接、文本、电话生成高清二维码，可选中心 Logo，支持 PNG 与 SVG 下载。', keywords: ['qr', '二维码', 'qrcode'], component: () => import('./components/QrGenerator.vue'), steps: ['输入链接或文本内容', '调整尺寸与纠错级别', '下载 PNG 或 SVG'] },
+  { slug: 'qr-code-generator', title: '二维码生成器', category: 'utility', desc: '为链接、文本、电话生成高清二维码，自定义颜色/边距/纠错等级，支持 PNG 与 SVG 下载、图片复制；中心 Logo 请用「艺术二维码」。', keywords: ['qr', '二维码', 'qrcode'], component: () => import('./components/QrGenerator.vue'), steps: ['输入链接或文本内容', '调整尺寸与纠错级别', '下载 PNG 或 SVG'] },
   { slug: 'unit-converter', title: '单位换算', category: 'utility', desc: '长度、重量、温度、面积、体积、速度、数据容量等常用单位即时互转。', keywords: ['单位', '换算', 'converter'], component: () => import('./components/UnitConverter.vue') },
   { slug: 'word-counter', title: '字数统计', category: 'utility', desc: '实时统计字数、字符数（含/不含空格）、行数、段落数与阅读时长。', keywords: ['字数', '统计', 'count'], component: () => import('./components/WordCounter.vue') },
   {
@@ -85,23 +85,35 @@ const tools: ToolDef[] = [
       fields: [
         { key: 'price', label: '房价', type: 'number', default: '' },
         { key: 'down', label: '首付比例（%）', type: 'number', default: 30 },
-        { key: 'r', label: '年利率（%）', type: 'number', default: 4.2 },
+        { key: 'r', label: '商贷年利率（%）', type: 'number', default: 4.2 },
         { key: 'y', label: '年限（年）', type: 'number', default: 30 },
+        { key: 'fundAmt', label: '公积金贷款额（可选）', type: 'number', default: '', suffix: '元', hint: '填写后按组合贷拆分计算' },
+        { key: 'fundR', label: '公积金利率（%）', type: 'number', default: 3.1 },
       ],
       compute: (v) => {
         const price = Number(v.price)
         const down = price * ((Number(v.down) || 0) / 100)
         const loan = price - down
-        const r = loanPayment(loan, Number(v.r), Number(v.y))
-        return [
-          { label: '每月月供', value: `¥${moneyCn(r.monthly)}`, primary: true },
+        const fund = Math.max(0, Math.min(Number(v.fundAmt) || 0, loan))
+        const comm = loan - fund
+        const r = loanPayment(comm, Number(v.r), Number(v.y))
+        const f = loanPayment(fund, Number(v.fundR), Number(v.y))
+        const monthly = r.monthly + f.monthly
+        const totalInterest = r.totalInterest + f.totalInterest
+        const rows: CalcResultRow[] = [
+          { label: '每月月供（合计）', value: `¥${moneyCn(monthly)}`, primary: true, hint: fund > 0 ? `商贷 ¥${moneyCn(r.monthly)} + 公积金 ¥${moneyCn(f.monthly)}` : '纯商贷' },
           { label: '贷款本金', value: `¥${moneyCn(loan)}` },
           { label: '首付金额', value: `¥${moneyCn(down)}` },
-          { label: '利息总额', value: `¥${moneyCn(r.totalInterest)}` },
-          { label: '购房总支出', value: `¥${moneyCn(down + r.total)}` },
+          { label: '利息总额', value: `¥${moneyCn(totalInterest)}` },
+          { label: '购房总支出', value: `¥${moneyCn(down + monthly * Number(v.y) * 12)}` },
         ]
+        if (fund > 0) {
+          rows.push({ label: '商贷月供', value: `¥${moneyCn(r.monthly)}` })
+          rows.push({ label: '公积金月供', value: `¥${moneyCn(f.monthly)}` })
+        }
+        return rows
       },
-      note: '按等额本息计算，未考虑公积金组合贷、提前还款与利率重定价。',
+      note: '按等额本息计算；填写公积金贷款额即按组合贷拆分（商贷+公积金），未考虑提前还款与利率重定价。',
     },
   },
   { slug: 'password-generator', title: '强密码生成器', category: 'utility', desc: '用密码学随机源生成高强度密码，自定义长度与字符集，永不外发。', keywords: ['密码', 'password', '随机'], component: () => import('./components/PasswordGenerator.vue'), steps: ['设置长度与字符类型', '点击生成', '复制使用'] },
@@ -136,6 +148,8 @@ const tools: ToolDef[] = [
       fields: [
         { key: 'x', label: '数值 X', type: 'number', default: '' },
         { key: 'y', label: '数值 Y', type: 'number', default: '' },
+        { key: 'base', label: '基数（求变化后值）', type: 'number', default: '' },
+        { key: 'chg', label: '变化率（%，负为下降）', type: 'number', default: '' },
       ],
       compute: (v) => {
         const x = Number(v.x)
@@ -146,14 +160,19 @@ const tools: ToolDef[] = [
         if (x && y) {
           rows.push({ label: 'X 相对 Y 的增减幅', value: `${fmtN(((x - y) / y) * 100)}%`, primary: true, hint: x >= y ? '增长' : '下降' })
         }
+        if (Number(v.base)) {
+          const b2 = Number(v.base)
+          const c2 = Number(v.chg) || 0
+          rows.push({ label: '变化后值（基数 ± 变化率）', value: fmtN(b2 * (1 + c2 / 100)), hint: c2 >= 0 ? `较基数上升 ${fmtN(c2)}%` : `较基数下降 ${fmtN(Math.abs(c2))}%` })
+        }
         return rows
       },
-      note: '三个问题分别对应：求一个数的百分之几、求占比、求变化率。',
+      note: '四个问题分别对应：求一个数的百分之几、求占比、求变化率、由基数与变化率求变化后值。',
     },
   },
   {
     slug: 'bmi-calculator', title: 'BMI 计算器', category: 'utility',
-    desc: '输入身高体重即时计算身体质量指数与 WHO 分类，附健康范围提示。',
+    desc: '输入身高体重即时计算身体质量指数，按中国成人标准分类（18.5–23.9 正常），附健康范围提示。',
     keywords: ['bmi', '体重', '健康'],
     calcDef: {
       fields: [
@@ -176,7 +195,7 @@ const tools: ToolDef[] = [
       note: 'BMI = 体重(kg) ÷ 身高²(m²)。中国成人标准：18.5–23.9 为正常。仅供参考，不构成医疗建议。',
     },
   },
-  { slug: 'currency-converter', title: '货币换算', category: 'utility', desc: '150+ 货币之间的换算，内置常用汇率快照，支持手动更新汇率。', keywords: ['汇率', '货币', 'currency'], component: () => import('./components/CurrencyConverter.vue') },
+  { slug: 'currency-converter', title: '货币换算', category: 'utility', desc: '货币换算：联网时获取实时汇率（含更新时间披露），离线回退内置 30 种常用货币快照，双向输入即时反算，汇率表可手动修改。', keywords: ['汇率', '货币', 'currency'], component: () => import('./components/CurrencyConverter.vue') },
   { slug: 'scientific-calculator', title: '科学计算器', category: 'utility', desc: '支持三角函数、对数、幂、阶乘、括号的表达式计算器，键盘友好。', keywords: ['计算器', '科学', 'calculator'], component: () => import('./components/ScientificCalculator.vue') },
   {
     slug: 'date-difference-calculator', title: '日期间隔计算', category: 'utility',
@@ -400,6 +419,7 @@ const tools: ToolDef[] = [
         {
           key: 'mode', label: '目标格式', type: 'select', default: 'upper',
           choices: [
+            { value: 'all', label: '全格式一览（11 种同屏对比）' },
             { value: 'upper', label: '全部大写' }, { value: 'lower', label: '全部小写' },
             { value: 'title', label: '单词首字母大写' }, { value: 'sentence', label: '句首大写' },
             { value: 'camel', label: '小驼峰 camelCase' }, { value: 'pascal', label: '大驼峰 PascalCase' },
@@ -409,7 +429,16 @@ const tools: ToolDef[] = [
           ],
         },
       ],
-      transform: (t, o) => toCase(t, String(o.mode)),
+      transform: (t, o) => {
+        if (o.mode !== 'all') return toCase(t, String(o.mode))
+        const modes = ['upper', 'lower', 'title', 'sentence', 'camel', 'pascal', 'snake', 'kebab', 'constant', 'alternating', 'inverse']
+        const labels: Record<string, string> = {
+          upper: '全部大写', lower: '全部小写', title: '首字母大写', sentence: '句首大写',
+          camel: '小驼峰', pascal: '大驼峰', snake: '下划线', kebab: '中划线',
+          constant: '常量', alternating: '交替大小写', inverse: '大小写互换',
+        }
+        return modes.map((m) => `【${labels[m]}】${toCase(t, m)}`).join('\n')
+      },
     },
   },
   {
@@ -481,6 +510,7 @@ const tools: ToolDef[] = [
         },
       ],
       transform: (t, o) => reverseText(t, o.mode as never),
+      placeholder: '示例「Hello 世界\n第二行」：按字符=界世 olleH\n行二第；按单词=世界 Hello；按行=第二行 Hello 世界',
     },
   },
   {
@@ -497,8 +527,16 @@ const tools: ToolDef[] = [
             { value: 'join', label: '合并为单行' },
           ],
         },
+        { key: 'rep', label: '换行替换为（留空 = 直接删除）', type: 'text', default: '', placeholder: '如填「，」则换行替换为中文逗号' },
       ],
-      transform: (t, o) => removeLineBreaks(t, o.mode as never),
+      placeholder: '从 PDF 复制的带硬换行文本，如：\n这是一段被强行\n折行的文字，粘进来试试',
+      transform: (t, o) => {
+        // 默认语义 = 完全移除换行（哨兵契约）；用户显式填了替换符才替换
+        const rep = String(o.rep ?? '')
+        if (o.mode === 'all') return rep ? t.replace(/\s*\n\s*/g, rep) : t.replace(/\s*\n\s*/g, '')
+        if (rep) return t.split(/\n\s*\n/).map((para) => para.replace(/\n\s*/g, rep)).join('\n\n')
+        return removeLineBreaks(t, o.mode as never)
+      },
     },
   },
   {
@@ -520,7 +558,7 @@ const tools: ToolDef[] = [
   },
   {
     slug: 'morse-code-translator', title: '摩斯电码翻译', category: 'utility',
-    desc: '文本与摩斯电码双向翻译：字母数字标点按国际标准，中文按 Unicode 码点数字转码、可无损还原。',
+    desc: '文本与摩斯电码双向翻译：字母数字标点按国际标准。口径说明：中文按 Unicode 码点数字转码（与传统 4 位中文电报码不同），可无损还原。',
     keywords: ['摩斯', '电码', 'morse'],
     textDef: {
       options: [{ key: 'dir', label: '方向', type: 'select', default: 'encode', choices: [
@@ -535,15 +573,26 @@ const tools: ToolDef[] = [
     desc: '文本转 8 位二进制、二进制转文本，完整支持 UTF-8 中文。',
     keywords: ['二进制', 'binary', '0和1'],
     textDef: {
-      options: [{ key: 'dir', label: '方向', type: 'select', default: 'encode', choices: [
-        { value: 'encode', label: '文本 → 二进制' }, { value: 'decode', label: '二进制 → 文本' },
-      ] }],
-      transform: (t, o) => (o.dir === 'decode' ? binaryToText(t) : textToBinary(t)),
+      options: [
+        { key: 'dir', label: '方向', type: 'select', default: 'encode', choices: [
+          { value: 'encode', label: '文本 → 二进制' }, { value: 'decode', label: '二进制 → 文本' },
+        ] },
+        { key: 'grp', label: '输出分组（编码时）', type: 'select', default: 'space', choices: [
+          { value: 'space', label: '空格分隔（每字节一组）' }, { value: 'tight', label: '紧凑无分隔' }, { value: 'line', label: '每字节一行' },
+        ] },
+      ],
+      transform: (t, o) => {
+        if (o.dir === 'decode') return binaryToText(t)
+        const raw = textToBinary(t)
+        if (o.grp === 'tight') return raw.replace(/ /g, '')
+        if (o.grp === 'line') return raw.split(' ').filter(Boolean).join('\n')
+        return raw
+      },
     },
   },
   {
     slug: 'caesar-cipher', title: '凯撒密码 / ROT13', category: 'utility',
-    desc: '凯撒位移加密与解密，任意位移量，默认 ROT13，保留大小写与标点。',
+    desc: '凯撒位移加密与解密，任意位移量，默认 ROT13。仅英文字母参与移位，数字/标点/中文原样保留，大小写不变。',
     keywords: ['凯撒', 'rot13', '加密'],
     textDef: {
       options: [
@@ -566,11 +615,16 @@ const tools: ToolDef[] = [
       transform: (t, o) => {
         if (o.dir === 'decode') {
           const n = fromRoman(t.trim())
-          return Number.isNaN(n) ? '（无效的罗马数字）' : String(n)
+          return Number.isNaN(n) ? '（无效的罗马数字，仅支持 1~3999 的标准写法）' : String(n)
         }
         const n = parseInt(t.trim(), 10)
         if (Number.isNaN(n)) return ''
-        try { return toRoman(n) } catch (e) { return (e as Error).message }
+        try {
+          return toRoman(n)
+        } catch (e) {
+          // 错误信息只走 toast 提示条，不混入输出区（输出保持可复制纯结果）
+          throw e instanceof Error ? e : new Error(String(e))
+        }
       },
       singleLine: true,
     },
@@ -690,6 +744,11 @@ const tools: ToolDef[] = [
           { label: '利息收益', value: `¥${moneyCn(r.interest)}` },
           { label: '收益倍数', value: contributed ? `${(r.final / contributed).toFixed(2)}×` : '—' },
           { label: '近三年余额', value: r.schedule.slice(-3).map((s) => `第${s.year}年 ¥${moneyCn(s.value)}`).join('，') },
+          ...r.schedule.map((s, idx, arr) => ({
+            label: `第 ${s.year} 年`,
+            value: `余额 ¥${moneyCn(s.value)}`,
+            hint: `当年增长 ¥${moneyCn(s.value - (idx > 0 ? arr[idx - 1]!.value : Number(v.p)))}`,
+          })),
         ]
       },
       note: '复利公式：A = P(1 + r/n)^(nt)，追加投资按月复利近似合并计算。',
@@ -710,8 +769,8 @@ const tools: ToolDef[] = [
         const rows: CalcResultRow[] = []
         if (Number(v.off)) {
           const sale = price * (1 - Number(v.off) / 100)
-          rows.push({ label: `打 ${fmtN(100 - Number(v.off))} 折后价格`, value: `¥${moneyCn(sale)}`, primary: true })
-          rows.push({ label: '节省', value: `¥${moneyCn(price - sale)}` })
+          rows.push({ label: `${fmtN((100 - Number(v.off)) / 10)} 折价`, value: `¥${moneyCn(sale)}（省 ${fmtN(Number(v.off))}%）`, primary: true })
+          rows.push({ label: '共节省', value: `¥${moneyCn(price - sale)}` })
         }
         if (Number(v.sale) && price) {
           const off = (1 - Number(v.sale) / price) * 100
@@ -723,34 +782,42 @@ const tools: ToolDef[] = [
   },
   {
     slug: 'sales-tax-calculator', title: '税费计算器', category: 'utility',
-    desc: '净价加税、含税反推净价两个方向，附税额明细。',
+    desc: '净价加税、含税反推净价两个方向，支持单价×数量，附税额明细。',
     keywords: ['税', '增值税', 'tax'],
     calcDef: {
       fields: [
-        { key: 'amount', label: '金额', type: 'number', default: '' },
+        { key: 'amount', label: '单价', type: 'number', default: '', hint: '按单价填写，可配合数量计算总价' },
+        { key: 'qty', label: '数量', type: 'number', default: 1, min: 1, step: 1 },
         { key: 'rate', label: '税率（%）', type: 'number', default: 13 },
         { key: 'mode', label: '方向', type: 'select', default: 'add', choices: [
           { value: 'add', label: '净价 → 含税价' }, { value: 'extract', label: '含税价 → 净价' },
         ] },
       ],
       compute: (v) => {
-        const amt = Number(v.amount)
+        const unit = Number(v.amount)
+        const qty = Math.max(1, Number(v.qty) || 1)
+        const amt = unit * qty
+        const rateEmpty = v.rate === '' || v.rate === undefined || v.rate === null
         const rate = (Number(v.rate) || 0) / 100
-        if (!amt) return [{ label: '请填写金额', value: '—' }]
+        if (!unit) return [{ label: '请填写单价', value: '—' }]
+        const rateHint = rateEmpty ? '税率未填写，已按 0% 处理' : undefined
         if (v.mode === 'add') {
-          return [
-            { label: '含税总价', value: `¥${moneyCn(amt * (1 + rate))}`, primary: true },
+          const rows = [
+            { label: '含税总价', value: `¥${moneyCn(amt * (1 + rate))}`, primary: true, hint: `单价 ¥${moneyCn(unit)} × ${qty}${rateEmpty ? '，税率已按 0% 处理' : ''}` },
             { label: '税额', value: `¥${moneyCn(amt * rate)}` },
-            { label: '净价', value: `¥${moneyCn(amt)}` },
+            { label: '净价小计', value: `¥${moneyCn(amt)}` },
           ]
+          return qty > 1 ? [...rows, { label: '单价含税', value: `¥${moneyCn(unit * (1 + rate))}` }] : rows
         }
         const net = amt / (1 + rate)
-        return [
-          { label: '净价', value: `¥${moneyCn(net)}`, primary: true },
+        const rows = [
+          { label: '净价小计', value: `¥${moneyCn(net)}`, primary: true, hint: `含税 ¥${moneyCn(amt)}${qty > 1 ? ` ÷ ${qty}` : ''}${rateEmpty ? '，税率已按 0% 处理' : ''}` },
           { label: '税额', value: `¥${moneyCn(amt - net)}` },
           { label: '含税价', value: `¥${moneyCn(amt)}` },
         ]
+        return qty > 1 ? [...rows, { label: '单价净价', value: `¥${moneyCn(net / qty)}` }] : rows
       },
+      note: '含税价 = 净价 × (1 + 税率)；净价 = 含税价 ÷ (1 + 税率)，即增值税价税分离。',
     },
   },
   {
@@ -760,11 +827,11 @@ const tools: ToolDef[] = [
     calcDef: {
       fields: [
         { key: 'words', label: '字数（中文按字、英文按词）', type: 'number', default: '' },
-        { key: 'wpm', label: '阅读速度（字/分钟）', type: 'number', default: 300 },
+        { key: 'wpm', label: '阅读速度（字/分钟）', type: 'number', default: 250 },
       ],
       compute: (v) => {
         const w = Number(v.words)
-        const wpm = Math.max(1, Number(v.wpm) || 300)
+        const wpm = Math.max(1, Number(v.wpm) || 250)
         if (!w) return [{ label: '请填写字数', value: '—', hint: '可先用「字数统计」工具统计原文' }]
         const mins = w / wpm
         return [
@@ -782,9 +849,9 @@ const tools: ToolDef[] = [
     keywords: ['单利', '利息'],
     calcDef: {
       fields: [
-        { key: 'p', label: '本金', type: 'number', default: '' },
-        { key: 'r', label: '年利率（%）', type: 'number', default: '' },
-        { key: 't', label: '期限（年）', type: 'number', default: '' },
+        { key: 'p', label: '本金', type: 'number', default: 10000 },
+        { key: 'r', label: '年利率（%）', type: 'number', default: 3.5 },
+        { key: 't', label: '期限（年）', type: 'number', default: 1 },
       ],
       compute: (v) => {
         const p = Number(v.p)
@@ -796,6 +863,9 @@ const tools: ToolDef[] = [
         ]
       },
       note: '单利公式：利息 = 本金 × 利率 × 时间（不复利滚动）。',
+      links: [
+        { label: '算复利（利滚利对比）', to: '/t/compound-interest-calculator', query: (v) => ({ p: String(v.p ?? ''), r: String(v.r ?? '') }) },
+      ],
     },
   },
   {
@@ -886,7 +956,7 @@ const tools: ToolDef[] = [
     keywords: ['比例', 'ratio', '化简'],
     calcDef: {
       fields: [
-        { key: 'a', label: 'A', type: 'number', default: '' },
+        { key: 'a', label: 'A（比例前项）', type: 'number', default: '', hint: '如地图比例：图上距离 : 实际距离' },
         { key: 'b', label: 'B', type: 'number', default: '' },
         { key: 'c', label: 'C（求 D 时填）', type: 'number', default: '' },
         { key: 'd', label: 'D（求 C 时填）', type: 'number', default: '' },
@@ -897,6 +967,9 @@ const tools: ToolDef[] = [
         const c = v.c === '' ? null : Number(v.c)
         const d = v.d === '' ? null : Number(v.d)
         const rows: CalcResultRow[] = []
+        if (String(v.a ?? '').trim() === '0' || String(v.b ?? '').trim() === '0') {
+          return [{ label: '比例项不能为 0', value: '比例的前后项须为非零数值，请检查 A / B 输入' }]
+        }
         if (a && b) {
           const g = gcd(Math.round(a), Math.round(b))
           rows.push({ label: 'A:B 化简', value: `${a / g}:${b / g}`, primary: true })
@@ -991,7 +1064,7 @@ const tools: ToolDef[] = [
         const t3 = new Date(lmp); t3.setDate(t3.getDate() + 189)
         return [
           { label: '预产期', value: fmtDate(due), primary: true, hint: '孕 40 周（Naegele 法则：LMP + 280 天）' },
-          { label: '当前孕周', value: daysPreg >= 0 && daysPreg <= 294 ? `${weeks} 周 ${daysPreg % 7} 天` : '不在常规孕期范围内' },
+          { label: '当前孕周', value: daysPreg < 0 ? '所选日期晚于今天，请核对末次月经日期' : daysPreg <= 294 ? `${weeks} 周 ${daysPreg % 7} 天` : '已超过常规孕期范围（>42 周），请就医确认' },
           { label: '孕中期开始', value: fmtDate(t2) },
           { label: '孕晚期开始', value: fmtDate(t3) },
         ]
@@ -1045,7 +1118,7 @@ const tools: ToolDef[] = [
         if (v.mode === 'byWake') {
           const w = parse(String(v.wake ?? ''))
           if (w === null) return [{ label: '请输入起床时间', value: '格式 HH:mm，如 07:30' }]
-          for (const c of [6, 5, 4]) {
+          for (const c of [6, 5, 4, 3]) {
             const bed = w - (c * 90 + 15)
             rows.push({ label: `${c} 个周期（约 ${(c * 1.5).toFixed(1)} 小时）`, value: `就寝 ${hm(bed)}`, primary: c === 5 })
           }
@@ -1221,7 +1294,7 @@ const tools: ToolDef[] = [
           { value: '42.195', label: '全马 42.195 公里' }, { value: 'custom', label: '自定义' },
         ] },
         { key: 'distC', label: '自定义距离（公里）', type: 'number', default: '' },
-        { key: 'pace', label: '配速（分:秒/公里）', type: 'text', default: '', placeholder: '5:30 表示 5 分 30 秒' },
+        { key: 'pace', label: '配速（分:秒/公里）', type: 'text', default: '5:30', placeholder: '5:30 表示 5 分 30 秒' },
         { key: 'time', label: '完赛时间（时:分:秒）', type: 'text', default: '', placeholder: '3:59:59' },
       ],
       compute: (v) => {
@@ -1274,7 +1347,7 @@ const tools: ToolDef[] = [
     keywords: ['1RM', '极限重量', '深蹲', '卧推'],
     calcDef: {
       fields: [
-        { key: 'w', label: '训练重量', type: 'number', default: '', suffix: 'kg' },
+        { key: 'w', label: '训练重量', type: 'number', default: 100, suffix: 'kg' },
         { key: 'r', label: '完成次数', type: 'number', default: 5, suffix: '次' },
       ],
       compute: (v) => {
@@ -1321,9 +1394,11 @@ const tools: ToolDef[] = [
         return [
           { label: '基础代谢 BMR', value: fmt(bmr) + ' 千卡', hint: 'Mifflin-St Jeor 公式' },
           { label: '每日总消耗 TDEE', value: fmt(tdee) + ' 千卡', hint: 'BMR × 活动系数', primary: true },
-          { label: '温和减脂（−300 千卡）', value: '约 ' + fmt(tdee - 300) + ' 千卡/天' },
           { label: '均衡维持', value: '约 ' + fmt(tdee) + ' 千卡/天' },
-          { label: '增肌盈余（+300 千卡）', value: '约 ' + fmt(tdee + 300) + ' 千卡/天' },
+          { label: '每周减 0.25kg（−275 千卡/天）', value: '约 ' + fmt(tdee - (7700 * 0.25) / 7) + ' 千卡/天', hint: '按 7700 千卡/kg 折算' },
+          { label: '每周减 0.5kg（−550 千卡/天）', value: '约 ' + fmt(tdee - (7700 * 0.5) / 7) + ' 千卡/天', hint: '按 7700 千卡/kg 折算' },
+          { label: '每周减 1kg（−1100 千卡/天）', value: '约 ' + fmt(tdee - 1100) + ' 千卡/天', hint: '激进，不建议长期' },
+          { label: '每周增 0.25kg（+275 千卡/天）', value: '约 ' + fmt(tdee + (7700 * 0.25) / 7) + ' 千卡/天', hint: '按 7700 千卡/kg 折算' },
           { label: '宏量分配建议（维持）', value: '蛋白 ' + fmt((tdee * 0.3) / 4) + 'g ｜ 脂肪 ' + fmt((tdee * 0.25) / 9) + 'g ｜ 碳水 ' + fmt((tdee * 0.45) / 4) + 'g' },
         ]
       },
@@ -1367,7 +1442,7 @@ const tools: ToolDef[] = [
           { label: '日码 JP（cm）', value: f1(jp) },
         ]
       },
-      note: '口径：EU = 脚长(cm)×1.5 + 2 的近似线性模型，美码按市场通行表偏移（男 US≈EU−33.5、女 US≈EU−31）；各品牌存在 ±半码差异，下单前以该品牌官方尺码表为准。',
+      note: '量脚建议：下午站立量脚（脚略膨胀），脚尖预留 5~10mm 活动空间，双脚取较长者。口径：EU = 脚长(cm)×1.5 + 2 的近似线性模型，美码按市场通行表偏移（男 US≈EU−33.5、女 US≈EU−31）；各品牌存在 ±半码差异，下单前以该品牌官方尺码表为准。',
     },
   },
   {
@@ -1394,7 +1469,32 @@ const tools: ToolDef[] = [
         }
         const gcd = (x: bigint, y: bigint): bigint => (y === 0n ? (x < 0n ? -x : x) : gcd(y, x % y))
         const A = parse(String(v.a ?? '')), B = parse(String(v.b ?? ''))
-        if (!A || !B) return [{ label: '请按格式输入分数', value: '支持 3/4、5、带分数 1 1/2' }]
+        if (!A) return [{ label: '请按格式输入分数', value: '支持 3/4、5、带分数 1 1/2' }]
+        if (!B) {
+          // 单分数模式：仅化简 A（最简分数 / 带分数 / 小数）
+          let sn = A[0]
+          let sd = A[1]
+          if (sd === 0n) return [{ label: '分母不能为零', value: '—' }]
+          if (sd < 0n) { sn = -sn; sd = -sd }
+          const gg = gcd(sn, sd)
+          sn /= gg
+          sd /= gg
+          let decTxt: string
+          let d = sd
+          for (const q of [2n, 5n]) {
+            while (d % q === 0n) d /= q
+          }
+          if (d === 1n || sd === 1n) decTxt = String(Number(sn) / Number(sd))
+          else decTxt = (Number(sn) / Number(sd)).toFixed(12).replace(/0+$/, '').slice(0, 14) + '…（无限小数，已截断）'
+          const rowsF: CalcResultRow[] = [{ label: '最简分数', value: sd === 1n ? String(sn) : `${sn}/${sd}`, primary: true }]
+          const wn = sn < 0n ? -(-sn / sd) : sn / sd
+          if (sd !== 1n && (wn !== 0n || sn < 0n)) {
+            const rem = (sn < 0n ? -sn : sn) % sd
+            rowsF.push({ label: '带分数', value: `${sn < 0n ? '-' : ''}${(sn < 0n ? -sn : sn) / sd} 又 ${rem}/${sd}` })
+          }
+          rowsF.push({ label: '小数', value: decTxt })
+          return rowsF
+        }
         const an = A[0], ad = A[1], bn = B[0], bd = B[1]
         let rn: bigint, rd: bigint
         const op = String(v.op)
@@ -1748,17 +1848,25 @@ const tools: ToolDef[] = [
         { key: 'mo', label: '母亲血型', type: 'select', default: 'B', choices: [
           { value: 'A', label: 'A 型' }, { value: 'B', label: 'B 型' }, { value: 'AB', label: 'AB 型' }, { value: 'O', label: 'O 型' },
         ] },
+        { key: 'faRh', label: '父亲 Rh', type: 'select', default: '+', choices: [{ value: '+', label: 'Rh+' }, { value: '-', label: 'Rh−' }] },
+        { key: 'moRh', label: '母亲 Rh', type: 'select', default: '+', choices: [{ value: '+', label: 'Rh+' }, { value: '-', label: 'Rh−' }] },
       ],
       compute: (v) => {
         const r = bloodInherit(v.fa as never, v.mo as never)
         const fmt = (arr: string[]) => arr.map((x) => x + ' 型').join('、')
+        const rhText = (fa: string, mo: string): string => {
+          if (fa === '-' && mo === '-') return '子女必为 Rh−（父母均 Rh−）'
+          if (fa === '+' && mo === '-') return 'Rh+ / Rh− 均有可能（Rh+ 者基因型无法由表型确定）'
+          if (fa === '-' && mo === '+') return 'Rh+ / Rh− 均有可能（Rh+ 者基因型无法由表型确定）'
+          return '子女几乎必为 Rh+（父母至少一方 Rh+；Rh+ 显性，例外极罕见）'
+        }
         return [
           { label: '子女可能血型', value: fmt(r.possible), primary: true },
-          { label: '子女不可能血型', value: r.impossible.length ? fmt(r.impossible) : '四种都有可能' },
-          { label: 'Rh 血型说明', value: 'Rh+ 为显性遗传，父母均 Rh− 时子女必为 Rh−；其余组合以血检为准' },
+          { label: '子女不可能血型', value: r.impossible.length ? fmt(r.impossible) : '无（四种血型都可能出现）' },
+          { label: 'Rh 血型推导', value: rhText(String(v.faRh), String(v.moRh)) },
         ]
       },
-      note: '口径：ABO 血型按 AB 显性遗传规则推导可能集；极罕见孟买血型等例外未计入，实际以实验室血型鉴定为准。',
+      note: '原理：A/B 抗原为显性、O 为隐性，故 O 型父母不可能生下 AB 型子女；AB 型必然携带 A 与 B 各一份。口径：ABO 按 AB 显性遗传规则推导可能集；极罕见孟买血型等例外未计入，实际以实验室血型鉴定为准。',
     },
   },
   {
@@ -1771,8 +1879,8 @@ const tools: ToolDef[] = [
         { key: 'kind', label: '品类', type: 'select', default: 'top', choices: [
           { value: 'top', label: '上装（T恤/衬衫/外套）' }, { value: 'pants', label: '裤装' },
         ] },
-        { key: 'h', label: '身高', type: 'number', default: '', suffix: 'cm' },
-        { key: 'w', label: '体重', type: 'number', default: '', suffix: 'kg' },
+        { key: 'h', label: '身高', type: 'number', default: 170, suffix: 'cm' },
+        { key: 'w', label: '体重', type: 'number', default: 65, suffix: 'kg' },
       ],
       compute: (v) => {
         const female = v.sex === 'female'
@@ -1831,6 +1939,9 @@ const tools: ToolDef[] = [
         ]
       },
       note: '口径：2024 年全国人大常委会「渐进式延迟法定退休年龄」决定（自 2025-01-01 起按每 4 个月延迟 1 个月）；实际以社保经办机构核定为准。',
+      links: [
+        { label: '查社保缴费测算', to: '/t/social-insurance-calculator' },
+      ],
     },
   },
   {

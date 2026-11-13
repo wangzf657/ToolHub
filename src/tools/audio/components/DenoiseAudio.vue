@@ -84,9 +84,18 @@ onBeforeUnmount(() => {
     <div class="mt-2 dn-slider">
       <span class="field-label">降噪强度 {{ strength.toFixed(2) }}（0.2 轻微 – 0.9 激进）</span>
       <input v-model.number="strength" type="range" min="0.2" max="0.9" step="0.05" />
+      <div class="row row-wrap" style="gap: 8px; margin-top: 6px">
+        <span class="field-label" style="margin: 0">场景预设</span>
+        <button class="chip" :class="{ active: strength === 0.4 }" @click="strength = 0.4">网课人声 0.4</button>
+        <button class="chip" :class="{ active: strength === 0.5 }" @click="strength = 0.5">会议/采访 0.5</button>
+        <button class="chip" :class="{ active: strength === 0.25 }" @click="strength = 0.25">轻底噪 0.25</button>
+      </div>
     </div>
     <p class="small muted mt-1">
       谱减法降噪会自动估计底噪声谱并逐帧相减，可有效去除嘶声、风扇与电流底噪；强度过大会带来轻微「水声」伪影，建议先从 0.4 试起。处理需要一些时间，长音频可能耗时 10–60 秒。
+    </p>
+    <p class="notice notice-warn mt-1">
+      适用边界：本工具面向<b>语音录音</b>（网课/采访/会议）。音乐素材慎用——谱减法会损伤音乐细节与立体声相位，音乐底噪建议优先用「视频降噪」或更换安静环境重录。
     </p>
 
     <div class="row row-wrap mt-2">

@@ -1,14 +1,15 @@
 <script setup lang="ts">
 /**
- * 音频淡入淡出：线性走 transformBuffer；指数 / S 形曲线在组件内
- * 直接对声道数据做逐样本渐变（指数用立方近似，S 形用余弦过渡）。
+ * 音频淡入淡出：线性走 transformBuffer；指数（立方近似）/ S 形曲线组件内逐样本渐变。
+ * 淡入淡出区域可视化（包络小图）+ 分段试听定位 + 时长钳制反馈 + 编码进度结果卡。
  */
 import { computed, ref } from 'vue'
-import { Play } from 'lucide-vue-next'
+import { Play, Square } from 'lucide-vue-next'
 import AudioToolBase from './AudioToolBase.vue'
-import DownloadButton from '@/components/common/DownloadButton.vue'
-import { createBuffer, encodeWav, encodeMp3, playBuffer, transformBuffer } from '@/lib/audioEngine'
+import AudioExport from './AudioExport.vue'
+import { createBuffer, encodeWav, encodeMp3, transformBuffer } from '@/lib/audioEngine'
 import { baseName } from '@/lib/download'
+import { fmtTime } from './shared'
 
 type Curve = 'linear' | 'exp' | 'sigmoid'
 
@@ -21,15 +22,15 @@ const kbps = ref(192)
 
 const curves: { value: Curve; label: string }[] = [
   { value: 'linear', label: '线性' },
-  { value: 'exp', label: '指数' },
+  { value: 'exp', label: '指数（立方近似）' },
   { value: 'sigmoid', label: 'S 形' },
 ]
 
 /** 渐变形状：t ∈ [0,1] → 增益系数 */
 function shape(t: number, kind: Curve): number {
   if (kind === 'linear') return t
-  if (kind === 'exp') return Math.pow(t, 3) // 立方近似指数过渡（对数/指数听感）
-  return 0.5 - 0.5 * Math.cos(Math.PI * t) // S 形：余弦平滑过渡
+  if (kind === 'exp') return Math.pow(t, 3)
+  return 0.5 - 0.5 * Math.cos(Math.PI * t)
 }
 
 /** 独立的曲线淡入淡出实现（transformBuffer 仅支持线性） */
@@ -49,32 +50,90 @@ function curvedFade(buf: AudioBuffer, fin: number, fout: number, kind: Curve): A
   return out
 }
 
+/** 钳制反馈：淡入/淡出超过音频时长时提示并按半长钳制 */
+const dur = computed(() => base.value?.buffer?.duration ?? 0)
+const clampWarn = computed(() => dur.value > 0 && (fadeIn.value > dur.value || fadeOut.value > dur.value))
+const safeIn = computed(() => Math.max(0, Math.min(fadeIn.value, dur.value / 2)))
+const safeOut = computed(() => Math.max(0, Math.min(fadeOut.value, dur.value / 2)))
+
 function apply(buf: AudioBuffer): AudioBuffer {
   if (curve.value === 'linear') {
-    return transformBuffer(buf, { fadeIn: fadeIn.value, fadeOut: fadeOut.value })
+    return transformBuffer(buf, { fadeIn: safeIn.value, fadeOut: safeOut.value })
   }
-  return curvedFade(buf, fadeIn.value, fadeOut.value, curve.value)
+  return curvedFade(buf, safeIn.value, safeOut.value, curve.value)
 }
 
-function preview() {
+/* ---------- 试听定位：整段 / 淡入段 / 淡出段 ---------- */
+let node: AudioBufferSourceNode | null = null
+const playing = ref<'' | 'all' | 'in' | 'out'>('')
+function stopPreview() {
+  if (node) {
+    try {
+      node.onended = null
+      node.stop()
+    } catch {
+      /* 已停止 */
+    }
+    node = null
+  }
+  playing.value = ''
+}
+function playRange(from: number, to: number, which: 'all' | 'in' | 'out') {
   const b = base.value
   if (!b?.buffer) return
-  playBuffer(apply(b.buffer))
+  stopPreview()
+  const out = apply(b.buffer)
+  const ctx = new AudioContext()
+  void ctx.resume()
+  const n = ctx.createBufferSource()
+  n.buffer = out
+  n.connect(ctx.destination)
+  n.onended = () => {
+    if (node === n) {
+      node = null
+      playing.value = ''
+      void ctx.close()
+    }
+  }
+  n.start(0, Math.max(0, from), Math.max(0.05, to - from))
+  node = n
+  playing.value = which
 }
 
-async function produce(): Promise<Blob> {
+async function produce(onProgress?: (p: number) => void): Promise<Blob> {
   const b = base.value
   if (!b?.buffer || !b.file) throw new Error('请先加载音频文件')
   b.setBusy(true)
   try {
     const out = apply(b.buffer)
-    return fmt.value === 'mp3' ? await encodeMp3(out, kbps.value) : encodeWav(out)
+    return fmt.value === 'mp3' ? await encodeMp3(out, kbps.value, onProgress) : encodeWav(out)
   } finally {
     b.setBusy(false)
   }
 }
 
 const outName = computed(() => `${baseName(base.value?.file?.name ?? 'audio')}-fade.${fmt.value}`)
+
+/** 包络小图：SVG 折线渲染增益曲线（淡入 + 平段 + 淡出） */
+const envPoints = computed(() => {
+  const d = dur.value || 10
+  const fin = Math.min(safeIn.value, d / 2)
+  const fout = Math.min(safeOut.value, d / 2)
+  const W = 100
+  const pts: string[] = []
+  const finN = Math.max(2, Math.round((fin / d) * W))
+  const foutN = Math.max(2, Math.round((fout / d) * W))
+  for (let i = 0; i <= finN; i++) {
+    const t = i / finN
+    pts.push(`${((t * fin) / d) * W},${(1 - shape(t, curve.value)) * 24}`)
+  }
+  pts.push(`${W},${(1 - shape(1, curve.value)) * 24}`) // 中段满幅（近似）
+  for (let i = foutN; i >= 0; i--) {
+    const t = i / foutN
+    pts.push(`${W - ((t * fout) / d) * W},${(1 - shape(t, curve.value)) * 24}`)
+  }
+  return pts.join(' ')
+})
 </script>
 
 <template>
@@ -89,6 +148,7 @@ const outName = computed(() => `${baseName(base.value?.file?.name ?? 'audio')}-f
         <input v-model.number="fadeOut" class="input" type="number" min="0" step="0.5" />
       </label>
     </div>
+    <p v-if="clampWarn" class="clamp-warn">⚠ 淡入/淡出超过音频时长（{{ fmtTime(dur) }}），将按半长钳制实际生效：淡入 {{ safeIn.toFixed(1) }}s、淡出 {{ safeOut.toFixed(1) }}s</p>
 
     <div class="row row-wrap mt-2">
       <span class="field-label" style="margin: 0">渐变曲线</span>
@@ -97,8 +157,21 @@ const outName = computed(() => `${baseName(base.value?.file?.name ?? 'audio')}-f
       </button>
     </div>
 
+    <svg viewBox="0 0 100 24" class="env mt-2" preserveAspectRatio="none">
+      <polyline :points="envPoints" fill="none" stroke="var(--accent)" stroke-width="1.2" vector-effect="non-scaling-stroke" />
+    </svg>
+    <p class="small muted">增益包络（左 → 右 = 播放方向）：两端即淡入/淡出范围</p>
+
     <div class="row row-wrap mt-1">
-      <button class="btn btn-soft btn-sm" :disabled="!base?.buffer" @click="preview"><Play :size="14" /> 试听效果</button>
+      <button class="btn btn-soft btn-sm" :disabled="!base?.buffer" @click="playRange(0, dur, 'all')">
+        <Play v-if="playing !== 'all'" :size="14" /><Square v-else :size="14" /> {{ playing === 'all' ? '停止' : '试听整段' }}
+      </button>
+      <button class="btn btn-soft btn-sm" :disabled="!base?.buffer || safeIn <= 0" @click="playRange(0, safeIn + 0.5, 'in')">
+        {{ playing === 'in' ? '停止' : '试听淡入段' }}
+      </button>
+      <button class="btn btn-soft btn-sm" :disabled="!base?.buffer || safeOut <= 0" @click="playRange(Math.max(0, dur - safeOut - 0.5), dur, 'out')">
+        {{ playing === 'out' ? '停止' : '试听淡出段' }}
+      </button>
     </div>
 
     <div class="row row-wrap mt-2">
@@ -115,7 +188,7 @@ const outName = computed(() => `${baseName(base.value?.file?.name ?? 'audio')}-f
       </label>
     </div>
 
-    <DownloadButton :produce="produce" :default-name="outName" button-text="添加淡入淡出并下载" />
+    <AudioExport :produce="produce" :default-name="outName" button-text="添加淡入淡出并生成" />
   </AudioToolBase>
 </template>
 
@@ -123,4 +196,14 @@ const outName = computed(() => `${baseName(base.value?.file?.name ?? 'audio')}-f
 .opt {
   min-width: 130px;
 }
+.env {
+  width: 100%;
+  max-width: 480px;
+  height: 56px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--panel-solid) 45%, transparent);
+  display: block;
+}
+.clamp-warn { font-size: 12.5px; color: #d97706; margin: 6px 0 0; }
 </style>

@@ -2,6 +2,7 @@
 /** 裁切视频画面：像素坐标裁切或按比例预设（居中） */
 import { ref, watch } from 'vue'
 import FfBase from './FfBase.vue'
+import FfExpectHint from './FfExpectHint.vue'
 
 const base = ref<InstanceType<typeof FfBase> | null>(null)
 const w = ref(0)
@@ -94,6 +95,7 @@ const run = async () => {
       坐标为源视频的像素坐标，左上角为原点。导入视频后尺寸已自动填入；
       手动模式请自行保证宽高不超过画面（偏移 + 尺寸 ≤ 边界），超界部分自动收缩。
     </p>
+      <FfExpectHint text="浏览器本地处理速度约为视频时长的 1/2~1/5（重编码类；流复制类通常秒级完成），首次使用需加载约 25MB 编解码核心。处理期间请保持页面打开，勿刷新或关闭标签页。" />
   </FfBase>
 </template>
 

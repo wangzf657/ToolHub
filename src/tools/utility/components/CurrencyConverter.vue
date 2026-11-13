@@ -42,11 +42,39 @@ const DEFAULT_RATES: { code: string; name: string; rate: number }[] = [
 const rates = reactive<Record<string, number>>({})
 for (const r of DEFAULT_RATES) rates[r.code] = r.rate
 
+/** 汇率数据源状态：离线快照（约 2024）→ 联网后刷新为实时价 */
+const rateMeta = ref<{ live: boolean; time: string }>({ live: false, time: '离线快照，约 2024' })
+const fetching = ref(false)
+
+async function fetchLive() {
+  if (fetching.value) return
+  fetching.value = true
+  try {
+    // open.er-api.com 免费开放接口（CORS 允许浏览器直连），以 CNY 为基准
+    const res = await fetch('https://open.er-api.com/v6/latest/CNY')
+    if (!res.ok) throw new Error(String(res.status))
+    const data = (await res.json()) as { result?: string; rates?: Record<string, number>; time_last_update_utc?: string }
+    if (data.result !== 'success' || !data.rates) throw new Error('bad payload')
+    for (const r of DEFAULT_RATES) {
+      const v = data.rates[r.code]
+      if (typeof v === 'number' && v > 0) rates[r.code] = v
+    }
+    rateMeta.value = { live: true, time: `汇率更新于 ${new Date(data.time_last_update_utc ?? Date.now()).toLocaleString('zh-CN', { hour12: false })}` }
+    convert()
+  } catch {
+    rateMeta.value = { live: false, time: '离线快照，约 2024（联网获取实时汇率失败）' }
+  } finally {
+    fetching.value = false
+  }
+}
+void fetchLive()
+
 const amount = ref<number>(100)
 const from = ref('USD')
 const to = ref('CNY')
 const result = ref('')
 const reverse = ref('')
+const amountR = ref<string>('')
 
 const convert = () => {
   const rFrom = rates[from.value]
@@ -69,6 +97,22 @@ const convert = () => {
   reverse.value = `1 ${from.value} ≈ ${fmt(rv)} ${to.value}`
 }
 convert()
+
+/** 双向输入：右侧输入框反算左侧（同一汇率口径） */
+const convertRight = () => {
+  const rFrom = rates[from.value]
+  const rTo = rates[to.value]
+  if (!rFrom || !rTo) return
+  const v = Number(amountR.value)
+  if (Number.isNaN(v) || !amountR.value) {
+    amount.value = Number(amount.value)
+    convert()
+    return
+  }
+  const back = (v / rTo) * rFrom
+  amount.value = Number(back.toFixed(6))
+  convert()
+}
 
 /** 汇率表编辑 */
 const editing = ref(false)
@@ -107,7 +151,11 @@ const resetRates = () => {
 
 <template>
   <div>
-    <div class="notice notice-warn small">内置参考汇率快照（约 2024 年数据，仅供本地估算参考），可在下方手动修改。汇率不会自动联网更新。</div>
+    <div class="notice notice-warn small" :class="{ ok: rateMeta.live }">
+      <template v-if="rateMeta.live">✓ {{ rateMeta.time }}（实时汇率，来源 open.er-api.com）</template>
+      <template v-else>{{ rateMeta.time }}（仅供本地估算参考），可在下方手动修改</template>
+      <button class="btn btn-ghost btn-sm" style="margin-left: 8px" :disabled="fetching" @click="fetchLive">{{ fetching ? '获取中…' : '刷新实时汇率' }}</button>
+    </div>
 
     <div class="conv-card mt-2">
       <div class="conv-grid">
@@ -122,16 +170,16 @@ const resetRates = () => {
           <ArrowLeftRight :size="18" />
         </div>
         <div>
-          <span class="field-label">换算到</span>
-          <input :value="result ? result.split('≈ ')[1]?.split(' ')[0] ?? '' : ''" class="input mono" readonly placeholder="结果" />
-          <select v-model="to" class="select mt-1" @change="convert">
+          <span class="field-label">换算到（可反算左侧）</span>
+          <input v-model="amountR" class="input mono" :placeholder="result ? (result.split('≈ ')[1]?.split(' ')[0] ?? '') : '结果'" @input="convertRight" />
+          <select v-model="to" class="select mt-1"  @change="amountR = ''; convert()" >
             <option v-for="r in DEFAULT_RATES" :key="r.code" :value="r.code">{{ r.code }} {{ r.name }}</option>
           </select>
         </div>
       </div>
 
       <p v-if="result" class="big-result">{{ result }}</p>
-      <p v-if="reverse" class="muted small">{{ reverse }} · 双向换算：切换两侧货币后修改左侧金额即可重算</p>
+      <p v-if="reverse" class="muted small">{{ reverse }} · 双向输入：改任一侧金额另一侧即时反算</p>
     </div>
 
     <div class="mt-2">

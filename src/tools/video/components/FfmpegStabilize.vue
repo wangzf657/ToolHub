@@ -2,6 +2,7 @@
 /** 视频防抖：deshake 滤镜（运动估计范围可调），可选裁边补偿 */
 import { ref } from 'vue'
 import FfBase from './FfBase.vue'
+import FfExpectHint from './FfExpectHint.vue'
 import SliderRow from './SliderRow.vue'
 
 const base = ref<InstanceType<typeof FfBase> | null>(null)
@@ -37,6 +38,7 @@ const run = async () => {
       deshake 通过帧间运动估计平滑镜头抖动，适合轻微手持晃动；大幅跑动镜头效果有限。
       防抖后画面边缘可能出现位移空隙，默认裁掉四周 6% 再输出（分辨率略降）。
     </p>
+      <FfExpectHint text="防抖为两阶段处理（分析 + 应用），耗时约为普通处理的 2 倍；首次使用需加载约 25MB 编解码核心。处理期间请保持页面打开，勿刷新页面。" />
   </FfBase>
 </template>
 

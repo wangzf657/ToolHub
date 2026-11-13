@@ -8,6 +8,7 @@ import { useToast } from '@/composables/useToast'
 const toast = useToast()
 
 const text = ref('TOOLHUB')
+const MAXLEN = 12
 const fills = ['█', '▓', '#', '*', '='] as const
 const fill = ref<string>('█')
 
@@ -46,8 +47,8 @@ const download = () => {
     <div class="in-card">
       <div class="grid-2">
         <div>
-          <span class="field-label">文本（最多 12 个字符，英文数字为主）</span>
-          <input v-model="text" class="input mono" placeholder="例如 TOOLHUB" />
+          <span class="field-label">文本（最多 12 个字符，英文数字为主）<span class="count" :class="{ over: text.length > MAXLEN }">{{ text.length }}/12</span></span>
+          <input v-model="text" class="input mono" :maxlength="MAXLEN" placeholder="例如 TOOLHUB" />
         </div>
         <div>
           <span class="field-label">填充字符</span>

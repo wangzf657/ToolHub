@@ -2,6 +2,7 @@
 /** 视频去静音：silencedetect 检测静音区间后，音视频按同一组剪点同步剪除（保持口型对齐） */
 import { ref } from 'vue'
 import FfBase from './FfBase.vue'
+import FfExpectHint from './FfExpectHint.vue'
 import SliderRow from './SliderRow.vue'
 import { getFf, detectSilences, buildSyncRemoveFilter } from '@/lib/ffmpeg'
 import type { FFmpeg } from '@ffmpeg/ffmpeg'
@@ -81,6 +82,7 @@ const run = async () => {
       会被整段剪除，语速明显加快——适合口播/网课，但对话类素材慎用。画面与声音按同一组剪点同步剪除
       （视频需重编码），口型与声音保持对齐。
     </p>
+      <FfExpectHint text="浏览器本地处理速度约为视频时长的 1/2~1/5（重编码类；流复制类通常秒级完成），首次使用需加载约 25MB 编解码核心。处理期间请保持页面打开，勿刷新或关闭标签页。" />
   </FfBase>
 </template>
 

@@ -1,6 +1,20 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { ArrowLeftRight } from 'lucide-vue-next'
+import { ArrowLeftRight, Check, Copy } from 'lucide-vue-next'
+import { copyText } from '@/lib/download'
+import { useToast } from '@/composables/useToast'
+
+const toast = useToast()
+const copied = ref('')
+const copyVal = async (v: string) => {
+  if (!v) return
+  const ok = await copyText(v)
+  if (ok) {
+    copied.value = v
+    toast.ok(`已复制 ${v}`)
+    setTimeout(() => (copied.value = ''), 1500)
+  } else toast.err('复制失败，请手动选择复制')
+}
 
 interface Unit {
   id: string
@@ -170,7 +184,12 @@ switchCat(categories[0])
         </button>
         <div>
           <span class="field-label">到</span>
-          <input v-model="rightVal" class="input mono" @input="convertRight" />
+          <div class="row" style="gap: 8px; align-items: center">
+            <input v-model="rightVal" class="input mono grow" style="cursor: pointer" title="点击复制结果" @input="convertRight" @click="copyVal(rightVal)" />
+            <button class="btn btn-ghost btn-sm" style="flex: none" :title="`复制结果 ${rightVal}`" @click="copyVal(rightVal)">
+              <Check v-if="copied === rightVal" :size="14" color="#34d399" /><Copy v-else :size="14" />
+            </button>
+          </div>
           <select v-model="rightUnit" class="select mt-1" @change="convertLeft">
             <option v-for="x in active.units" :key="x.id" :value="x.id">{{ x.label }}</option>
           </select>
@@ -191,7 +210,7 @@ switchCat(categories[0])
       </div>
 
       <p class="notice notice-info small mt-2">
-        计算口径：单位间按固定系数换算（长度/重量/面积/体积/速度/数据/时间）；数据容量同时提供十进制（KB=1000B）与二进制（KiB=1024B）两套；温度按 ℃→℉=(℃×9/5)+32、K=℃+273.15 函数换算。
+        计算口径：单位间按固定系数换算（长度/重量/面积/体积/速度/数据/时间）；数据容量同时提供十进制（KB=1000B）与二进制（KiB=1024B）两套；温度按 ℃→℉=(℃×9/5)+32、K=℃+273.15 函数换算；时间类「年」按 365 天近似（31536000 秒），闰年累计误差请按需折算。
       </p>
     </div>
   </div>

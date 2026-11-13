@@ -3,6 +3,7 @@
 import { ref, shallowRef, watch } from 'vue'
 import { Music } from 'lucide-vue-next'
 import FfBase from './FfBase.vue'
+import FfExpectHint from './FfExpectHint.vue'
 import FileDrop from '@/components/common/FileDrop.vue'
 import SliderRow from './SliderRow.vue'
 
@@ -76,6 +77,7 @@ const run = async () => {
       混合模式需要原视频带有音轨（无音轨请选「替换原声」）。画面直接流复制不重编码，速度较快；
       音乐比视频长时会被截断到视频结束。
     </p>
+      <FfExpectHint text="浏览器本地处理速度约为视频时长的 1/2~1/5（重编码类；流复制类通常秒级完成），首次使用需加载约 25MB 编解码核心。处理期间请保持页面打开，勿刷新或关闭标签页。" />
   </FfBase>
 </template>
 

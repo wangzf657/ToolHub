@@ -17,6 +17,13 @@ await build({
 })
 const { allTools } = require(path.join(here, '_bundle-tools.cjs'))
 const bySlug = new Map(allTools.map((t) => [t.slug, t]))
+// 组件化工具的可测性出口（与组件同源的纯逻辑模块；*.vue 外置所以单独打包 barrel）
+await build({
+  entryPoints: [path.join(root, 'src/tools/testables.ts')], bundle: true, platform: 'node', format: 'cjs',
+  outfile: path.join(here, '_bundle-testables.cjs'), external: [...EXTERNAL, '*.vue'],
+  alias: { '@': path.join(root, 'src') }, logLevel: 'silent',
+})
+const testables = require(path.join(here, '_bundle-testables.cjs'))
 
 const results = [] // {tool, case, pass, sev, detail}
 let passN = 0, failN = 0, warnN = 0
@@ -204,13 +211,32 @@ if (typeof document === 'undefined') { record('html-entity-encoder', 'ENV-需浏
 T('csv-to-markdown', '基本表', 'a,b\n1,2\n3,4', {}, (o) => o.includes('| a | b |') && o.includes('| --- |') && o.includes('| 1 | 2 |') && o.includes('| 3 | 4 |'))
 T('csv-to-markdown', '对齐选项', 'a,b\n1,2', { align: 'center' }, (o) => o.includes(':---:') || o.includes(':---:') || true) // 视实现,居中标记
 
-// AI/SEO textDef:不变式
-T('readability-checker', '非空输出有评分', '这是一段用于测试的文本。它包含两个句子,长度适中。', {}, (o) => o.length > 0 && /[\u4e00-\u9fa5]/.test(o))
-T('keyword-density-checker', '关键词计数', '苹果 香蕉 苹果 橙子 苹果 苹果 苹果', {}, (o) => o.includes('苹果') && o.includes('5'))
-T('text-summarizer', 'count=2 恰两句', '句子一关于人工智能。句子二关于机器学习。句子三关于深度学习。句子四关于自然语言处理。句子五关于计算机视觉。', { count: 2 }, (o) => o.split(/[。!?\n]/).filter((s) => s.trim()).length === 2)
-T('keyword-extractor', 'n=5', '人工智能正在改变世界。机器学习是人工智能的核心。深度学习推动了机器学习的进步。自然语言处理与计算机视觉都是深度学习的应用。', { n: 5 }, (o) => o.replace(/\n/g, '').length > 0)
-T('grammar-corrector', '重复字修正', '我我明天去去公园', {}, (o) => !/我我|去去/.test(o))
-T('paraphraser', '改写有输出', '今天天气很好,我们一起去公园散步吧。', {}, (o) => o.trim().length > 0 && o !== '')
+// AI/SEO 组件化工具：断言直调与组件同源的纯逻辑模块（testables barrel），断言意图不变
+{
+  const o = testables.readabilitySummary('这是一段用于测试的文本。它包含两个句子,长度适中。')
+  record('readability-checker', '非空输出有评分', o.length > 0 && /[\u4e00-\u9fa5]/.test(o), 'C', o.slice(0, 120))
+}
+{
+  const items = testables.densityItems('苹果 香蕉 苹果 橙子 苹果 苹果 苹果', { n1: true, n2: true, n3: true, stopwords: true })
+  const top = items[0]
+  record('keyword-density-checker', '关键词计数', !!top && top.phrase.includes('苹果') && top.count === 5, 'C', JSON.stringify(items.slice(0, 3)))
+}
+{
+  const o = testables.summarizeText('句子一关于人工智能。句子二关于机器学习。句子三关于深度学习。句子四关于自然语言处理。句子五关于计算机视觉。', { mode: 'count', count: 2 })
+  record('text-summarizer', 'count=2 恰两句', o.split(/[。!?\n]/).filter((s) => s.trim()).length === 2, 'C', o.slice(0, 80))
+}
+{
+  const o = testables.extractKeywordsText('人工智能正在改变世界。机器学习是人工智能的核心。深度学习推动了机器学习的进步。自然语言处理与计算机视觉都是深度学习的应用。', 5)
+  record('keyword-extractor', 'n=5', o.replace(/\n/g, '').length > 0, 'C', o.slice(0, 80))
+}
+{
+  const o = testables.correctGrammarText('我我明天去去公园')
+  record('grammar-corrector', '重复字修正', !/我我|去去/.test(o), 'C', o.slice(0, 60))
+}
+{
+  const o = testables.paraphraseText('今天天气很好,我们一起去公园散步吧。', 0.5)
+  record('paraphraser', '改写有输出', o.trim().length > 0 && o !== '', 'C', o.slice(0, 60))
+}
 
 // ================= calcDef 金标准 =================
 function C(slug, caseName, vals, check, sev = 'C') {

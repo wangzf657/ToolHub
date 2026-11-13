@@ -1,13 +1,16 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import type { TextToolDef, TextOptionDef } from '@/types'
 import { copyText, saveText } from '@/lib/download'
 import { localizeJsonError } from '@/lib/jsEngine'
 import { useToast } from '@/composables/useToast'
+import { installCtrlEnter } from '@/composables/usePasteRun'
 import { Trash2, Copy, ArrowLeftRight, Download, Loader2 } from 'lucide-vue-next'
 
 const props = defineProps<{ def: TextToolDef }>()
 const toast = useToast()
+const route = useRoute()
 
 const input = ref('')
 const output = ref('')
@@ -75,6 +78,20 @@ const auto = computed(() => !props.def.options?.some((o) => o.type === 'number')
 watch([input, opts], run, { deep: true })
 onBeforeUnmount(() => clearTimeout(slowTimer))
 
+/** Ctrl/Cmd+Enter 强制立即执行（自动型工具同样可用，手动型免点按钮） */
+const rootEl = ref<HTMLElement | null>(null)
+let unbindKey: (() => void) | null = null
+onMounted(() => {
+  unbindKey = installCtrlEnter(rootEl.value, run)
+  // 互链契约接收端：?text= 预填输入（自动型工具经 watch 即时执行；截断防 URL 超限）
+  const qtext = route.query.text
+  if (typeof qtext === 'string' && qtext && !input.value) {
+    input.value = qtext.slice(0, 100_000)
+    toast.ok('已带入来源文本')
+  }
+})
+onBeforeUnmount(() => unbindKey?.())
+
 const doCopy = async () => {
   if (!output.value) return
   const okFlag = await copyText(output.value)
@@ -96,7 +113,7 @@ const clearAll = () => {
 </script>
 
 <template>
-  <div class="text-tool">
+  <div ref="rootEl" class="text-tool">
     <div v-if="def.options?.length" class="text-opts row row-wrap">
       <label v-for="o in def.options as TextOptionDef[]" :key="o.key" class="opt-item">
         <span v-if="o.type !== 'toggle'" class="field-label">{{ o.label }}</span>
@@ -174,9 +191,10 @@ const clearAll = () => {
     </div>
 
     <div class="row mt-2">
-      <button v-if="!auto" class="btn btn-primary" @click="run">立即转换</button>
+      <button v-if="!auto" class="btn btn-primary" title="快捷键 Ctrl+Enter" @click="run">立即转换</button>
       <button class="btn btn-ghost" :disabled="!output" @click="doCopy"><Copy :size="15" /> 复制结果</button>
       <button class="btn btn-ghost" :disabled="!output" @click="doDownload"><Download :size="15" /> 下载 TXT</button>
+      <span class="muted small key-hint">Ctrl+Enter 立即执行</span>
     </div>
   </div>
 </template>
@@ -264,6 +282,10 @@ const clearAll = () => {
 }
 .spin {
   animation: spin 0.8s linear infinite;
+}
+.key-hint {
+  align-self: center;
+  margin-left: auto;
 }
 @keyframes spin {
   to {

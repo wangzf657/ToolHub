@@ -50,3 +50,6 @@ qa/
 scripts/tests/_engines/
 scripts/tests/_bundle-tools.cjs
 scripts/_bundle-tool-list.cjs
+
+# 测试运行时生成的 esbuild 产物
+scripts/tests/_bundle-testables.cjs

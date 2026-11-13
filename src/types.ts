@@ -101,6 +101,8 @@ export interface CalcResultRow {
   /** 强调展示（主结果） */
   primary?: boolean
   hint?: string
+  /** 行级语义着色：ok=健康/达标（绿）、warn=关注（黄）、err=危险/越界（红） */
+  tone?: 'ok' | 'warn' | 'err'
 }
 
 /** 计算器定义（注册在通用 CalcTool 上运行） */
@@ -111,6 +113,8 @@ export interface CalcToolDef {
   note?: string
   /** 结果区下方的关联工具入口（如贷款→逐期明细），query 由当前输入实时生成 */
   links?: { label: string; to: string; query?: (v: Record<string, string | number | boolean>) => Record<string, string> }[]
+  /** 示例一键填入（渲染在表单上方；点击合并填入字段并重算） */
+  samples?: { label: string; values: Record<string, string | number | boolean> }[]
 }
 
 /** 文件选择项 */

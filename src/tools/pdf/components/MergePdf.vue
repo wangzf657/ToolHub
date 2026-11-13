@@ -11,6 +11,7 @@ const toast = useToast()
 const base = ref<InstanceType<typeof PdfToolBase> | null>(null)
 const busy = ref(false)
 const progress = ref(0)
+const outName = ref('合并结果')
 const result = ref<{ pages: number; srcKB: number; outKB: number; url: string; blob: Blob } | null>(null)
 
 const fmtKB = (n: number) => (n >= 1024 ? `${(n / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(n))} KB`)
@@ -47,7 +48,7 @@ const preview = () => {
 }
 
 const download = () => {
-  if (result.value) saveBlob(result.value.blob, '合并结果.pdf')
+  if (result.value) saveBlob(result.value.blob, `${outName.value.trim() || '合并结果'}.pdf`)
 }
 
 const clearResult = () => {
@@ -60,12 +61,13 @@ onBeforeUnmount(clearResult)
 
 <template>
   <div>
-    <PdfToolBase ref="base" :multiple="true" label="拖入两个或以上 PDF 文件" @files="clearResult" />
+    <PdfToolBase ref="base" :multiple="true" :rich-list="true" label="拖入两个或以上 PDF 文件" @files="clearResult" />
 
     <div class="row row-wrap mt-2">
       <button class="btn btn-primary" :disabled="busy || (base?.files.length ?? 0) < 2" @click="run">
         <Loader2 v-if="busy" :size="16" class="spinner" /> 合并
       </button>
+      <input v-model="outName" class="input name-input" type="text" placeholder="输出文件名（默认：合并结果）" aria-label="输出文件名" />
       <span class="small muted">文件列表顺序即合并顺序（可在列表中 ↑↓ 调整）</span>
     </div>
 
@@ -128,5 +130,8 @@ onBeforeUnmount(clearResult)
 .rc-stats strong {
   color: var(--accent-text);
   font-size: 16px;
+}
+.name-input {
+  max-width: 220px;
 }
 </style>

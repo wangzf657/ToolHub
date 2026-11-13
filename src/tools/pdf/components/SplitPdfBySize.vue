@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { Download, Loader2, Scissors } from 'lucide-vue-next'
 import PdfToolBase from './PdfToolBase.vue'
-import { loadPdfLib, toPdfBlob } from '@/lib/pdfEngine'
+import { loadPdfLib, parsePageSpec, toPdfBlob } from '@/lib/pdfEngine'
 import { saveMany } from '@/lib/download'
 import { useToast } from '@/composables/useToast'
 
@@ -13,12 +13,37 @@ import { useToast } from '@/composables/useToast'
  */
 const toast = useToast()
 const base = ref<InstanceType<typeof PdfToolBase> | null>(null)
+const MEM_KEY = 'toolhub.pdf.splitbysize'
 const targetMB = ref(10)
+const unit = ref<'MB' | 'KB'>('MB')
+const rangeSpec = ref('')
 const busy = ref(false)
 const progress = ref(0)
 const stage = ref('')
-const result = ref<{ volKB: number; pages: number }[] | null>(null)
+const stageEta = ref('')
+const result = ref<{ volKB: number; pages: number; over: boolean }[] | null>(null)
 const outFiles = ref<{ name: string; blob: Blob }[]>([])
+
+/* 目标记忆：记住上次目标值与单位 */
+try {
+  const saved = JSON.parse(localStorage.getItem(MEM_KEY) ?? 'null') as { v: number; u: 'MB' | 'KB' } | null
+  if (saved?.v && saved.u) {
+    targetMB.value = saved.u === 'KB' ? saved.v / 1024 : saved.v
+    unit.value = saved.u
+  }
+} catch {
+  /* 记忆损坏忽略 */
+}
+const remember = () => {
+  try {
+    localStorage.setItem(MEM_KEY, JSON.stringify({ v: unit.value === 'KB' ? targetKB.value : targetMB.value, u: unit.value }))
+  } catch {
+    /* 隐私模式忽略 */
+  }
+}
+
+const targetKB = computed(() => (unit.value === 'KB' ? Math.round(targetMB.value) : Math.round(targetMB.value * 1024)))
+const targetBytes = computed(() => targetKB.value * 1024)
 
 const fmtKB = (n: number) => (n >= 1024 ? `${(n / 1024).toFixed(2)} MB` : `${Math.ceil(n)} KB`)
 
@@ -47,40 +72,53 @@ const run = async () => {
     toast.warn('请输入大于 0 的目标体积')
     return
   }
+  remember()
   busy.value = true
   progress.value = 0
   result.value = null
   outFiles.value = []
+  const t0 = performance.now()
   try {
     stage.value = '正在读取文档…'
     const src = await loadSrc(file)
     const total = src.getPageCount()
     if (total < 2) throw new Error('该 PDF 只有一页，无需拆分')
-    const targetBytes = targetMB.value * 1024 * 1024
+    // 范围参与：仅范围内的页参与打包
+    const inRange = rangeSpec.value.trim() ? parsePageSpec(rangeSpec.value, total) : Array.from({ length: total }, (_, i) => i)
+    if (!inRange.length) {
+      toast.warn(`页范围「${rangeSpec.value}」没有匹配到任何页（共 ${total} 页）`)
+      return
+    }
+    const target = targetBytes.value
 
     // 第一步：逐页单页 save 实测体积（含该页引用的共享资源，接近真实拆分结果）
-    const sizes = new Array<number>(total).fill(0)
-    for (let i = 0; i < total; i++) {
-      stage.value = `实测单页体积（${i + 1}/${total}）…`
+    const sizes = new Map<number, number>()
+    for (let k = 0; k < inRange.length; k++) {
+      const i = inRange[k]!
+      const elapsed = (performance.now() - t0) / 1000
+      const eta = k > 0 ? Math.round((elapsed / k) * (inRange.length - k)) : 0
+      stage.value = `实测单页体积（${k + 1}/${inRange.length}）…`
+      stageEta.value = eta > 0 ? `预计还需约 ${eta} 秒` : ''
       const one = await newDoc()
       const [p] = await one.copyPages(src, [i])
       one.addPage(p)
       const saved = await one.save({ updateMetadata: false } as never)
-      sizes[i] = saved.length
-      progress.value = ((i + 1) / (total + 1)) * 0.7
+      sizes.set(i, saved.length)
+      progress.value = ((k + 1) / (inRange.length + 1)) * 0.7
     }
-    if (sizes.some((s) => s > targetBytes)) {
-      toast.warn(`有单页体积已超过目标（最大 ${fmtKB(Math.max(...sizes))}），超出页将单独成卷`)
+    const oversize = inRange.filter((i) => (sizes.get(i) ?? 0) > target)
+    if (oversize.length) {
+      toast.warn(`${oversize.length} 个单页体积已超过目标（最大 ${fmtKB(Math.max(...inRange.map((i) => sizes.get(i) ?? 0)))}），超出页将单独成卷`)
     }
 
-    // 第二步：贪心打包成卷
+    // 第二步：贪心打包成卷（范围外页不参与）
     stage.value = '正在按体积分卷…'
     const groups: number[][] = []
     let cur: number[] = []
     let curSize = 0
-    for (let i = 0; i < total; i++) {
-      const s = sizes[i]
-      if (cur.length && curSize + s > targetBytes) {
+    for (const i of inRange) {
+      const s = sizes.get(i) ?? 0
+      if (cur.length && curSize + s > target) {
         groups.push(cur)
         cur = []
         curSize = 0
@@ -92,15 +130,17 @@ const run = async () => {
 
     // 第三步：逐卷生成 PDF（重存为标准 PDF，共享资源按卷内实际引用写入）
     outFiles.value = []
-    const stats: { volKB: number; pages: number }[] = []
+    const stats: { volKB: number; pages: number; over: boolean }[] = []
     for (let g = 0; g < groups.length; g++) {
       stage.value = `生成第 ${g + 1}/${groups.length} 卷…`
+      stageEta.value = ''
       const doc = await newDoc()
       const pages = await doc.copyPages(src, groups[g])
       pages.forEach((p) => doc.addPage(p))
       const blob = toPdfBlob(await doc.save({ updateMetadata: false } as never))
-      outFiles.value.push({ name: `第${g + 1}卷（${groups[g][0] + 1}-${groups[g][groups[g].length - 1] + 1}页）.pdf`, blob })
-      stats.push({ volKB: blob.size / 1024, pages: groups[g].length })
+      outFiles.value.push({ name: `第${g + 1}卷（${groups[g][0]! + 1}-${groups[g][groups[g].length - 1]! + 1}页）.pdf`, blob })
+      const isOver = groups[g].length === 1 && (sizes.get(groups[g][0]!) ?? 0) > target
+      stats.push({ volKB: blob.size / 1024, pages: groups[g].length, over: isOver })
       progress.value = 0.7 + ((g + 1) / groups.length) * 0.3
     }
     result.value = stats
@@ -110,6 +150,7 @@ const run = async () => {
   } finally {
     busy.value = false
     stage.value = ''
+    stageEta.value = ''
   }
 }
 
@@ -125,8 +166,19 @@ const download = () => {
 
     <div class="grid-2 mt-2">
       <div>
-        <span class="field-label">目标体积（MB/卷）</span>
-        <input v-model.number="targetMB" type="number" class="input" min="0.1" step="1" />
+        <span class="field-label">目标体积（每卷）</span>
+        <div class="row" style="gap: 8px">
+          <input v-model.number="targetMB" type="number" class="input" min="0.1" step="1" style="width: 120px" />
+          <select v-model="unit" class="select" style="width: 90px">
+            <option value="MB">MB</option>
+            <option value="KB">KB</option>
+          </select>
+        </div>
+        <span class="small muted">= {{ targetKB }} KB（KB 模式精确生效，如 2048）</span>
+      </div>
+      <div>
+        <span class="field-label">参与拆分的页（空 = 全部）</span>
+        <input v-model="rangeSpec" type="text" class="input" placeholder="如 1-50" />
       </div>
     </div>
 
@@ -139,16 +191,15 @@ const download = () => {
 
     <div v-if="busy" class="progress mt-2">
       <div class="bar"><div class="fill" :style="{ width: Math.round(progress * 100) + '%' }" /></div>
-      <p class="small muted mt-1">{{ stage }}</p>
+      <p class="small muted mt-1">{{ stage }}{{ stageEta ? ` · ${stageEta}` : '' }}</p>
     </div>
 
     <div v-if="result" class="stats mt-2">
-      <div v-for="(s, i) in result" :key="i" class="stat">
-        <span class="k">第 {{ i + 1 }} 卷（{{ s.pages }} 页）</span>
-        <span class="v">{{ fmtKB(s.volKB) }}</span>
+      <div v-for="(s, i) in result" :key="i" class="stat" :class="{ 'stat-over': s.over }">
+        <span class="k">第 {{ i + 1 }} 卷 · {{ s.pages }} 页</span>
+        <span class="v">{{ fmtKB(s.volKB) }} · {{ s.over ? '单页超限（无法再分）' : '≤目标 ✓' }}</span>
       </div>
     </div>
-
     <p class="notice notice-warn mt-2 small">
       体积按「每页独立重存后的实测字节」贪心累加：同一份共享资源（字体/图片）会被计入多卷，
       因此单卷实际体积一般略小于目标值，属于正常现象。页面数量多时逐页实测较慢，请耐心等待。
@@ -196,5 +247,9 @@ const download = () => {
 .v {
   font-size: 15px;
   font-weight: 700;
+}
+.stat-over {
+  border-color: color-mix(in srgb, var(--warn) 55%, transparent);
+  background: color-mix(in srgb, var(--warn) 10%, transparent);
 }
 </style>

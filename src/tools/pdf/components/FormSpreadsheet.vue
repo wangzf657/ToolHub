@@ -1,20 +1,31 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { Download, Loader2 } from 'lucide-vue-next'
+import { computed, ref } from 'vue'
+import { ArrowDownAZ, ArrowUpAZ, Download, Loader2, Search } from 'lucide-vue-next'
 import PdfToolBase from './PdfToolBase.vue'
-import { pdfFormFields, pdfFormRows } from '@/lib/pdfEngine'
+import { pdfFormFields, type FormFieldInfo } from '@/lib/pdfEngine'
 import { rowsToXlsx } from '@/lib/officeEngine'
 import { saveBlob, saveMany, saveText } from '@/lib/download'
 import { useToast } from '@/composables/useToast'
 
-/** PDF 表单数据汇总：多份已填表单 → 一行一份的表格 + FDF/XFDF/JSON 导出 */
+/**
+ * PDF 表单数据汇总：多份已填表单 → 一行一份的表格 + FDF/XFDF/JSON 导出。
+ * 逐份解析（带进度）并保留来源文件名；支持排序/搜索与漏填高亮。
+ */
 const toast = useToast()
 const base = ref<InstanceType<typeof PdfToolBase> | null>(null)
 const busy = ref(false)
+const progress = ref(0)
+const progressLabel = ref('')
 const header = ref<string[]>([])
 const rows = ref<string[][]>([])
 const fileNames = ref<string[]>([])
 
+/* ---------- 展示态：搜索 + 排序 ---------- */
+const keyword = ref('')
+const sortCol = ref(-1) // -1 表示按文件原序；>=0 为 header 列
+const sortAsc = ref(true)
+
+/** 解析循环：逐份 pdfFormFields，聚合表头与行（口径与引擎 pdfFormRows 一致） */
 const process = async () => {
   const files = base.value?.files ?? []
   if (!files.length) {
@@ -22,22 +33,77 @@ const process = async () => {
     return
   }
   busy.value = true
+  progress.value = 0
   try {
-    const { header: h, rows: r } = await pdfFormRows(files)
-    header.value = h
-    rows.value = r
+    const headerSet = new Set<string>()
+    const parsed: Record<string, string>[] = []
+    for (let i = 0; i < files.length; i++) {
+      progressLabel.value = `正在解析第 ${i + 1} / ${files.length} 份…`
+      const fields: FormFieldInfo[] = await pdfFormFields(files[i])
+      const row: Record<string, string> = {}
+      for (const fd of fields) {
+        if (fd.type === 'unknown' || fd.type === 'button') continue
+        row[fd.name] = fd.value ?? ''
+        headerSet.add(fd.name)
+      }
+      parsed.push(row)
+      progress.value = (i + 1) / files.length
+    }
+    header.value = [...headerSet]
+    rows.value = parsed.map((r) => header.value.map((h) => r[h] ?? ''))
     fileNames.value = files.map((f) => f.name)
-    if (!h.length) {
+    sortCol.value = -1
+    keyword.value = ''
+    if (!header.value.length) {
       toast.warn('没有在任何文件中检测到表单字段（或字段全部为空）')
     } else {
-      toast.ok(`已汇总 ${r.length} 份表单，共 ${h.length} 个字段`)
+      toast.ok(`已汇总 ${rows.value.length} 份表单，共 ${header.value.length} 个字段`)
     }
   } catch (e) {
     toast.err((e as Error).message || '汇总失败')
   } finally {
     busy.value = false
+    progressLabel.value = ''
   }
 }
+
+/** 过滤后的行索引（保留原序号） */
+const viewIdx = computed(() => {
+  const kw = keyword.value.trim().toLowerCase()
+  let idx = rows.value.map((_, i) => i)
+  if (kw) {
+    idx = idx.filter((i) =>
+      [fileNames.value[i] ?? '', ...rows.value[i]].some((c) => String(c).toLowerCase().includes(kw)),
+    )
+  }
+  if (sortCol.value >= 0) {
+    const col = sortCol.value
+    idx = [...idx].sort((a, b) => {
+      const va = rows.value[a]?.[col] ?? ''
+      const vb = rows.value[b]?.[col] ?? ''
+      const na = Number(va)
+      const nb = Number(vb)
+      const cmp = !Number.isNaN(na) && !Number.isNaN(nb) && va !== '' && vb !== '' ? na - nb : String(va).localeCompare(String(vb), 'zh-CN')
+      return sortAsc.value ? cmp : -cmp
+    })
+  }
+  return idx
+})
+
+const toggleSort = (col: number) => {
+  if (sortCol.value === col) {
+    if (sortAsc.value) sortAsc.value = false
+    else {
+      sortCol.value = -1
+      sortAsc.value = true
+    }
+  } else {
+    sortCol.value = col
+    sortAsc.value = true
+  }
+}
+
+const isEmptyCell = (r: number, j: number) => (rows.value[r]?.[j] ?? '').trim() === ''
 
 /* ---------- 导出 ---------- */
 
@@ -100,27 +166,53 @@ const exportFdfXfdf = async (kind: 'fdf' | 'xfdf') => {
       <button class="btn btn-primary" :disabled="busy || !base?.files.length" @click="process">
         <Loader2 v-if="busy" :size="16" class="spinner" /> 读取并汇总表单
       </button>
-      <span class="small muted">每个 PDF 汇总为一行，字段名作为表头</span>
+      <span v-if="progressLabel" class="small muted">{{ progressLabel }}</span>
+      <span v-else class="small muted">每个 PDF 汇总为一行，字段名作为表头</span>
+    </div>
+
+    <div v-if="busy" class="progress mt-1">
+      <div class="bar"><div class="fill" :style="{ width: Math.round(progress * 100) + '%' }" /></div>
     </div>
 
     <div v-if="header.length" class="mt-2">
-      <div class="table-wrap">
+      <div class="row row-wrap mb-2 table-tools">
+        <span class="search-box">
+          <Search :size="14" class="muted" />
+          <input v-model="keyword" type="text" class="input" placeholder="搜索文件名或任意字段值…" />
+        </span>
+        <span class="small muted">点击列头排序（升 → 降 → 恢复原序）；空值以浅黄底标出</span>
+      </div>
+
+      <div class="table-wrap result-table">
         <table class="data-table">
           <thead>
             <tr>
               <th>#</th>
-              <th v-for="h in header" :key="h">{{ h }}</th>
+              <th>文件名</th>
+              <th v-for="(h, j) in header" :key="h" class="sortable" @click="toggleSort(j)">
+                {{ h }}
+                <ArrowUpAZ v-if="sortCol === j && sortAsc" :size="12" />
+                <ArrowDownAZ v-else-if="sortCol === j" :size="12" />
+              </th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(r, i) in rows.slice(0, 50)" :key="i">
-              <td class="muted">{{ i + 1 }}</td>
-              <td v-for="(c, j) in r" :key="j">{{ c }}</td>
+            <tr v-for="(r, k) in viewIdx.slice(0, 200)" :key="r">
+              <td class="muted">{{ k + 1 }}</td>
+              <td class="fname" :title="fileNames[r]">{{ fileNames[r] }}</td>
+              <td
+                v-for="(c, j) in rows[r]"
+                :key="j"
+                :class="{ 'cell-empty': isEmptyCell(r, j) }"
+              >
+                {{ c }}
+              </td>
             </tr>
           </tbody>
         </table>
       </div>
-      <p v-if="rows.length > 50" class="small muted">仅预览前 50 行，导出包含全部 {{ rows.length }} 行</p>
+      <p v-if="viewIdx.length > 200" class="small muted">仅预览前 200 行（当前过滤后 {{ viewIdx.length }} 行），导出包含全部 {{ rows.length }} 行</p>
+      <p v-else-if="viewIdx.length !== rows.length" class="small muted">过滤后 {{ viewIdx.length }} / {{ rows.length }} 行</p>
 
       <div class="row row-wrap mt-2">
         <button class="btn btn-primary" @click="exportXlsx"><Download :size="15" /> Excel (.xlsx)</button>
@@ -145,5 +237,47 @@ const exportFdfXfdf = async (kind: 'fdf' | 'xfdf') => {
   to {
     transform: rotate(360deg);
   }
+}
+.progress {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--bg-soft);
+  overflow: hidden;
+  max-width: 420px;
+}
+.fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.2s;
+}
+.table-tools {
+  align-items: center;
+}
+.search-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.search-box .input {
+  width: 240px;
+}
+/* 弹性结果区：视口为主，下限 420px */
+.result-table {
+  height: max(420px, calc(100vh - 330px));
+  overflow: auto;
+}
+.sortable {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.fname {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cell-empty {
+  background: color-mix(in srgb, #fbbf24 22%, transparent);
 }
 </style>

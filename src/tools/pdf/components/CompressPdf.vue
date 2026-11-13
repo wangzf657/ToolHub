@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { Download, Loader2 } from 'lucide-vue-next'
 import PdfToolBase from './PdfToolBase.vue'
 import { compressPdf } from '@/lib/pdfEngine'
@@ -14,8 +14,30 @@ const preset = ref<'low' | 'medium' | 'high'>('medium')
 const targetKB = ref(500)
 const busy = ref(false)
 const progress = ref(0)
+const outName = ref('压缩后')
 const result = ref<{ originalKB: number; resultKB: number } | null>(null)
 const outBlob = ref<Blob | null>(null)
+
+const pageCount = computed(() => base.value?.pageCount ?? 0)
+
+/** 压缩率预估（按页数/体积口径提示） */
+const estimate = computed(() => {
+  if (!pageCount.value) return ''
+  return '预计可压缩 30%~70%（扫描件与图片型 PDF 收益明显；纯文字 PDF 收益有限，建议选高画质）'
+})
+
+/** 进度换算：引擎预设模式按 i/10 上报（i 为当前页），按实际页数归一；目标体积模式已是 0~1 */
+const stage = ref('')
+const onProgress = (p: number) => {
+  if (mode.value === 'preset' && pageCount.value > 0) {
+    const frac = Math.min(1, (p * 10) / pageCount.value)
+    progress.value = frac
+    stage.value = p * 10 >= pageCount.value ? '正在重排生成 PDF…' : `正在渲染第 ${Math.round(p * 10)} / ${pageCount.value} 页`
+  } else {
+    progress.value = Math.min(1, p)
+    stage.value = '正在试探压缩质量…'
+  }
+}
 
 const run = async () => {
   const file = base.value?.files[0]
@@ -29,27 +51,32 @@ const run = async () => {
   }
   busy.value = true
   progress.value = 0
+  stage.value = ''
   result.value = null
   try {
     const r = await compressPdf(file, {
       preset: mode.value === 'preset' ? preset.value : undefined,
       targetKB: mode.value === 'target' ? targetKB.value : undefined,
-      onProgress: (p) => (progress.value = p),
+      onProgress,
     })
     outBlob.value = r.blob
     result.value = { originalKB: r.originalKB, resultKB: r.resultKB }
-    const pctv = Math.max(0, Math.round((1 - r.resultKB / r.originalKB) * 100))
-    toast.ok(`压缩完成，体积减少约 ${pctv}%`)
+    const missed = mode.value === 'target' && r.resultKB > targetKB.value
+    toast.ok(missed ? `压缩完成，但未达到目标 ${targetKB.value} KB（已给出最优结果）` : `压缩完成，体积减少约 ${Math.max(0, Math.round((1 - r.resultKB / r.originalKB) * 100))}%`)
   } catch (e) {
     toast.err((e as Error).message || '压缩失败')
   } finally {
     busy.value = false
+    stage.value = ''
   }
 }
 
 const download = () => {
-  if (outBlob.value) saveBlob(outBlob.value, '压缩后.pdf')
+  if (outBlob.value) saveBlob(outBlob.value, `${outName.value.trim() || '压缩后'}.pdf`)
 }
+
+/** 目标体积模式：是否未达标 */
+const missedTarget = computed(() => mode.value === 'target' && !!result.value && result.value.resultKB > targetKB.value)
 </script>
 
 <template>
@@ -82,17 +109,28 @@ const download = () => {
       <button class="btn btn-primary" :disabled="busy || !base?.files.length" @click="run">
         <Loader2 v-if="busy" :size="16" class="spinner" /> 开始压缩
       </button>
+      <input v-model="outName" class="input name-input" type="text" placeholder="输出文件名（默认：压缩后）" aria-label="输出文件名" />
       <button v-if="outBlob" class="btn btn-soft" @click="download"><Download :size="15" /> 下载压缩后文件</button>
     </div>
 
-    <div v-if="busy" class="progress mt-2">
-      <div class="bar"><div class="fill" :style="{ width: Math.round(progress * 100) + '%' }" /></div>
+    <div v-if="busy" class="mt-2">
+      <div class="progress">
+        <div class="bar"><div class="fill" :style="{ width: Math.round(progress * 100) + '%' }" /></div>
+      </div>
+      <p v-if="stage" class="small muted mt-1">{{ stage }}</p>
     </div>
+
+    <p v-if="estimate && !busy" class="small muted mt-2">{{ estimate }}</p>
 
     <div v-if="result" class="stats mt-2">
       <div class="stat"><span class="k">原始大小</span><span class="v">{{ result.originalKB.toFixed(0) }} KB</span></div>
       <div class="stat"><span class="k">压缩后</span><span class="v accent">{{ result.resultKB.toFixed(0) }} KB</span></div>
-      <div class="stat">
+      <div v-if="missedTarget" class="stat stat-warn">
+        <span class="k">目标 {{ targetKB }} KB</span>
+        <span class="v warn">未达到目标 {{ targetKB }} KB</span>
+        <span class="small muted">已输出当前参数下的最优结果，可尝试更低画质或更高 scale</span>
+      </div>
+      <div v-else class="stat">
         <span class="k">压缩率</span>
         <span class="v accent">-{{ Math.max(0, Math.round((1 - result.resultKB / result.originalKB) * 100)) }}%</span>
       </div>
@@ -139,6 +177,17 @@ const download = () => {
 }
 .v.accent {
   color: var(--accent-text);
+}
+.stat-warn {
+  border-color: color-mix(in srgb, var(--warn, #f59e0b) 55%, transparent);
+  background: color-mix(in srgb, var(--warn, #f59e0b) 12%, transparent);
+}
+.v.warn {
+  color: var(--warn, #f59e0b);
+  font-size: 15px;
+}
+.name-input {
+  max-width: 220px;
 }
 .spinner {
   animation: spin 0.8s linear infinite;

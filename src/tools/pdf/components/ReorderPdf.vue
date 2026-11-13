@@ -17,6 +17,38 @@ const file = ref<File | Blob | null>(null)
 const onFiles = (list: File[]) => {
   file.value = list[0] ?? null
   order.value = []
+  moveSpec.value = ''
+}
+
+/** 重置顺序：恢复 1..N 原始顺序（防呆拦截随之解除） */
+const resetOrder = () => {
+  const n = order.value.length
+  if (!n) return
+  const idx = order.value.map((e) => e.index).sort((a, b) => a - b)
+  order.value = idx.map((index) => ({ index, rotation: 0 }))
+  toast.ok('已重置为原始顺序')
+}
+
+/** 页码直达：支持「3→15」式移动（原第 3 页移到第 15 位） */
+const moveSpec = ref('')
+const applyMove = () => {
+  const m = moveSpec.value.trim().match(/^(\d+)\s*[→>]\s*(\d+)$/)
+  if (!m) {
+    toast.warn('格式：3→15（把原第 3 页移到第 15 位）')
+    return
+  }
+  const from = parseInt(m[1]!) - 1
+  const to = parseInt(m[2]!) - 1
+  const n = order.value.length
+  if (from < 0 || from >= n || to < 0 || to >= n) {
+    toast.warn(`页码超出范围（共 ${n} 页）`)
+    return
+  }
+  const arr = [...order.value]
+  const [it] = arr.splice(from, 1)
+  arr.splice(to, 0, it!)
+  order.value = arr
+  toast.ok(`已把原第 ${from + 1} 页移到第 ${to + 1} 位`)
 }
 
 const run = async () => {
@@ -46,7 +78,18 @@ const run = async () => {
   <div>
     <PdfToolBase ref="base" @files="onFiles" />
 
-    <p v-if="file" class="small muted mt-1">拖动缩略图（或使用 ↑↓ 按钮）调整顺序，缩略图左上角为原始页码。</p>
+    <p v-if="file" class="small muted mt-1">
+      拖动缩略图（或使用 ↑↓ 按钮）调整顺序，缩略图左上角为原始页码。
+      <button class="btn btn-ghost btn-sm" style="margin-left: 8px" @click="resetOrder">重置顺序</button>
+    </p>
+
+    <div v-if="file" class="row row-wrap mt-2" style="align-items: flex-end">
+      <div>
+        <span class="field-label">页码直达（可选）</span>
+        <input v-model="moveSpec" type="text" class="input" style="width: 160px" placeholder="如 3→15" />
+      </div>
+      <button class="btn btn-soft btn-sm" @click="applyMove">执行移动</button>
+    </div>
 
     <PageThumbs v-if="file" v-model:order="order" :file="file" :movable="true" :rotatable="false" :removable="false" class="mt-2" />
 

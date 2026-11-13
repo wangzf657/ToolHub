@@ -23,10 +23,12 @@ let touched = false
 const setup = () => {
   const c = canvasRef.value
   if (!c) return
-  // 固定内部分辨率，CSS 负责响应式缩放
-  c.width = 640
-  c.height = 220
+  // 内部分辨率乘 devicePixelRatio（高清屏笔迹无锯齿），CSS 负责响应式缩放；逻辑坐标固定 640×220
+  const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1))
+  c.width = 640 * dpr
+  c.height = 220 * dpr
   ctx = c.getContext('2d')!
+  ctx.scale(dpr, dpr)
   ctx.lineCap = 'round'
   ctx.lineJoin = 'round'
   clear()
@@ -34,14 +36,16 @@ const setup = () => {
 
 const clear = () => {
   if (!ctx || !canvasRef.value) return
-  ctx.clearRect(0, 0, canvasRef.value.width, canvasRef.value.height)
+  const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1))
+  ctx.clearRect(0, 0, canvasRef.value.width / dpr, canvasRef.value.height / dpr)
   touched = false
 }
 
+/** 逻辑坐标（640×220）取点，配合 ctx.scale(dpr) 保持高清 */
 const pos = (e: PointerEvent) => {
   const c = canvasRef.value!
   const r = c.getBoundingClientRect()
-  return { x: ((e.clientX - r.left) / r.width) * c.width, y: ((e.clientY - r.top) / r.height) * c.height }
+  return { x: ((e.clientX - r.left) / r.width) * 640, y: ((e.clientY - r.top) / r.height) * 220 }
 }
 
 const down = (e: PointerEvent) => {
@@ -76,6 +80,22 @@ const move = (e: PointerEvent) => {
 
 const up = () => (drawing = false)
 
+/** 载入既有签名（手写签名板一键交接 / 记住签名回填）：按宽高比适配绘制 */
+const load = (dataUrl: string) => {
+  if (!ctx) return
+  const img = new Image()
+  img.onload = () => {
+    if (!ctx || !canvasRef.value) return
+    clear()
+    const k = Math.min(640 / img.width, 220 / img.height, 1)
+    const w = img.width * k
+    const h = img.height * k
+    ctx.drawImage(img, (640 - w) / 2, (220 - h) / 2, w, h)
+    touched = true
+  }
+  img.src = dataUrl
+}
+
 onMounted(setup)
 
 defineExpose({
@@ -84,6 +104,7 @@ defineExpose({
   /** 导出透明 PNG dataURL */
   toDataURL: () => canvasRef.value?.toDataURL('image/png') ?? '',
   clear,
+  load,
 })
 </script>
 

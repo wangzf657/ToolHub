@@ -26,11 +26,35 @@ const atts = ref<AttItem[]>([])
 const adds = ref<File[]>([])
 const checked = ref<Set<number>>(new Set())
 const scanned = ref(false)
+/** 当前工作文件（保存副本后切换为新副本，保留上下文） */
+const workFile = ref<File | Blob | null>(null)
+const hasSignature = ref(false)
 
 const fmtSize = (n: number) => (n > 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.ceil(n / 1024)} KB`)
+const totalSize = () => atts.value.reduce((a, b) => a + b.data.length, 0)
+/** 同名附件（按名移除会同时移除） */
+const dupNames = () => {
+  const m = new Map<string, number>()
+  for (const a of atts.value) m.set(a.name, (m.get(a.name) ?? 0) + 1)
+  return new Set([...m.entries()].filter(([, c]) => c > 1).map(([k]) => k))
+}
+
+/** 数字签名检测：AcroForm 的 SigFlags 或签名类型字段 */
+const detectSignature = async (doc: import('@cantoo/pdf-lib').PDFDocument): Promise<boolean> => {
+  try {
+    const { PDFName } = await loadPdfLib()
+    const dict = doc.catalog.lookup(PDFName.of('AcroForm')) as { get?: (k: unknown) => unknown; lookup?: (n: unknown) => unknown } | undefined
+    const sig = dict?.get?.(PDFName.of('SigFlags')) ?? dict?.lookup?.(PDFName.of('SigFlags'))
+    if (sig) return true
+    const fields = doc.getForm().getFields()
+    return fields.some((f) => f.constructor.name.toLowerCase().includes('signature'))
+  } catch {
+    return false
+  }
+}
 
 const scan = async () => {
-  const file = base.value?.files[0]
+  const file = workFile.value ?? base.value?.files[0]
   if (!file) return
   loading.value = true
   scanned.value = false
@@ -38,10 +62,16 @@ const scan = async () => {
   try {
     const { PDFDocument } = await loadPdfLib()
     const doc = await PDFDocument.load(new Uint8Array(await file.arrayBuffer()), { ignoreEncryption: true })
+    hasSignature.value = await detectSignature(doc)
     const list = doc.getAttachments()
     atts.value = list.map((a) => ({ name: a.name || '未命名', data: a.data, mimeType: a.mimeType }))
     scanned.value = true
-    if (atts.value.length) toast.ok(`发现 ${atts.value.length} 个内嵌附件`)
+    if (atts.value.length) {
+      toast.toast(`发现 ${atts.value.length} 个内嵌附件（共 ${fmtSize(totalSize())}）· 仅支持标准内嵌附件，Portfolio 不显示`, "ok", 4200)
+    }
+    if (hasSignature.value) {
+      toast.toast('该文件含数字签名：修改附件将使签名失效，请谨慎保存副本', "warn", 5000)
+    }
   } catch (e) {
     toast.err((e as Error).message || '读取附件失败')
   } finally {
@@ -69,13 +99,17 @@ const saveAll = () => {
   saveMany(atts.value.map((a) => ({ name: a.name, blob: new Blob([a.data as BlobPart]) })), 'PDF附件.zip')
 }
 
-/** 重存副本：先移除勾选附件，再写入待添加文件（统一 ToolHub 元数据） */
+/** 重存副本：先移除勾选附件，再写入待添加文件（统一 ToolHub 元数据）；保存后列表刷新为新副本状态 */
 const saveCopy = async () => {
-  const file = base.value?.files[0]
+  const file = workFile.value ?? base.value?.files[0]
   if (!file) return
   if (!checked.value.size && !adds.value.length) {
     toast.warn('请先勾选要移除的附件，或选择要添加的文件')
     return
+  }
+  const dup = dupNames()
+  if (checked.value.size && dup.size && [...checked.value].some((i) => dup.has(atts.value[i]?.name ?? ''))) {
+    toast.toast('所选附件中存在同名文件：按名移除会同时移除全部同名附件', "warn", 5000)
   }
   busy.value = true
   try {
@@ -104,12 +138,12 @@ const saveCopy = async () => {
     const parts: string[] = []
     if (removed) parts.push(`移除 ${removed} 个附件`)
     if (adds.value.length) parts.push(`添加 ${adds.value.length} 个附件`)
-    toast.ok(`已保存副本：${parts.join('，') || '无变更'}`)
+    toast.ok(`已保存副本：${parts.join('，') || '无变更'}；附件列表已刷新为新副本状态`)
     checked.value = new Set()
     adds.value = []
-    base.value?.clear()
-    atts.value = []
-    scanned.value = false
+    // 保留上下文：以新副本为当前工作文件并重扫
+    workFile.value = blob
+    await scan()
   } catch (e) {
     toast.err((e as Error).message || '保存失败')
   } finally {
@@ -120,7 +154,7 @@ const saveCopy = async () => {
 
 <template>
   <div>
-    <PdfToolBase ref="base" label="拖入要管理附件的 PDF 文件" @files="scan" />
+    <PdfToolBase ref="base" label="拖入要管理附件的 PDF 文件" @files="(l: File[]) => ((workFile = l[0] ?? null), scan())" />
 
     <div v-if="loading" class="row mt-2 small muted"><Loader2 :size="14" class="spinner" /> 正在扫描附件…</div>
 
@@ -132,13 +166,14 @@ const saveCopy = async () => {
       </div>
 
       <div v-if="atts.length" class="list mt-1">
-        <label v-for="(a, i) in atts" :key="a.name" class="entry">
+        <label v-for="(a, i) in atts" :key="a.name + i" class="entry">
           <input type="checkbox" :checked="checked.has(i)" @change="toggle(i)" />
-          <span class="name" :title="a.name">{{ a.name }}</span>
+          <span class="name" :title="a.name">{{ a.name }}<span v-if="dupNames().has(a.name)" class="dup-tip"> · 同名 ×{{ atts.filter((x) => x.name === a.name).length }}</span></span>
           <span class="mime">{{ a.mimeType || '未知类型' }}</span>
           <span class="size">{{ fmtSize(a.data.length) }}</span>
           <button class="mini-btn" title="下载" @click.prevent="saveOne(a)"><Download :size="14" /></button>
         </label>
+        <p class="muted small mt-1">共 {{ atts.length }} 个附件 · {{ fmtSize(totalSize()) }}</p>
       </div>
       <p v-else class="muted small mt-1">该 PDF 没有内嵌附件，可在下方添加新附件后另存。</p>
 

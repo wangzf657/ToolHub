@@ -1,13 +1,17 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { Plus, Trash2 } from 'lucide-vue-next'
+import { renderChart } from '@/lib/chartEngine'
+import { useMrrStore } from './useMrrStore'
 
-/** 模式一：订阅档位汇总 */
+/** 模式一：订阅档位汇总（localStorage 持久化） */
 interface Tier {
   name: string
   price: number
   count: number
 }
+
+
 
 const tiers = ref<Tier[]>([
   { name: '基础版', price: 29, count: 300 },
@@ -16,6 +20,7 @@ const tiers = ref<Tier[]>([
 ])
 const addTier = () => tiers.value.push({ name: '', price: 0, count: 0 })
 const removeTier = (i: number) => tiers.value.splice(i, 1)
+const isEmptyTier = (t: Tier) => !num(t.price) && !num(t.count)
 
 const num = (v: number | undefined) => (Number.isFinite(v) ? Number(v) : 0)
 
@@ -37,8 +42,13 @@ const startMrr = ref(100000)
 const netNewMrr = computed(() => num(newMrr.value) + num(expandMrr.value) - num(contractMrr.value) - num(churnMrr.value))
 /** MRR 流失率 = 流失 MRR ÷ 期初 MRR */
 const churnRate = computed(() => (num(startMrr.value) > 0 ? (num(churnMrr.value) / num(startMrr.value)) * 100 : 0))
-/** 净收入留存率（含扩张，近似） */
-const nrr = computed(() => (num(startMrr.value) > 0 ? ((num(startMrr.value) + netNewMrr.value) / num(startMrr.value)) * 100 : 0))
+/** 净收入留存率 NRR =（期初 + 扩张 − 收缩 − 流失）÷ 期初（不含新客） */
+const nrr = computed(() =>
+  num(startMrr.value) > 0 ? ((num(startMrr.value) + num(expandMrr.value) - num(contractMrr.value) - num(churnMrr.value)) / num(startMrr.value)) * 100 : 0,
+)
+/** MoM 净增长率 = 净新增 ÷ 期初 */
+const momGrowth = computed(() => (num(startMrr.value) > 0 ? (netNewMrr.value / num(startMrr.value)) * 100 : 0))
+const endMrr = computed(() => num(startMrr.value) + netNewMrr.value)
 const quickMrrRate = computed(() => (num(churnMrr.value) > 0 ? num(startMrr.value) / num(churnMrr.value) : Infinity))
 
 const tab = ref<'tiers' | 'moves'>('tiers')
@@ -46,6 +56,28 @@ const tabs: { v: 'tiers' | 'moves'; label: string }[] = [
   { v: 'tiers', label: '档位汇总' },
   { v: 'moves', label: 'MRR 变动' },
 ]
+
+useMrrStore(tiers, { newMrr, expandMrr, contractMrr, churnMrr, startMrr })
+
+/* ---------- 变动瀑布图 ---------- */
+const waterfallStage = ref<HTMLDivElement | null>(null)
+let cleanup: (() => void) | null = null
+const drawWaterfall = () => {
+  if (!waterfallStage.value) return
+  cleanup?.()
+  const canvas = document.createElement('canvas')
+  waterfallStage.value.replaceChildren(canvas)
+  cleanup = renderChart(
+    canvas,
+    'bar',
+    ['期初', '+新增', '+扩张', '−收缩', '−流失', '期末'],
+    [{ label: 'MRR', data: [num(startMrr.value), num(newMrr.value), num(expandMrr.value), -num(contractMrr.value), -num(churnMrr.value), endMrr.value] }],
+    { legend: false },
+  )
+}
+watch([tab, startMrr, newMrr, expandMrr, contractMrr, churnMrr], () => {
+  if (tab.value === 'moves') setTimeout(drawWaterfall, 0)
+})
 </script>
 
 <template>
@@ -59,11 +91,12 @@ const tabs: { v: 'tiers' | 'moves'; label: string }[] = [
       <div class="tier-head">
         <span>套餐名</span><span>月价（元）</span><span>订阅数</span><span></span>
       </div>
-      <div v-for="(t, i) in tiers" :key="i" class="tier-row">
+      <div v-for="(t, i) in tiers" :key="i" class="tier-row" :class="{ empty: isEmptyTier(t) }">
         <input v-model="t.name" class="input" placeholder="如 专业版" />
         <input v-model.number="t.price" type="number" class="input" min="0" placeholder="如 99" />
         <input v-model.number="t.count" type="number" class="input" min="0" placeholder="如 120" />
         <button class="icon-btn danger" title="删除" aria-label="删除" @click="removeTier(i)"><Trash2 :size="14" /></button>
+        <span v-if="isEmptyTier(t)" class="empty-tip">未填写</span>
       </div>
       <button class="btn btn-ghost btn-sm mt-1" @click="addTier"><Plus :size="14" /> 添加档位</button>
 
@@ -88,8 +121,8 @@ const tabs: { v: 'tiers' | 'moves'; label: string }[] = [
             <tr><th>档位</th><th>月价</th><th>订阅数</th><th>MRR</th><th>占 MRR 比例</th></tr>
           </thead>
           <tbody>
-            <tr v-for="(t, i) in tiers" :key="i">
-              <td>{{ t.name || `档位 ${i + 1}` }}</td>
+            <tr v-for="(t, i) in tiers" :key="i" :class="{ 'row-empty': isEmptyTier(t) }">
+              <td>{{ t.name || `档位 ${i + 1}` }}{{ isEmptyTier(t) ? '（未填写）' : '' }}</td>
               <td>{{ money(num(t.price)) }}</td>
               <td>{{ num(t.count).toLocaleString() }}</td>
               <td>{{ money(mrr(t)) }}</td>
@@ -105,7 +138,7 @@ const tabs: { v: 'tiers' | 'moves'; label: string }[] = [
           </tbody>
         </table>
       </div>
-      <p class="hint mt-1">MRR = Σ 各档位月价 × 订阅数；ARR = MRR × 12。按年付可折算为月价（如年付价 ÷ 12）。</p>
+      <p class="hint mt-1">MRR = Σ 各档位月价 × 订阅数；ARR = MRR × 12。按年付可折算为月价（如年付价 ÷ 12）。档位与变动数据自动保存在本机浏览器。</p>
     </template>
 
     <!-- 模式二：MRR 变动 -->
@@ -115,7 +148,7 @@ const tabs: { v: 'tiers' | 'moves'; label: string }[] = [
         <div><label class="field-label">扩张 MRR（升配/加购）</label><input v-model.number="expandMrr" type="number" class="input" /></div>
         <div><label class="field-label">收缩 MRR（降配）</label><input v-model.number="contractMrr" type="number" class="input" /></div>
         <div><label class="field-label">流失 MRR</label><input v-model.number="churnMrr" type="number" class="input" /></div>
-        <div><label class="field-label">期初 MRR（算流失率用）</label><input v-model.number="startMrr" type="number" class="input" /></div>
+        <div><label class="field-label">期初 MRR（算留存率用）</label><input v-model.number="startMrr" type="number" class="input" /></div>
       </div>
 
       <div class="stats mt-2">
@@ -127,6 +160,11 @@ const tabs: { v: 'tiers' | 'moves'; label: string }[] = [
           <span class="st-sub">新增 + 扩张 − 收缩 − 流失</span>
         </div>
         <div class="stat-tile">
+          <span class="st-label">MoM 净增长率</span>
+          <strong class="st-val" :class="momGrowth >= 0 ? 'ok' : 'bad'">{{ momGrowth >= 0 ? '+' : '' }}{{ momGrowth.toFixed(1) }}%</strong>
+          <span class="st-sub">净新增 ÷ 期初 MRR</span>
+        </div>
+        <div class="stat-tile">
           <span class="st-label">MRR 流失率</span>
           <strong class="st-val" :class="churnRate <= 2 ? 'ok' : churnRate <= 5 ? '' : 'bad'">{{ churnRate.toFixed(2) }}%</strong>
           <span class="st-sub" v-if="Number.isFinite(quickMrrRate)">按当前流失速度约 {{ quickMrrRate.toFixed(0) }} 个月流失完</span>
@@ -134,15 +172,34 @@ const tabs: { v: 'tiers' | 'moves'; label: string }[] = [
         <div class="stat-tile">
           <span class="st-label">净收入留存率（NRR）</span>
           <strong class="st-val" :class="nrr >= 100 ? 'ok' : ''">{{ nrr.toFixed(1) }}%</strong>
-          <span class="st-sub">≥100% 说明扩张能抵消流失</span>
+          <span class="st-sub">扩张抵消收缩流失后的留存（不含新客）</span>
         </div>
       </div>
-      <p class="hint mt-1">口径：流失率 = 流失 MRR ÷ 期初 MRR（月度）。月流失率 &lt; 2% 通常被视为健康。</p>
+
+      <div class="mt-2">
+        <p class="field-label mb-1">变动瀑布（期初 → 各项变动 → 期末）</p>
+        <div ref="waterfallStage" class="wf-box"></div>
+      </div>
+      <p class="hint mt-1">口径：流失率 = 流失 MRR ÷ 期初 MRR（月度）；NRR =（期初 + 扩张 − 收缩 − 流失）÷ 期初，不含新客。月流失率 &lt; 2% 通常被视为健康。</p>
     </template>
   </div>
 </template>
 
 <style scoped>
+.chip {
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--text-2);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.chip.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
 .tier-head {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr 34px;
@@ -156,6 +213,19 @@ const tabs: { v: 'tiers' | 'moves'; label: string }[] = [
   gap: 8px;
   align-items: center;
   margin-bottom: 8px;
+  position: relative;
+}
+.tier-row.empty input {
+  opacity: 0.55;
+}
+.empty-tip {
+  position: absolute;
+  right: 42px;
+  font-size: 11px;
+  color: var(--warn);
+}
+.row-empty td {
+  opacity: 0.55;
 }
 .icon-btn {
   width: 30px; height: 30px; display: grid; place-items: center;
@@ -206,4 +276,12 @@ const tabs: { v: 'tiers' | 'moves'; label: string }[] = [
 .bar { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
 .sum-row td { background: var(--accent-soft); }
 .hint { font-size: 12px; color: var(--text-3); }
+.wf-box {
+  height: min(300px, calc(100vh - 560px));
+  min-height: 200px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  background: color-mix(in srgb, var(--panel-solid) 55%, transparent);
+}
 </style>

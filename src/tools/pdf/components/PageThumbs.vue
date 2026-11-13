@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { ChevronDown, ChevronUp, RotateCw, X } from 'lucide-vue-next'
 import { pdfInfo, renderPageToCanvas } from '@/lib/pdfEngine'
 
@@ -21,12 +21,17 @@ const props = withDefaults(
     removable?: boolean
     rotatable?: boolean
     selectable?: boolean
+    /** 勾选保持点击顺序（不强制升序），并显示点击序号角标 */
+    keepOrder?: boolean
+    /** 仅显示已勾选的页（过滤视图，计数不变） */
+    filterChecked?: boolean
   }>(),
-  { movable: true, removable: false, rotatable: true, selectable: false },
+  { movable: true, removable: false, rotatable: true, selectable: false, keepOrder: false, filterChecked: false },
 )
 
 const checked = defineModel<number[]>('checked', { default: () => [] })
 const order = defineModel<PageEntry[]>('order', { default: () => [] })
+const props_order = computed(() => order.value)
 const emit = defineEmits<{ render: [] }>()
 
 const total = ref(0)
@@ -124,9 +129,20 @@ const pump = async () => {
 
 const toggle = (idx: number) => {
   if (!props.selectable) return
-  const cur = checked.value.includes(idx) ? checked.value.filter((i) => i !== idx) : [...checked.value, idx]
-  checked.value = cur.sort((a, b) => a - b)
+  const has = checked.value.includes(idx)
+  if (has) {
+    checked.value = checked.value.filter((i) => i !== idx)
+  } else if (props.keepOrder) {
+    checked.value = [...checked.value, idx] // 保持点击顺序
+  } else {
+    checked.value = [...checked.value, idx].sort((a, b) => a - b)
+  }
 }
+
+/** 过滤视图：只显示已勾选页 */
+const visibleOrder = computed(() =>
+  props.filterChecked ? props_order.value.filter((e) => checked.value.includes(e.index)) : props_order.value,
+)
 
 const move = (pos: number, dir: -1 | 1) => {
   const j = pos + dir
@@ -175,7 +191,7 @@ const pct = () => (total.value ? Math.round((doneCount.value / total.value) * 10
     </div>
     <div class="thumbs">
       <div
-        v-for="(e, pos) in order"
+        v-for="(e, pos) in visibleOrder"
         :key="e.index"
         class="cell"
         :ref="(el) => register(e.index, el)"
@@ -190,7 +206,9 @@ const pct = () => (total.value ? Math.round((doneCount.value / total.value) * 10
           <div v-else class="skeleton" />
           <span class="pno">{{ e.index + 1 }}</span>
           <span v-if="e.rotation" class="badge-rot">{{ e.rotation }}°</span>
-          <span v-if="selectable" class="tick" :class="{ on: checked.includes(e.index) }">✓</span>
+          <span v-if="selectable" class="tick" :class="{ on: checked.includes(e.index) }">
+            {{ keepOrder && checked.includes(e.index) ? checked.indexOf(e.index) + 1 : '✓' }}
+          </span>
         </div>
         <div v-if="movable || rotatable || removable" class="ops">
           <button v-if="movable" class="mini" title="上移" aria-label="上移" @click="move(pos, -1)"><ChevronUp :size="13" /></button>

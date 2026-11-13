@@ -74,6 +74,44 @@ export async function stampImageTexts(file: File | Blob, items: ImageTextItem[])
   return await savePdf(doc)
 }
 
+export interface PngStampItem {
+  /** 0 基页索引 */
+  page: number
+  /** PDF 坐标（pt，左下原点，图章左下角） */
+  xPt: number
+  yPt: number
+  /** PNG dataUrl 与 pt 尺寸 */
+  dataUrl: string
+  wPt: number
+  hPt: number
+  rotateDeg?: number
+  opacity?: number
+}
+
+/** 把一组 PNG 图章（文字贴图/图片水印通用）写入 PDF（同 dataUrl 只嵌入一次） */
+export async function stampPngs(file: File | Blob, items: PngStampItem[]): Promise<Blob> {
+  const { PDFDocument, degrees } = await loadPdfLib()
+  const doc = await PDFDocument.load(await file.arrayBuffer(), { ignoreEncryption: true })
+  const cache = new Map<string, Awaited<ReturnType<typeof doc.embedPng>>>()
+  for (const it of items) {
+    let img = cache.get(it.dataUrl)
+    if (!img) {
+      img = await doc.embedPng(it.dataUrl)
+      cache.set(it.dataUrl, img)
+    }
+    const page = doc.getPage(Math.min(it.page, doc.getPageCount() - 1))
+    page.drawImage(img, {
+      x: it.xPt,
+      y: it.yPt,
+      width: it.wPt,
+      height: it.hPt,
+      opacity: it.opacity ?? 1,
+      rotate: degrees(it.rotateDeg ?? 0),
+    })
+  }
+  return await savePdf(doc)
+}
+
 /** hex 颜色 → 0-1 RGB 三元组 */
 export function hexToRgb01(hex: string): [number, number, number] {
   const m = hex.replace('#', '')

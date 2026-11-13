@@ -3,7 +3,7 @@ import type { ToolDef } from '@/types'
 /** PDF 工具注册表（54 项） */
 const tools: ToolDef[] = [
   { slug: 'merge-pdf', title: '合并 PDF', category: 'pdf', desc: '把多个 PDF 按顺序合并成一个文件，可拖动调整先后次序。', keywords: ['pdf', '合并', 'merge'], component: () => import('./components/MergePdf.vue'), steps: ['拖入两个或以上 PDF', '拖动卡片调整顺序', '点击合并下载'] },
-  { slug: 'split-pdf', title: '拆分 PDF', category: 'pdf', desc: '把 PDF 拆成单页文件分别下载，或打包为 ZIP 一次拿走。', keywords: ['pdf', '拆分', 'split'], component: () => import('./components/SplitPdf.vue') },
+  { slug: 'split-pdf', title: '拆分 PDF', category: 'pdf', desc: '按每页一档、每 N 页一档或自定义区间拆分 PDF，逐个下载或打包 ZIP。', keywords: ['pdf', '拆分', 'split'], component: () => import('./components/SplitPdf.vue'), steps: ['拖入 PDF', '选择拆分方式', '拆分并下载'] },
   { slug: 'compress-pdf', title: '压缩 PDF', category: 'pdf', desc: '按质量档位压缩，或压缩到指定 KB 目标（二分逼近），扫描件尤其有效。', keywords: ['pdf', '压缩', '大小'], component: () => import('./components/CompressPdf.vue'), steps: ['选择质量档位或目标体积', '开始压缩', '对比前后大小后下载'] },
   { slug: 'pdf-to-word', title: 'PDF 转 Word', category: 'pdf', desc: '提取 PDF 文本并按段落与标题重组为 .docx，方便二次编辑。', keywords: ['pdf', 'word', 'docx'], component: () => import('./components/PdfToWord.vue') },
   { slug: 'pdf-to-jpg', title: 'PDF 转 JPG', category: 'pdf', desc: '把每页渲染为高质量 JPG，单页下载或打包 ZIP。', keywords: ['pdf', 'jpg', '转换'], component: () => import('./components/PdfToImages.vue') },
@@ -20,7 +20,7 @@ const tools: ToolDef[] = [
   { slug: 'insert-image-pdf', title: 'PDF 插入图片', category: 'pdf', desc: '页面预览上点击定位插入图片或签名图章，支持透明 PNG 与逐页放置。', keywords: ['pdf', '插入图片', '图章', '签名'], component: () => import('./components/InsertImagePdf.vue'), steps: ['载入 PDF 并添加图片', '预览上点击放置', '生成下载副本'] },
   { slug: 'compress-pptx', title: 'PPTX 压缩瘦身', category: 'pdf', desc: '本地解包重压缩 PPT 内嵌图片、清理未引用媒体，体积立减不传服务器。', keywords: ['ppt', 'pptx', '压缩', '瘦身'], component: () => import('./components/CompressPptx.vue'), steps: ['拖入 .pptx', '选 JPG 质量', '下载压缩副本'] },
   { slug: 'jpg-to-pdf', title: 'JPG 转 PDF', category: 'pdf', desc: 'JPG/JPEG 图片转单个 PDF，不限数量与大小，本地即时完成。', keywords: ['jpg', 'pdf', '转换'], imgcvt: undefined, component: () => import('./components/ImagesToPdf.vue') },
-  { slug: 'png-to-pdf', title: 'PNG 转 PDF', category: 'pdf', desc: 'PNG 图片转单个 PDF，保留透明区域（铺白底），批量支持。', keywords: ['png', 'pdf', '转换'], component: () => import('./components/ImagesToPdf.vue') },
+  { slug: 'png-to-pdf', title: 'PNG 转 PDF', category: 'pdf', desc: 'PNG 图片转单个 PDF，透明区域原样保留，本地即时完成。', keywords: ['png', 'pdf', '转换'], component: () => import('./components/ImagesToPdf.vue') },
   { slug: 'rotate-pdf', title: '旋转 PDF', category: 'pdf', desc: '把整个 PDF 或指定页旋转 90°/180°/270°，方向永久写入。', keywords: ['pdf', '旋转', 'rotate'], component: () => import('./components/RotatePdf.vue') },
   { slug: 'pdf-to-one-jpg', title: 'PDF 转长图', category: 'pdf', desc: '把全部页面拼成一张纵向长图，方便分享多页扫描件。', keywords: ['pdf', '长图', '拼接'], component: () => import('./components/PdfToOneImage.vue') },
   { slug: 'extract-pdf-pages', title: '提取 PDF 页面', category: 'pdf', desc: '勾选需要的页，生成只含这些页面的新 PDF。', keywords: ['pdf', '提取', '页面'], component: () => import('./components/PagePickerTool.vue') },

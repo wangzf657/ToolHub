@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { Loader2 } from 'lucide-vue-next'
 import PdfToolBase from './PdfToolBase.vue'
 import { locateHits, overlayHits, type TextHit } from './pdfHits'
+import { parsePageSpec, renderPageToCanvas } from '@/lib/pdfEngine'
 import { saveBlob } from '@/lib/download'
 import { useToast } from '@/composables/useToast'
 
@@ -16,8 +17,12 @@ const base = ref<InstanceType<typeof PdfToolBase> | null>(null)
 const find = ref('')
 const replace = ref('')
 const useRegex = ref(false)
+const ignoreCase = ref(false)
+const rangeSpec = ref('')
 const busy = ref(false)
+const scanLabel = ref('')
 const hits = ref<TextHit[]>([])
+const overflowWarn = ref('')
 
 /** 按页聚合命中 */
 const byPage = () => {
@@ -30,14 +35,34 @@ const byPage = () => {
   return [...m.entries()].sort((a, b) => a[0] - b[0]).map(([page, list]) => ({ page: page + 1, list }))
 }
 
+/** 估算显示宽度（CJK 记 1、西文记 0.55），用于替换词溢出预判 */
+const dispWidth = (s: string) => [...s].reduce((a, ch) => a + (/[\u2e80-\u9fff\uff00-\uffef]/.test(ch) ? 1 : 0.55), 0)
+
 const buildRegex = (): RegExp | null => {
   const src = find.value
   if (!src) return null
   try {
-    return new RegExp(useRegex.value ? src : src.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')
+    const body = useRegex.value ? src : src.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    return new RegExp(body, ignoreCase.value ? 'gi' : 'g')
   } catch {
     return null
   }
+}
+
+/** 溢出预判：替换词显示宽度 > 命中文本 1.2 倍时列出涉及页码 */
+const checkOverflow = (list: TextHit[]) => {
+  if (!replace.value.trim()) return ''
+  const wide = list.filter((h) => dispWidth(replace.value) > dispWidth(h.text) * 1.2)
+  if (!wide.length) return ''
+  const pages = [...new Set(wide.map((h) => h.page + 1))].join('、')
+  return `${wide.length} 处替换词超宽（超过原词 1.2 倍），可能压盖相邻内容——涉及第 ${pages} 页`
+}
+
+const applyRange = (list: TextHit[]): TextHit[] => {
+  if (!rangeSpec.value.trim()) return list
+  const total = base.value?.pageCount ?? 0
+  const keep = new Set(parsePageSpec(rangeSpec.value, total || 1))
+  return list.filter((h) => keep.has(h.page))
 }
 
 const scan = async () => {
@@ -53,14 +78,21 @@ const scan = async () => {
   }
   busy.value = true
   hits.value = []
+  overflowWarn.value = ''
   try {
-    hits.value = await locateHits(file, re)
-    if (!hits.value.length) toast.warn('未找到匹配内容（扫描图片型 PDF 没有文本层）')
-    else toast.ok(`共命中 ${hits.value.length} 处`)
+    const raw = await locateHits(file, re, (p, t) => (scanLabel.value = `正在扫描第 ${Math.round(p * t)} / ${t} 页`))
+    hits.value = applyRange(raw)
+    if (!raw.length) toast.warn('未找到匹配内容（扫描图片型 PDF 没有文本层）')
+    else if (!hits.value.length) toast.warn('命中均在页范围之外，已全部过滤')
+    else {
+      toast.ok(`共命中 ${raw.length} 处${rangeSpec.value.trim() ? `，范围内 ${hits.value.length} 处` : ''}`)
+      overflowWarn.value = checkOverflow(hits.value)
+    }
   } catch (e) {
     toast.err((e as Error).message || '扫描失败')
   } finally {
     busy.value = false
+    scanLabel.value = ''
   }
 }
 
@@ -78,7 +110,10 @@ const run = async () => {
   busy.value = true
   try {
     let list = hits.value
-    if (!list.length) list = await locateHits(file, re)
+    if (!list.length) {
+      const raw = await locateHits(file, re, (p, t) => (scanLabel.value = `正在扫描第 ${Math.round(p * t)} / ${t} 页`))
+      list = applyRange(raw)
+    }
     if (!list.length) {
       toast.warn('未找到匹配内容，未生成文件')
       return
@@ -94,6 +129,23 @@ const run = async () => {
     toast.err((e as Error).message || '替换失败')
   } finally {
     busy.value = false
+    scanLabel.value = ''
+  }
+}
+
+/* ---------- 替换预演：渲染首个命中页，叠加白条+替换词示意 ---------- */
+const previewUrl = ref('')
+const previewHits = ref<TextHit[]>([])
+const doPreview = async () => {
+  const file = base.value?.files[0]
+  if (!file || !hits.value.length) return
+  try {
+    const firstPage = hits.value[0]!.page
+    const canvas = await renderPageToCanvas(file, firstPage, 1.2)
+    previewUrl.value = canvas.toDataURL('image/jpeg', 0.85)
+    previewHits.value = hits.value.filter((h) => h.page === firstPage).slice(0, 8)
+  } catch {
+    toast.err('预演渲染失败')
   }
 }
 </script>
@@ -113,7 +165,12 @@ const run = async () => {
       </div>
       <div>
         <span class="field-label">匹配方式</span>
-        <label class="check mt-1"><input v-model="useRegex" type="checkbox" /> 使用正则表达式</label>
+        <label class="check"><input v-model="useRegex" type="checkbox" /> 使用正则表达式</label>
+        <label class="check"><input v-model="ignoreCase" type="checkbox" /> 忽略大小写</label>
+      </div>
+      <div>
+        <span class="field-label">应用页范围（空 = 全部）</span>
+        <input v-model="rangeSpec" type="text" class="input" placeholder="如 2-3" />
       </div>
     </div>
 
@@ -121,10 +178,27 @@ const run = async () => {
       <button class="btn btn-ghost" :disabled="busy || !base?.files.length || !find" @click="scan">
         <Loader2 v-if="busy" :size="16" class="spinner" /> 扫描命中
       </button>
+      <button v-if="hits.length" class="btn btn-soft" :disabled="busy" @click="doPreview">替换预演（首个命中页）</button>
       <button class="btn btn-primary" :disabled="busy || !base?.files.length || !find" @click="run">
         <Loader2 v-if="busy" :size="16" class="spinner" /> 执行替换并下载
       </button>
-      <span v-if="hits.length" class="small muted">命中 {{ hits.length }} 处</span>
+      <span v-if="scanLabel" class="small muted">{{ scanLabel }}</span>
+      <span v-else-if="hits.length" class="small muted">命中 {{ hits.length }} 处</span>
+    </div>
+
+    <p v-if="overflowWarn" class="notice notice-warn mt-2 small">{{ overflowWarn }}</p>
+
+    <div v-if="previewUrl" class="mt-2 preview-card">
+      <img :src="previewUrl" alt="替换预演" class="preview-img" />
+      <div
+        v-for="(h, i) in previewHits"
+        :key="i"
+        class="pv-box"
+        :style="{ left: h.x * 100 + '%', top: h.y * 100 + '%', width: h.w * 100 + '%', height: h.h * 100 + '%' }"
+      >
+        <span class="pv-word">{{ replace || '（涂抹）' }}</span>
+      </div>
+      <p class="small muted mt-1">首个命中页预演：白条覆盖原词并写入替换词，落位/是否压线以此为准</p>
     </div>
 
     <div v-if="hits.length" class="report mt-2">
@@ -158,6 +232,35 @@ const run = async () => {
   padding: 10px 12px;
   max-height: 220px;
   overflow: auto;
+}
+.preview-card {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px;
+}
+.preview-img {
+  max-width: 100%;
+  max-height: 60vh;
+  display: block;
+  border-radius: 6px;
+  background: #fff;
+}
+.pv-box {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px dashed var(--accent);
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+.pv-word {
+  font-size: 10px;
+  color: #1f2430;
+  padding-left: 2px;
+  white-space: nowrap;
 }
 .row-item {
   display: flex;

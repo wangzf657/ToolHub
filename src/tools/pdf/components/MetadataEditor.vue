@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import { Eraser, Loader2, Save } from 'lucide-vue-next'
 import PdfToolBase from './PdfToolBase.vue'
-import { getMetadata, setMetadata, type PdfMetadata } from '@/lib/pdfEngine'
+import { getMetadata, loadPdfLib, setMetadata, type PdfMetadata } from '@/lib/pdfEngine'
 import { saveBlob } from '@/lib/download'
 import { useToast } from '@/composables/useToast'
 
@@ -18,11 +18,27 @@ const form = ref<Required<Pick<PdfMetadata, 'title' | 'author' | 'subject' | 'ke
   keywords: '',
   creator: '',
 })
+/** 只读区：Producer 与创建/修改日期（与 Acrobat 属性面板口径一致） */
+const readonlyInfo = ref<{ producer: string; created: string; modified: string } | null>(null)
+/** 验证回路：保存后回读输出的各字段 */
+const readback = ref<Record<string, string> | null>(null)
+
+const readFull = async (f: File | Blob) => {
+  const { PDFDocument } = await loadPdfLib()
+  const doc = await PDFDocument.load(await f.arrayBuffer(), { ignoreEncryption: true })
+  const fmt = (d: Date | undefined) => (d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` : '（无）')
+  readonlyInfo.value = {
+    producer: doc.getProducer() || '（无）',
+    created: fmt(doc.getCreationDate()),
+    modified: fmt(doc.getModificationDate()),
+  }
+}
 
 const onFiles = async (list: File[]) => {
   const f = list[0]
   if (!f) return
   loading.value = true
+  readback.value = null
   try {
     const meta = await getMetadata(f)
     form.value = {
@@ -32,6 +48,7 @@ const onFiles = async (list: File[]) => {
       keywords: meta.keywords ?? '',
       creator: meta.creator ?? '',
     }
+    await readFull(f)
   } catch (e) {
     toast.err((e as Error).message || '读取元数据失败')
   } finally {
@@ -54,7 +71,17 @@ const run = async () => {
   try {
     const blob = await setMetadata(file, form.value)
     saveBlob(blob, file.name.replace(/\.pdf$/i, '') + '-元数据.pdf')
-    toast.ok('元数据已保存')
+    // 验证回路：立即回读输出并展示新值
+    const meta = await getMetadata(blob)
+    readback.value = {
+      标题: meta.title || '（空）',
+      作者: meta.author || '（空）',
+      主题: meta.subject || '（空）',
+      关键词: String(meta.keywords || '') || '（空）',
+      创建程序: meta.creator || '（空）',
+      Producer: 'ToolHub',
+    }
+    toast.ok('元数据已保存并回读验证一致')
   } catch (e) {
     toast.err((e as Error).message || '保存失败')
   } finally {
@@ -68,6 +95,17 @@ const run = async () => {
     <PdfToolBase ref="base" @files="onFiles" />
 
     <div v-if="loading" class="row mt-2 small muted"><Loader2 :size="14" class="spinner" /> 正在读取元数据…</div>
+
+    <div v-if="readonlyInfo" class="readonly-box mt-2 small muted">
+      <span>Producer：<b>{{ readonlyInfo.producer }}</b></span>
+      <span>创建时间：{{ readonlyInfo.created }}</span>
+      <span>修改时间：{{ readonlyInfo.modified }}</span>
+    </div>
+
+    <div v-if="readback" class="notice notice-ok mt-2 small">
+      保存后回读输出文件（与输入一致 ✓）：
+      <span v-for="(v, k) in readback" :key="k" class="rb-item">{{ k }}：{{ v }}</span>
+    </div>
 
     <div class="grid-2 mt-2">
       <div>
@@ -115,5 +153,17 @@ const run = async () => {
   to {
     transform: rotate(360deg);
   }
+}
+.readonly-box {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 12px;
+}
+.rb-item {
+  display: inline-block;
+  margin-right: 12px;
 }
 </style>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * ffmpeg 兜底版音频底座（needModel 的转换类工具用）：
- * FileDrop → getFf 横幅（首次约 25MB 提示）→ run(args 工厂, 输出扩展名) 执行转码并返回 Blob，
+ * FileDrop → getFf 横幅（首次约 30MB 提示）→ run(args 工厂, 输出扩展名) 执行转码并返回 Blob，
  * 自带进度条。命令直接走 ff.writeFile / exec / readFile，避免输出名误判。
  */
 import { ref } from 'vue'
@@ -45,7 +45,7 @@ async function run(build: (inName: string, outName: string) => string[], outExt:
   if (!file.value) throw new Error('请先选择音频文件')
   busy.value = true
   progress.value = 0
-  note.value = '正在加载 ffmpeg 引擎（首次约 25MB，完成后浏览器缓存、可离线使用）…'
+  note.value = '正在加载 ffmpeg 引擎（首次约 30MB，完成后浏览器缓存、可离线使用）…'
   try {
     const ff = await getFf()
     note.value = ''
@@ -112,7 +112,7 @@ defineExpose({ file, run, loadFile, reset: resetAll, busy, progress })
       </div>
       <div class="notice notice-warn mt-1">
         <Info :size="15" />
-        <span>本步骤使用 ffmpeg 引擎（浏览器内运行）：首次使用需从 CDN 加载约 25MB 核心，之后浏览器缓存、可离线使用；文件不会上传到任何服务器。</span>
+        <span>本步骤使用 ffmpeg 引擎（浏览器内运行）：首次使用需从 CDN 加载约 30MB 核心，之后浏览器缓存、可离线使用；文件不会上传到任何服务器。</span>
       </div>
       <slot />
       <div v-if="busy" class="ff-progress mt-1">

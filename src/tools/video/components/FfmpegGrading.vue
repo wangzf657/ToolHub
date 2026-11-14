@@ -115,7 +115,7 @@ const run = async () => {
       <SliderRow v-model="gamma" label="伽马" :min="0.5" :max="2" :step="0.05" width="170px" />
     </div>
     <p class="gr-note">调色需要重新编码画面（音频原样复制）。黑白模式用 hue 去饱和，暖/冷调用 colorbalance 偏移通道。</p>
-      <FfExpectHint text="浏览器本地处理速度约为视频时长的 1/2~1/5（重编码类；流复制类通常秒级完成），首次使用需加载约 25MB 编解码核心。处理期间请保持页面打开，勿刷新或关闭标签页。" />
+      <FfExpectHint text="浏览器本地处理速度约为视频时长的 1/2~1/5（重编码类；流复制类通常秒级完成），首次使用需加载约 30MB 编解码核心。处理期间请保持页面打开，勿刷新或关闭标签页。" />
   </FfBase>
 </template>
 

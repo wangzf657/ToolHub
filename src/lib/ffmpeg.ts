@@ -8,7 +8,7 @@ const CORE_VERSION = '0.12.10'
 const BASE = `https://unpkg.com/@ffmpeg/core@${CORE_VERSION}/dist/umd`
 
 /**
- * 获取 ffmpeg 实例（首次调用会从 CDN 下载 ~25MB 核心，之后浏览器缓存）。
+ * 获取 ffmpeg 实例（首次调用会从 CDN 下载 ~30MB 核心，之后浏览器缓存）。
  * UI 需要在调用前提示用户。
  */
 export async function getFf(log?: (msg: string) => void): Promise<FFmpeg> {

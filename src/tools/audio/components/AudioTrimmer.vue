@@ -136,7 +136,7 @@ async function run() {
 </script>
 
 <template>
-  <AudioToolBase ref="base" @loaded="onLoaded" @clear="onClear" @select="onSelect">
+  <AudioToolBase ref="base" :fade="{ in: fadeIn, out: fadeOut }" @loaded="onLoaded" @clear="onClear" @select="onSelect">
     <div class="grid-2 mt-2">
       <label>
         <span class="field-label">起点（秒，可输 1:30 格式）</span>

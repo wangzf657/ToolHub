@@ -166,7 +166,7 @@ const showResult = (results: Map<string, Uint8Array>, b: { files: File[] }) => {
       倒放需要把整段视频读入内存处理，请按上表控制时长；更长素材建议先用「裁剪视频」截取片段。
       「循环 2 次」已改用流复制，秒级完成、无画质损失——循环 N 次请用「视频循环拼接」。
     </p>
-    <FfExpectHint text="倒放/回弹为整段读入 + 重编码，耗时约为视频时长的 1~3 倍（按安全时长表控制则数秒到数十秒）；循环 2 次为流复制秒级。首次使用需加载约 25MB 编解码核心，处理期间请保持页面打开。" />
+    <FfExpectHint text="倒放/回弹为整段读入 + 重编码，耗时约为视频时长的 1~3 倍（按安全时长表控制则数秒到数十秒）；循环 2 次为流复制秒级。首次使用需加载约 30MB 编解码核心，处理期间请保持页面打开。" />
 
     <div v-if="resultUrl" class="result-card mt-2">
       <video :src="resultUrl" controls class="result-video"></video>

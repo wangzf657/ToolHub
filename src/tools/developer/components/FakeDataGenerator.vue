@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Users, Download } from 'lucide-vue-next'
-import { fakeRows, FAKE_FIELDS } from '@/lib/jsEngine'
+import { fakeRows, withSeed, FAKE_FIELDS } from '@/lib/jsEngine'
 import { rowsToCsv } from '@/lib/csvEngine'
 import { saveText } from '@/lib/download'
 import { useToast } from '@/composables/useToast'
@@ -15,6 +15,8 @@ const rows = ref<string[][]>([])
 const header = ref<string[]>([])
 /** 唯一性开关（rx3）：手机号/身份证列强制唯一 */
 const forceUnique = ref(false)
+/** 种子（rx2）：同种子同配置两次输出逐字节相等；留空纯随机 */
+const seedStr = ref('')
 
 /** 本地扩展字段：GB 11643 合法校验位身份证（rx1，引擎字段表只读故在组件层实现） */
 const LOCAL_FIELDS: { key: string; label: string }[] = [{ key: 'idCardCN', label: '身份证（校验位合法）' }]
@@ -58,7 +60,12 @@ const generate = () => {
       return out
     })
   }
-  let result = build()
+  // 种子域执行（含本地身份证列的 Math.random）：重试轮次用「种子#轮次」派生，既确定又能推进
+  const buildSeeded = (attempt: number): string[][] => {
+    const s = seedStr.value.trim()
+    return s ? withSeed(attempt > 0 ? `${s}#${attempt + 1}` : s, build) : build()
+  }
+  let result = buildSeeded(0)
   if (forceUnique.value) {
     // 手机号 / 身份证列强制唯一：重复行整行重造（rx3）
     const uniqueCols = selected.value
@@ -75,7 +82,7 @@ const generate = () => {
         return true
       })
       if (result.length >= n) break
-      result = result.concat(build().slice(0, n - result.length))
+      result = result.concat(buildSeeded(guard).slice(0, n - result.length))
       if (result.length > n) result = result.slice(0, n)
     }
   }
@@ -118,6 +125,10 @@ const downloadCsv = () => {
       <div>
         <span class="field-label">行数</span>
         <input v-model.number="count" type="number" class="input mono" style="width: 110px" min="1" max="1000" />
+      </div>
+      <div>
+        <span class="field-label">种子（可选）</span>
+        <input v-model="seedStr" type="text" class="input mono" style="width: 130px" placeholder="如 7" title="同种子+同字段+同行数 → 两次输出逐字节相等；留空纯随机（唯一性重造轮次按「种子#轮次」派生，仍可复现）" />
       </div>
       <label class="check" style="margin-bottom: 8px" title="手机号/身份证列出现重复时整行重造"><input v-model="forceUnique" type="checkbox" /> 强制唯一（手机/身份证列）</label>
       <button class="btn btn-primary" @click="generate"><Users :size="16" /> 生成假数据</button>

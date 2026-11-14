@@ -1,13 +1,15 @@
 <script setup lang="ts">
 /**
  * 视频工具通用底座：导入视频 → 预览/元信息 → 输出名 → 选项插槽 → 统一执行与进度。
- * runWithFf 封装 getFf + ffRun + saveBlob + 错误处理与进度条。
+ * runWithFf 封装 loadFfEngine（首用核心下载带进度）+ ffRun + saveBlob + 错误处理。
  */
-import { onBeforeUnmount, ref, shallowRef, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { Clapperboard, Loader2 } from 'lucide-vue-next'
 import FileDrop from '@/components/common/FileDrop.vue'
-import { loadVideo, type VideoMeta } from '@/lib/videoEngine'
-import { getFf, ffRun, mimeFor } from '@/lib/ffmpeg'
+import FfEngineProgress from './FfEngineProgress.vue'
+import { loadVideo, loadFfEngine, type VideoMeta, type FfCoreProgress } from '@/lib/videoEngine'
+import { ffRun, mimeFor } from '@/lib/ffmpeg'
 import type { FFmpeg } from '@ffmpeg/ffmpeg'
 import { baseName, saveBlob } from '@/lib/download'
 import { useToast } from '@/composables/useToast'
@@ -34,9 +36,21 @@ const props = withDefaults(
     multiple?: boolean
     maxFiles?: number
     buttonText?: string
+    /** 覆盖 FileDrop 的 accept（如需接受 GIF 等特殊源）；不传时按 slug 查表，默认 video/* */
+    acceptOverride?: string
   }>(),
   { multiple: false, maxFiles: 20, buttonText: '开始处理' },
 )
+
+/** 特殊源 accept 覆盖表（按 slug）：治「文件选择器挡门」（如 GIF 源进不了 gif-to-mp4 的门） */
+const SLUG_DROP: Record<string, { accept: string; label: string }> = {
+  'gif-to-mp4': { accept: 'video/*,image/gif', label: '拖放视频或 GIF 到此处，或点击选择' },
+}
+const route = useRoute()
+const dropAccept = computed(
+  () => props.acceptOverride ?? SLUG_DROP[String(route.params.slug ?? '')]?.accept ?? 'video/*',
+)
+const dropLabel = computed(() => SLUG_DROP[String(route.params.slug ?? '')]?.label ?? '拖放视频到此处，或点击选择')
 
 const emit = defineEmits<{ run: []; time: [t: number] }>()
 
@@ -52,6 +66,8 @@ const progress = ref(0)
 const loadingFf = ref(false)
 const ffReady = ref(false)
 const videoEl = ref<HTMLVideoElement | null>(null)
+/** 核心下载进度（null = 不在下载，进度条随之隐藏） */
+const dl = ref<FfCoreProgress | null>(null)
 
 const file = () => files.value[0]
 
@@ -99,26 +115,36 @@ async function toBytes(d: File | Blob | Uint8Array | string): Promise<Uint8Array
   return d
 }
 
-/** 统一执行入口：加载核心 → 写文件 → 运行 → 下载/回调 */
+/** 引擎就绪（首用时带核心下载进度，完成自动隐藏）；失败中文提示后返回 null */
+async function ensureFf(): Promise<FFmpeg | null> {
+  const t = window.setTimeout(() => (loadingFf.value = true), 200)
+  setBusy(true, '加载编解码核心…')
+  dl.value = null
+  try {
+    const ff = await loadFfEngine((p) => (dl.value = p))
+    ffReady.value = true
+    return ff
+  } catch {
+    toast.err('编解码核心加载失败，请检查网络后重试')
+    return null
+  } finally {
+    clearTimeout(t)
+    loadingFf.value = false
+    dl.value = null
+  }
+}
+
+/** 统一执行入口：加载引擎（含核心下载进度）→ 写文件 → 运行 → 下载/回调 */
 async function runWithFf(args: string[], opts: FfRunOpts = {}) {
   const f = file()
   if (!f) {
     toast.warn('请先导入视频文件')
     return null
   }
-  let ff: FFmpeg
-  const t = window.setTimeout(() => (loadingFf.value = true), 200)
-  setBusy(true, '加载编解码核心…')
-  try {
-    ff = await getFf()
-    ffReady.value = true
-  } catch {
-    toast.err('编解码核心加载失败，请检查网络后重试')
+  const ff = await ensureFf()
+  if (!ff) {
     setBusy(false)
     return null
-  } finally {
-    clearTimeout(t)
-    loadingFf.value = false
   }
   const inputFiles = opts.files ?? [{ name: 'input', data: f }]
   const payload = await Promise.all(
@@ -164,15 +190,18 @@ defineExpose({ file, files, meta, outputName, videoEl, ffReady, setBusy, runWith
 <template>
   <div class="ff-base">
     <FileDrop
-      :accept="'video/*'"
+      :accept="dropAccept"
       :multiple="multiple"
       :max-files="maxFiles"
-      label="拖放视频到此处，或点击选择"
+      :label="dropLabel"
       hint="在你的设备上处理 —— 从不上传"
       @files="files = $event"
     />
 
     <template v-if="(meta || previewFailed) && files.length">
+      <!-- 引擎下载进度 / 首用提示（下载完成后自动隐藏） -->
+      <FfEngineProgress :dl="dl" :loading="loadingFf" class="mt-2" />
+
       <div v-if="meta" class="preview-wrap mt-2">
         <video ref="videoEl" :src="meta.url" controls class="preview" @timeupdate="onTime"></video>
         <div class="meta-bar">
@@ -192,28 +221,17 @@ defineExpose({ file, files, meta, outputName, videoEl, ffReady, setBusy, runWith
 
       <slot></slot>
 
-      <div v-if="loadingFf" class="notice notice-info mt-2">
-        <Loader2 :size="16" class="spin" />
-        首次使用需加载编解码核心（约 25MB），完成后可离线使用…
-      </div>
+      <!-- 处理中状态文案与进度条 -->
+      <FfEngineProgress :busy="busy" :status="status" :progress="progress" class="mt-2" />
 
-      <div v-if="busy" class="prog-wrap mt-2">
-        <div class="prog-head">
-          <span>{{ status }}</span>
-          <span>{{ Math.round(progress * 100) }}%</span>
-        </div>
-        <div class="prog-track">
-          <div class="prog-fill" :style="{ width: `${Math.max(2, Math.round(progress * 100))}%` }"></div>
-        </div>
-      </div>
-
-      <div class="row row-wrap mt-2" style="align-items: center">
+      <!-- 主操作吸底：长表单下滑后主执行按钮始终可达 -->
+      <div class="run-bar row row-wrap">
         <button class="btn btn-primary" :disabled="busy || !files.length" @click="$emit('run')">
           <Loader2 v-if="busy" :size="16" class="spin" />
           <Clapperboard v-else :size="16" />
           {{ buttonText }}
         </button>
-        <span v-if="!ffReady" class="ff-hint">首次使用需加载编解码核心（约 25MB），完成后可离线</span>
+        <span v-if="!ffReady" class="ff-hint">首次使用需加载编解码核心（约 30MB），完成后可离线</span>
       </div>
     </template>
   </div>
@@ -247,29 +265,17 @@ defineExpose({ file, files, meta, outputName, videoEl, ffReady, setBusy, runWith
   font-size: 12.5px;
   color: var(--text-3);
 }
-.prog-wrap {
-  display: grid;
-  gap: 6px;
-  max-width: 560px;
-}
-.prog-head {
-  display: flex;
-  justify-content: space-between;
-  font-size: 12.5px;
-  color: var(--text-2);
-}
-.prog-track {
-  height: 8px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--panel-solid) 70%, transparent);
-  overflow: hidden;
-  border: 1px solid var(--border);
-}
-.prog-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--accent), #7c74f2);
-  border-radius: 999px;
-  transition: width 0.2s ease;
+/* 主操作吸底：不透明底 + 上边框避免内容透视；负外边距抵消 .tool-panel 的 18px 内边距以横向贯通 */
+.run-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 6;
+  align-items: center;
+  margin: 10px -18px -18px;
+  padding: 12px 18px 14px;
+  background: var(--panel-solid);
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 var(--radius) var(--radius);
 }
 .spin {
   animation: spin 0.8s linear infinite;

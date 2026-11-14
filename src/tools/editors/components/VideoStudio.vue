@@ -203,7 +203,7 @@ const doExport = async () => {
   }
   exporting.value = true
   exportPct.value = 0
-  status.value = '正在加载 ffmpeg 核心（首次约 25MB，之后走浏览器缓存）…'
+  status.value = '正在加载 ffmpeg 核心（首次约 30MB，之后走浏览器缓存）…'
   let segNames: string[] = []
   const N = clips.value.length
   let curSeg = -1

@@ -13,7 +13,14 @@ import { decodeAudio, waveformCanvas } from '@/lib/audioEngine'
 import { fmtTime, sizeLabel } from './shared'
 import { useToast } from '@/composables/useToast'
 
-withDefaults(defineProps<{ showWave?: boolean }>(), { showWave: true })
+const props = withDefaults(
+  defineProps<{
+    showWave?: boolean
+    /** 淡入/淡出包络阴影（秒，纯展示增强，不参与交互）：有选区时画在选区两端，否则画在整段首尾；不传则完全不绘制 */
+    fade?: { in: number; out: number }
+  }>(),
+  { showWave: true },
+)
 
 const emit = defineEmits<{ loaded: [buffer: AudioBuffer, file: File]; clear: []; select: [start: number, end: number] }>()
 const toast = useToast()
@@ -134,6 +141,31 @@ function drawWave() {
     ctx.fillRect(x2, 0, w - x2, H)
     ctx.fillStyle = 'rgba(129,140,248,0.18)'
     ctx.fillRect(x1, 0, x2 - x1, H)
+  }
+  // 淡入/淡出包络阴影（可选展示增强）：有选区时贴选区两端，否则贴整段首尾；秒数按区间时长封顶
+  const fd = props.fade
+  if (fd && (fd.in > 0 || fd.out > 0)) {
+    const from = sel ? Math.min(sel.start, sel.end) : 0
+    const to = sel ? Math.max(sel.start, sel.end) : dur
+    const span = Math.max(0.01, to - from)
+    const rx1 = (from / dur) * w
+    const rx2 = (to / dur) * w
+    const inW = (Math.min(fd.in, span) / dur) * w
+    const outW = (Math.min(fd.out, span) / dur) * w
+    if (inW >= 1) {
+      const g = ctx.createLinearGradient(rx1, 0, rx1 + inW, 0)
+      g.addColorStop(0, 'rgba(0,0,0,0.55)')
+      g.addColorStop(1, 'rgba(0,0,0,0)')
+      ctx.fillStyle = g
+      ctx.fillRect(rx1, 0, inW, H)
+    }
+    if (outW >= 1) {
+      const g = ctx.createLinearGradient(rx2, 0, rx2 - outW, 0)
+      g.addColorStop(0, 'rgba(0,0,0,0.55)')
+      g.addColorStop(1, 'rgba(0,0,0,0)')
+      ctx.fillStyle = g
+      ctx.fillRect(rx2 - outW, 0, outW, H)
+    }
   }
   // 播放头
   const px = (playhead.value / dur) * w
@@ -289,6 +321,8 @@ watch(waveStage, (el) => {
     if (buffer.value) drawWave()
   }
 })
+// 包络参数变化 → 联动重绘（纯展示，不影响交互）
+watch(() => props.fade, () => drawWave(), { deep: true })
 
 defineExpose({ buffer, file, meta, selection, playhead, setBusy, reload, loadFile, playPreview, stopPreview, playRange, reset: resetAll })
 </script>
@@ -331,7 +365,7 @@ defineExpose({ buffer, file, meta, selection, playhead, setBusy, reload, loadFil
             @pointerup="onPointerUp"
             @pointercancel="onPointerUp"
           ></div>
-          <div class="wave-tip">点击定位播放头 · 拖拽选择区间 · 空白双击清除选区</div>
+          <div class="wave-tip">点击定位播放头 · 拖拽选择区间 · 空白双击清除选区<template v-if="fade && (fade.in > 0 || fade.out > 0)"> · 两端阴影为淡入/淡出范围</template></div>
           <div class="row mt-1">
             <button class="btn btn-soft btn-sm" :disabled="!buffer" @click="playing ? stopPreview() : playPreview()">
               <Square v-if="playing" :size="14" /> 停止试听

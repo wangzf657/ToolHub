@@ -27,7 +27,27 @@ onMounted(() => {
   } catch {
     /* 同步数据损坏则忽略 */
   }
+  // 跨域契约接收端：读 SERP 预览（生产端 SerpPreview 写 toolhub.seo.meta-sync，24 小时内有效）
+  try {
+    const s = JSON.parse(localStorage.getItem('toolhub.seo.meta-sync') || 'null') as { title?: string; desc?: string; ts?: number } | null
+    if (s && Date.now() - (s.ts ?? 0) < 24 * 60 * 60 * 1000) {
+      const differs = (s.title && s.title !== title.value) || (s.desc && s.desc !== description.value)
+      if (differs) serpShared.value = { title: s.title ?? '', desc: s.desc ?? '' }
+    }
+  } catch {
+    /* 损坏数据忽略 */
+  }
 })
+
+/** SERP 预览传入的标题/描述（有值时顶部提示一键填入，不自动覆盖） */
+const serpShared = ref<{ title: string; desc: string } | null>(null)
+const applySerp = () => {
+  if (!serpShared.value) return
+  if (serpShared.value.title) title.value = serpShared.value.title
+  if (serpShared.value.desc) description.value = serpShared.value.desc
+  serpShared.value = null
+  toast.ok('已填入 SERP 预览传入的标题 / 描述')
+}
 const pushShare = () => {
   localStorage.setItem('toolhub.seo-share', JSON.stringify({ title: title.value, description: description.value, from: 'meta' }))
 }
@@ -87,6 +107,13 @@ const download = () => {
       <button class="btn btn-ghost btn-sm" @click="resetBlank"><Eraser :size="14" /> 清空示例</button>
     </div>
 
+    <!-- SERP 预览传入（toolhub.seo.meta-sync 契约接收端）：提示后一键填入，不自动覆盖 -->
+    <div v-if="serpShared" class="notice notice-info serp-banner">
+      检测到 SERP 预览传入的标题 / 描述，是否一键填入？
+      <button class="btn btn-soft btn-sm" @click="applySerp">一键填入</button>
+      <button class="btn btn-ghost btn-sm" @click="serpShared = null">忽略</button>
+    </div>
+
     <div class="grid-2" style="gap: 12px">
       <div>
         <span class="field-label">页面标题 title（建议 ≤ 30 个汉字 / 60 字符）</span>
@@ -144,3 +171,12 @@ const download = () => {
     <p class="notice notice-info mt-2 small">属性值中的双引号会自动转义为 &amp;quot;，其余字符原样输出（输出为原始 HTML 方便直接粘贴）。title/description 与 Open Graph 生成器双向同步。</p>
   </div>
 </template>
+
+<style scoped>
+.serp-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+</style>

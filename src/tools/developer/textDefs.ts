@@ -39,12 +39,13 @@ export function base64Transform(t: string, o: { dir?: unknown; variant?: unknown
 /* =============== URL 编解码（rx1 +号处理 / rx2 form 档 / rx3 报错人话化） =============== */
 
 export function urlTransform(t: string, o: { dir?: unknown; scope?: unknown; plus?: unknown }): string {
-  const component = o.scope !== 'full'
+  const full = o.scope === 'full'
+  const form = o.scope === 'form' // rx2：表单档（application/x-www-form-urlencoded，空格 → +）
   if (o.dir === 'decode') {
-    let src = t
-    if (o.plus === 'form') src = src.replace(/\+/g, ' ') // rx1：form 档 + 号还原为空格
+    // rx1：+ 号仅在表单语义（form 档 / 显式选择）下还原为空格，RFC 3986 下 + 是合法字面字符
+    const src = form || o.plus === 'form' ? t.replace(/\+/g, ' ') : t
     try {
-      return component ? decodeURIComponent(src) : decodeURI(src)
+      return full ? decodeURI(src) : decodeURIComponent(src)
     } catch (e) {
       // rx3：定位首个不完整的 %XX 转义
       const m = src.match(/%[0-9a-fA-F]?$/m) ?? src.match(/%[0-9a-fA-F]{0,1}(?![0-9a-fA-F])/)
@@ -55,8 +56,8 @@ export function urlTransform(t: string, o: { dir?: unknown; scope?: unknown; plu
       throw new Error(`解码失败：${pos > 0 ? `含不完整的 %XX 转义（位置 ${pos} 附近）` : '含非法百分号转义序列'}，请检查输入`)
     }
   }
-  let out = component ? encodeURIComponent(t) : encodeURI(t)
-  if (o.plus === 'form') out = out.replace(/%20/g, '+') // rx2：form-urlencoded，空格 → +
+  let out = full ? encodeURI(t) : encodeURIComponent(t)
+  if (form || o.plus === 'form') out = out.replace(/%20/g, '+') // rx2：form-urlencoded，空格 → +
   return out
 }
 
@@ -456,7 +457,9 @@ export function csvToMarkdownTransform(t: string, o: { delim?: unknown; align?: 
 /* =============== JSON 转 Java 实体类（rx1 静态嵌套类 / rx2 签名去重 / rx3 pkg+jackson / rx4 数组提示） =============== */
 
 export function jsonToJavaTransform(t: string, o: { cls?: unknown; lombok?: unknown; pkg?: unknown; jackson?: unknown }): string {
-  const rootName = String(o.cls || 'Demo')
+  const pascal = (s: string) => s.replace(/[^a-zA-Z0-9]/g, ' ').split(/\s+/).filter(Boolean).map((w) => w[0]!.toUpperCase() + w.slice(1)).join('') || 'Item'
+  // 根类名规整：user_order → UserOrder（非法字符分词后逐词首字母大写）
+  const rootName = pascal(String(o.cls || 'Demo'))
   const useLombok = o.lombok !== false
   const useJackson = o.jackson === true
   const pkg = String(o.pkg ?? '').trim()
@@ -466,8 +469,25 @@ export function jsonToJavaTransform(t: string, o: { cls?: unknown; lombok?: unkn
   const lines: string[] = []
   if (pkg) lines.push(`package ${pkg};`, '')
   if (isArray) lines.push(`// 检测到对象数组，已按首元素生成根类，接口返回用 List<${rootName}> 包裹`)
-  const pascal = (s: string) => s.replace(/[^a-zA-Z0-9]/g, ' ').split(/\s+/).filter(Boolean).map((w) => w[0]!.toUpperCase() + w.slice(1)).join('') || 'Item'
   const seen = new Map<string, string>() // ifaceKey（类名+字段签名）→ 已生成
+  /** 非 Lombok 档手写读写器（getter/setter，贴 IDE 即可编译） */
+  const accessor = (type: string, prop: string) => {
+    const cap = prop.charAt(0).toUpperCase() + prop.slice(1)
+    return [`    public ${type} get${cap}() {`, `        return ${prop};`, '    }', `    public void set${cap}(${type} ${prop}) {`, `        this.${prop} = ${prop};`, '    }'].join('\n')
+  }
+  /** 字段行（含 Jackson 注解行）+ 读写器行组装 */
+  const fieldBlock = (obj: Record<string, unknown>, path: string): { fieldLines: string[]; accessorLines: string[] } => {
+    const fieldLines: string[] = []
+    const accessorLines: string[] = []
+    for (const [k, val] of Object.entries(obj)) {
+      const type = javaType(val, k, path ? `${path}.${k}` : k)
+      if (useJackson && !/^[a-z][A-Za-z0-9]*$/.test(k)) fieldLines.push(`    @JsonProperty(${JSON.stringify(k)})`)
+      const prop = /^[a-z][A-Za-z0-9]*$/.test(k) ? k : k.replace(/[^A-Za-z0-9]/g, '')
+      fieldLines.push(`    private ${type} ${prop};`)
+      if (!useLombok) accessorLines.push(accessor(type, prop))
+    }
+    return { fieldLines, accessorLines }
+  }
   const javaType = (v: unknown, name: string, path: string): string => {
     if (v === null) return 'Object'
     if (Array.isArray(v)) {
@@ -485,28 +505,17 @@ export function jsonToJavaTransform(t: string, o: { cls?: unknown; lombok?: unkn
     const sig = name + JSON.stringify(Object.keys(obj))
     if (seen.has(sig)) return seen.get(sig)!
     seen.set(sig, name)
-    const fields = Object.entries(obj).map(([k, val]) => {
-      const type = javaType(val, k, path ? `${path}.${k}` : k)
-      const jKey = useJackson && !/^[a-z][A-Za-z0-9]*$/.test(k) ? `    @JsonProperty(${JSON.stringify(k)})\n` : ''
-      const prop = /^[a-z][A-Za-z0-9]*$/.test(k) ? k : k.replace(/[^A-Za-z0-9]/g, '')
-      return `${jKey}    private ${type} ${prop};`
-    })
-    const cls = useLombok
-      ? `@Data\npublic static class ${name} {\n${fields.join('\n')}\n}`
-      : `public static class ${name} {\n${fields.join('\n')}\n}`
+    const { fieldLines, accessorLines } = fieldBlock(obj, path)
+    const inner = accessorLines.length ? [...fieldLines, '', ...accessorLines].join('\n') : fieldLines.join('\n')
+    const cls = useLombok ? `@Data\npublic static class ${name} {\n${inner}\n}` : `public static class ${name} {\n${inner}\n}`
     lines.push(cls)
     return name
   }
   if (root && typeof root === 'object' && !Array.isArray(root)) {
     // 根类直接生成（非 static 嵌套）
-    const obj = root as Record<string, unknown>
-    const fields = Object.entries(obj).map(([k, val]) => {
-      const type = javaType(val, k, k)
-      const jKey = useJackson && !/^[a-z][A-Za-z0-9]*$/.test(k) ? `    @JsonProperty(${JSON.stringify(k)})\n` : ''
-      const prop = /^[a-z][A-Za-z0-9]*$/.test(k) ? k : k.replace(/[^A-Za-z0-9]/g, '')
-      return `${jKey}    private ${type} ${prop};`
-    })
-    lines.push(useLombok ? `@Data\npublic class ${rootName} {\n${fields.join('\n')}\n}` : `public class ${rootName} {\n${fields.join('\n')}\n}`)
+    const { fieldLines, accessorLines } = fieldBlock(root as Record<string, unknown>, '')
+    const inner = accessorLines.length ? [...fieldLines, '', ...accessorLines].join('\n') : fieldLines.join('\n')
+    lines.push(useLombok ? `@Data\npublic class ${rootName} {\n${inner}\n}` : `public class ${rootName} {\n${inner}\n}`)
   } else {
     lines.push(`public class ${rootName} { /* 输入不是顶层对象 */ }`)
   }
@@ -539,12 +548,8 @@ export async function gzipTransform(t: string, o: { dir?: unknown; algo?: unknow
       const level = [1, 6, 9].includes(Number(o.level)) ? Number(o.level) : 6
       const opts = { level: level as 1 | 6 | 9 }
       const out = o.algo === 'deflate' ? pako.deflate(bytes, opts) : o.algo === 'deflateRaw' ? pako.deflateRaw(bytes, opts) : pako.gzip(bytes, opts)
-      const encoded = o.enc === 'base64' ? bytesToBase64(out) : bytesToLatin1(out)
-      // rx2：统计行（口径与 code-minifier 一致：减小百分比）
-      const a = bytes.length
-      const b = out.length
-      const pct = a > 0 ? ((1 - b / a) * 100).toFixed(1) : '0.0'
-      return `${encoded}\n\n（${String(o.algo ?? 'gzip')}：${a} B → ${b} B，压缩率 ${pct}%）`
+      // rx2 统计行走 def.stats 通道（registry 内 gzipStats），输出正文保持纯编码串可直接复制
+      return o.enc === 'base64' ? bytesToBase64(out) : bytesToLatin1(out)
     }
     // 解压：剔除可能粘贴进来的统计行
     const cleaned = t.replace(/\n\n（[^）]*：\d+ B → \d+ B，压缩率 [\d.]+%）\s*$/g, '')
@@ -558,21 +563,32 @@ export async function gzipTransform(t: string, o: { dir?: unknown; algo?: unknow
   }
 }
 
+/** rx2 统计行（gzip 家族）：输入/输出字节数与压缩率——TextTool stats 通道渲染，输出正文不携带 */
+export function gzipStats(t: string, o: { dir?: unknown; algo?: unknown; enc?: unknown }, output: string): string {
+  if (o.dir === 'decompress' || output.startsWith('# 提示：')) return ''
+  const a = new TextEncoder().encode(t).length
+  if (!a) return ''
+  // base64 去填充后 ×3/4 取整即精确字节数（2 字符→1B、3 字符→2B、4 字符→3B）
+  const b = o.enc === 'base64' ? Math.floor(output.replace(/=+$/, '').length * 0.75) : output.length
+  const pct = ((1 - b / a) * 100).toFixed(1)
+  return `（${String(o.algo ?? 'gzip')}：${a} B → ${b} B，压缩率 ${pct}%）`
+}
+
 /* =============== Punycode（rx1 自动切向 / rx3 逐标签视图 / rx4 口径） =============== */
+
+/** rx1 自动切向判定：仅当内容与所选方向相悖时纠正（方向已一致时不打扰、不加提示） */
+export function punyAutoDir(t: string, dir: 'toAscii' | 'toUnicode'): { dir: 'toAscii' | 'toUnicode'; hint: string } {
+  if (/xn--/i.test(t) && dir === 'toAscii') return { dir: 'toUnicode', hint: '已自动切换方向（检测到 xn-- 输入，输出中文/Unicode 域名）' }
+  if (/[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]/.test(t) && dir === 'toUnicode') return { dir: 'toAscii', hint: '已自动切换方向（检测到中文/日文字符，输出 xn-- 编码域名）' }
+  return { dir, hint: '' }
+}
 
 export async function punycodeTransform(t: string, o: { dir?: unknown; view?: unknown }): Promise<string> {
   const mod = await import('punycode.js')
   const p = mod.default ?? (mod as unknown as typeof mod.default)
-  // rx1：自动切向
-  let dir = o.dir === 'toUnicode' ? 'toUnicode' : 'toAscii'
-  let switched = ''
-  if (/xn--/i.test(t) && o.dir !== 'toAscii') {
-    dir = 'toUnicode'
-    switched = '已自动切换方向（检测到 xn--）'
-  } else if (/[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]/.test(t) && o.dir !== 'toUnicode') {
-    dir = 'toAscii'
-    switched = '已自动切换方向（检测到中文/日文字符）'
-  }
+  // rx1：自动切向（纠正后的方向；提示行走 def.stats 通道，输出正文保持纯域名）
+  const auto = punyAutoDir(t, o.dir === 'toUnicode' ? 'toUnicode' : 'toAscii')
+  const dir = auto.dir
   const fn = dir === 'toAscii' ? p.toASCII : p.toUnicode
   const per = t.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((l) => {
     try {
@@ -591,7 +607,6 @@ export async function punycodeTransform(t: string, o: { dir?: unknown; view?: un
     }
   })
   let out = per.join('\n')
-  if (switched) out = `# 提示：${switched}\n${out}`
   // rx3：逐标签视图
   if (o.view === 'perLabel') {
     const rows = t.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((l) =>
@@ -611,6 +626,11 @@ export async function punycodeTransform(t: string, o: { dir?: unknown; view?: un
     out += `\n\n# 逐标签对照\n${rows.join('\n')}`
   }
   return out
+}
+
+/** punycode 统计行：rx1 自动切向提示（stats 通道渲染，输出正文保持纯域名） */
+export function punyStats(t: string, o: { dir?: unknown }): string {
+  return punyAutoDir(t, o.dir === 'toUnicode' ? 'toUnicode' : 'toAscii').hint
 }
 
 /* =============== 变量命名风格（rx1 一览 / rx2 记忆 / rx4 源风格摘要 / rx5 前缀保留） =============== */
@@ -651,7 +671,11 @@ export function caseStyleTransform(t: string, o: { target?: unknown; view?: unkn
     if (m) return `${m[1]}${convertIdentifier(m[2]!, target)}`
     return convertIdentifier(l, target)
   }).join('\n')
-  // rx4：源风格摘要（按行检测主要形态）
+  return out
+}
+
+/** 变量命名风格统计行（rx4 源风格摘要走 stats 通道，输出正文保持纯转换结果） */
+export function caseStats(t: string): string {
   const detect = (l: string): string => {
     if (/^[a-z]+(_[a-z0-9]+)+$/.test(l)) return 'snake_case'
     if (/^[a-z]+([A-Z][a-z0-9]+)+$/.test(l)) return 'camelCase'
@@ -660,13 +684,11 @@ export function caseStyleTransform(t: string, o: { target?: unknown; view?: unkn
     if (/^[A-Z]+(_[A-Z0-9]+)+$/.test(l)) return 'CONSTANT_CASE'
     return '混合/未知'
   }
+  const lines = t.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
   const counts = new Map<string, number>()
-  for (const l of lines) {
-    const k = detect(l)
-    counts.set(k, (counts.get(k) ?? 0) + 1)
-  }
+  for (const l of lines) counts.set(detect(l), (counts.get(detect(l)) ?? 0) + 1)
   const summary = [...counts.entries()].map(([k, n]) => `${k} ×${n}`).join('、')
-  return summary ? `# 检测：${summary}\n${out}` : out
+  return summary ? `源风格检测：${summary}` : ''
 }
 
 /* =============== Cookie（rx2 相对时间 / rx3 SameSite 告警） =============== */

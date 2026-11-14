@@ -23,7 +23,7 @@ const srcExt = computed(() => {
   return i > 0 ? n.slice(i + 1).toLowerCase() : ''
 })
 
-/* ---------- 首用核心下载进度（约 25MB） ---------- */
+/* ---------- 首用核心下载进度（约 30MB） ---------- */
 const CORE_BASE = 'https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd'
 const dlLoaded = ref(0)
 const dlTotal = ref(0)
@@ -137,12 +137,12 @@ const run = async () => {
     </div>
 
     <div v-if="preloading" class="dl-card mt-1">
-      <span>正在加载编解码核心（约 25MB）…</span>
+      <span>正在加载编解码核心（约 30MB）…</span>
       <div class="prog-track"><div class="prog-fill" :style="{ width: dlTotal ? `${Math.max(2, Math.round((dlLoaded / dlTotal) * 100))}%` : '40%' }"></div></div>
       <span class="muted small">{{ dlTotal ? `已下载 ${fmtSize(dlLoaded)} / ${fmtSize(dlTotal)}` : '准备下载…' }}</span>
     </div>
 
-    <FfExpectHint text="删除/替换音轨通常秒级完成（流复制）；区间消音需重编码音轨（约数秒到数十秒）。首次使用需加载约 25MB 编解码核心，处理期间请保持页面打开。" />
+    <FfExpectHint text="删除/替换音轨通常秒级完成（流复制）；区间消音需重编码音轨（约数秒到数十秒）。首次使用需加载约 30MB 编解码核心，处理期间请保持页面打开。" />
 
     <div v-if="resultUrl" class="result-card mt-2">
       <video :src="resultUrl" controls class="result-video"></video>

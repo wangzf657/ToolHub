@@ -8,3 +8,4 @@ export { paraphraseText, planReplacements, findMatches, SYNONYMS } from './ai/co
 export { topKeywords, extractKeywordsText, keywordTokens } from './ai/components/keywordExtractor'
 export { readabilitySummary, cnLevelLabel } from './seo/components/readabilityReport'
 export { densityItems, targetStatOf } from './seo/components/keywordDensityCore'
+export { minifyCode, detectLang } from './developer/components/minifyCore'

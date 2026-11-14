@@ -137,7 +137,7 @@ const envPoints = computed(() => {
 </script>
 
 <template>
-  <AudioToolBase ref="base">
+  <AudioToolBase ref="base" :fade="{ in: safeIn, out: safeOut }">
     <div class="grid-2 mt-2">
       <label>
         <span class="field-label">淡入时长（秒，0 为关闭）</span>

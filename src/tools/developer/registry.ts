@@ -2,7 +2,7 @@ import type { ToolDef, CalcResultRow } from '@/types'
 import {
   base64Transform, urlTransform, jsonToCsvTransform, jsonToYamlTransform, yamlToJsonTransform,
   jsonToXmlTransform, xmlToJsonTransform, jsonEscapeTransform, base32Transform, htmlEntityTransform,
-  csvToMarkdownTransform, jsonToJavaTransform, gzipTransform, punycodeTransform, caseStyleTransform,
+  csvToMarkdownTransform, jsonToJavaTransform, gzipTransform, gzipStats, punycodeTransform, punyStats, caseStyleTransform, caseStats,
   caseStyleDefault, cookieTransform, coordCompute,
 } from './textDefs'
 import { b64encode, b64decode, urlEncode, urlDecode, htmlEntityEncode, htmlEntityDecode, jsonEscapeEncode, jsonEscapeDecode, b32encode, b32decode } from '@/lib/textEngine'
@@ -47,7 +47,7 @@ const tools: ToolDef[] = [
         ] },
         { key: 'scope', label: '范围', type: 'select', default: 'component', choices: [
           { value: 'component', label: 'URI 组件（常用）' }, { value: 'full', label: '整个 URI' },
-          { value: 'component', label: '表单（form-urlencoded，空格→+）' },
+          { value: 'form', label: '表单（form-urlencoded，空格→+）' },
         ] },
         { key: 'plus', label: '+ 号处理（解码）', type: 'select', default: 'keep', choices: [
           { value: 'keep', label: '保留字面 +（默认）' }, { value: 'form', label: '还原为空格（form 档）' },
@@ -218,7 +218,7 @@ const tools: ToolDef[] = [
         { key: 'header', label: '首行为表头', type: 'toggle', default: true },
       ],
       transform: (t, o) => csvToMarkdownTransform(t, o),
-      placeholder: '粘贴 CSV…（如 姓名,城市\n"张三, Jr",北京；引号字段与换行全兼容；拖入 .csv 文件亦可）',
+      placeholder: '粘贴 CSV…（如 姓名,城市\n"张三, Jr",北京；引号字段与换行全兼容）',
     },
   },
   { slug: 'cron-explainer', title: 'Cron 表达式解读', category: 'developer', desc: '把 crontab 表达式翻译成中文说明，并给出接下来几次的执行时间。', keywords: ['cron', 'crontab', '定时'], component: () => import('./components/CronExplainer.vue') },
@@ -293,7 +293,8 @@ const tools: ToolDef[] = [
         ] },
       ],
       transform: (t, o) => gzipTransform(t, o),
-      placeholder: '输入要压缩的文本，或粘贴压缩串进行解压…（输出尾部附压缩统计；粘贴已压缩串会自动改为解压）',
+      stats: (t, o, out) => gzipStats(t, o, out),
+      placeholder: '输入要压缩的文本，或粘贴压缩串进行解压…（输出下方附压缩统计；粘贴已压缩串会自动改为解压）',
     },
   },
   {
@@ -347,6 +348,7 @@ const tools: ToolDef[] = [
         ] },
       ],
       transform: (t, o) => punycodeTransform(t, o),
+      stats: (t, o) => punyStats(t, o),
       placeholder: '每行一个域名，如 百度.示例 或 xn--fsq092h…（含 xn-- 自动转中文，含中文自动转编码）',
     },
   },
@@ -366,6 +368,7 @@ const tools: ToolDef[] = [
         { key: 'keepPrefix', label: '保留首段前缀（m_/_/等）', type: 'toggle', default: false },
       ],
       transform: (t, o) => caseStyleTransform(t, o),
+      stats: (t) => caseStats(t),
       placeholder: '每行一个变量名，任何风格皆可，如 user_name、userName、UserName、user-name…（输出首行附源风格检测摘要）',
     },
   },

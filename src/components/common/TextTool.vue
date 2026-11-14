@@ -14,6 +14,8 @@ const route = useRoute()
 
 const input = ref('')
 const output = ref('')
+/** 统计行（transform 返回 {text,stats} 时的附加信息，渲染在输出下方、不进输出正文） */
+const stats = ref('')
 const opts = ref<Record<string, string | number | boolean>>({})
 const pending = ref(false)
 /** 慢转换提示：同步转换瞬时完成不闪 loading，仅异步（如词库下载）超过 120ms 才显示 */
@@ -49,6 +51,7 @@ const run = async () => {
   // 空输入直接清空结果，不弹错误（避免清空即报 toast）
   if (!input.value.trim()) {
     output.value = ''
+    stats.value = ''
     return
   }
   const id = ++runId
@@ -60,9 +63,20 @@ const run = async () => {
   try {
     const r = props.def.transform(input.value, { ...opts.value })
     const out = r instanceof Promise ? await r : r
-    if (id === runId) output.value = out
+    if (id === runId) {
+      output.value = out
+      // 统计行通道：def.stats 单独计算，失败不影响输出正文
+      try {
+        stats.value = out ? (props.def.stats?.(input.value, { ...opts.value }, out) ?? '') : ''
+      } catch {
+        stats.value = ''
+      }
+    }
   } catch (e) {
-    if (id === runId) output.value = ''
+    if (id === runId) {
+      output.value = ''
+      stats.value = ''
+    }
     const msg = (e as Error).message || '转换失败'
     toast.err(/JSON|Unexpected token/i.test(msg) ? localizeJsonError(msg, input.value) : msg)
   } finally {
@@ -187,6 +201,7 @@ const clearAll = () => {
           :placeholder="slowPending ? '正在处理（首次使用需加载词库/数据，稍候）…' : '结果将出现在这里…'"
           @scroll="syncScroll('out')"
         ></textarea>
+        <p v-if="stats" class="io-stats">{{ stats }}</p>
       </div>
     </div>
 
@@ -200,6 +215,12 @@ const clearAll = () => {
 </template>
 
 <style scoped>
+/* 统计行：压缩率/条数等附加信息，置于输出框下方（不进输出正文，保证输出可直接复制） */
+.io-stats {
+  margin: 6px 2px 0;
+  font-size: 12px;
+  color: var(--muted, #8a93a6);
+}
 .text-opts {
   padding: 12px 14px;
   border: 1px solid var(--border);

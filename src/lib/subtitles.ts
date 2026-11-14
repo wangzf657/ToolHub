@@ -1,4 +1,4 @@
-/** 字幕引擎：SRT / WebVTT / SBV 互转与时间调整 */
+/** 字幕引擎：SRT / WebVTT / SBV / ASS 互转与时间调整 */
 
 export interface Cue {
   start: number // 秒
@@ -6,7 +6,7 @@ export interface Cue {
   text: string
 }
 
-export type SubFormat = 'srt' | 'vtt' | 'sbv' | 'txt'
+export type SubFormat = 'srt' | 'vtt' | 'sbv' | 'txt' | 'ass'
 
 function secToSrt(t: number): string {
   const h = Math.floor(t / 3600)
@@ -41,6 +41,8 @@ function parseTime(s: string): number {
 /** 自动识别并解析字幕 */
 export function parseSubs(input: string): { cues: Cue[]; format: SubFormat } {
   const text = input.replace(/\r\n?/g, '\n').trim()
+  // ASS/SSA 须在 SBV 之前嗅探：Dialogue 行内的时间对同样命中 SBV 的时间正则
+  if (/^\s*\[Script Info\]|^Dialogue:/m.test(text)) return { cues: parseAss(text), format: 'ass' }
   if (/^WEBVTT/m.test(text)) return { cues: parseVtt(text), format: 'vtt' }
   if (/^\d+\n\d{1,2}:\d{2}:\d{2}[,.]\d{3} --> /m.test(text) || /--> /.test(text)) {
     return { cues: parseSrt(text), format: 'srt' }
@@ -87,6 +89,63 @@ function parseSbv(text: string): Cue[] {
   return cues
 }
 
+/* ---------- ASS / SSA（V4+）：样式与元数据不保真，Dialogue 文本与时间轴正确往返 ---------- */
+
+/** 秒 → ASS 时间（H:MM:SS.cc，厘秒精度）：先取整到厘秒再分解，避免 59.996 进位出 "60.00" 的非法时间 */
+function secToAss(t: number): string {
+  const cs = Math.max(0, Math.round(t * 100))
+  const h = Math.floor(cs / 360000)
+  const m = Math.floor((cs % 360000) / 6000)
+  const s = Math.floor((cs % 6000) / 100)
+  return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}.${String(cs % 100).padStart(2, '0')}`
+}
+
+/** 最小可用 ASS 头（播放器可识别；统一输出 Default 样式） */
+const ASS_HEADER = [
+  '[Script Info]',
+  'ScriptType: v4.00+',
+  'PlayResX: 1920',
+  'PlayResY: 1080',
+  '',
+  '[V4+ Styles]',
+  'Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding',
+  'Style: Default,Microsoft YaHei,64,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,3,1,2,60,60,40,1',
+  '',
+  '[Events]',
+  'Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text',
+].join('\n')
+
+/** 解析 ASS/SSA：取 Dialogue 行（含逗号安全拼接），剥大括号特效标签，\N/\n 换行、\h 硬空格还原为纯文本 */
+export function parseAss(text: string): Cue[] {
+  const cues: Cue[] = []
+  for (const line of text.replace(/\r\n?/g, '\n').replace(/^\uFEFF/, '').split('\n')) {
+    if (!line.startsWith('Dialogue:')) continue
+    const parts = line.slice('Dialogue:'.length).split(',')
+    if (parts.length < 10) continue
+    const body = parts
+      .slice(9)
+      .join(',')
+      .replace(/\{[^}]*\}/g, '') // 剥离 {\i1} 等特效/绘制标签
+      .replace(/\\[Nn]/g, '\n') // \N 硬换行 / \n 软换行
+      .trim()
+      .replace(/\\h/g, '\u00A0') // \h 硬空格（trim 后再替换：U+00A0 也属 trim 白名单，行首硬空格才不会被误剥）
+    if (!body) continue
+    cues.push({ start: parseTime(parts[1] ?? ''), end: parseTime(parts[2] ?? ''), text: body })
+  }
+  return cues
+}
+
+/** 序列化为 ASS：换行还原为 \N、硬空格还原为 \h（保证再解析时行首硬空格不被 trim 剥掉）；时间厘秒精度往返一致 */
+export function serializeAss(cues: Cue[]): string {
+  const lines = cues.map(
+    (c) =>
+      `Dialogue: 0,${secToAss(c.start)},${secToAss(c.end)},Default,,0,0,0,,${c.text
+        .replace(/\n/g, '\\N')
+        .replace(/\u00A0/g, '\\h')}`,
+  )
+  return `${ASS_HEADER}\n${lines.join('\n')}\n`
+}
+
 export function serializeSubs(cues: Cue[], format: SubFormat): string {
   switch (format) {
     case 'srt':
@@ -105,6 +164,8 @@ export function serializeSubs(cues: Cue[], format: SubFormat): string {
       return cues.map((c) => `${secToSbv(c.start)},${secToSbv(c.end)}\n${c.text}`).join('\n') + '\n'
     case 'txt':
       return cues.map((c) => c.text).join('\n\n') + '\n'
+    case 'ass':
+      return serializeAss(cues)
   }
 }
 

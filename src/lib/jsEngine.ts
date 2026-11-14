@@ -637,10 +637,81 @@ export function generateMock(template: string, count: number, asArray = true): s
 
 /* ---------------- 假数据（行式） ---------------- */
 
-export function fakeRows(count: number, cols: { key: string; label: string }[]): { header: string[]; rows: string[][] } {
-  return {
-    header: cols.map((c) => c.label),
-    rows: Array.from({ length: count }, () => cols.map((c) => mockValue(`{{${c.key}}}`))),
+/** 字符串种子 → 32 位哈希（FNV-1a，同种子得到同随机序列） */
+function hashSeed(seed: string): number {
+  let h = 2166136261
+  for (let i = 0; i < seed.length; i++) {
+    h ^= seed.charCodeAt(i)
+    h = Math.imul(h, 16777619)
+  }
+  return h >>> 0
+}
+
+/** mulberry32 确定性伪随机序列（种子复现用） */
+function mulberry32(a: number): () => number {
+  return () => {
+    a |= 0
+    a = (a + 0x6d2b79f5) | 0
+    let t = Math.imul(a ^ (a >>> 15), 1 | a)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+/**
+ * 种子复现期间临时接管随机源（mockValue 的全部随机依赖：
+ * Math.random / crypto.randomUUID / Date.now），同步执行完立即恢复。
+ */
+function seedRandomSources(seedStr: string): () => void {
+  const rng = mulberry32(hashSeed(seedStr))
+  const origRandom = Math.random
+  const origNow = Date.now
+  const frozenNow = origNow()
+  Math.random = rng
+  Date.now = () => frozenNow
+  const hadOwnUuid = Object.prototype.hasOwnProperty.call(crypto, 'randomUUID')
+  const hex = (n: number) => Array.from({ length: n }, () => Math.floor(rng() * 16).toString(16)).join('')
+  // crypto.randomUUID 定义在 Crypto.prototype 上，用实例属性遮蔽（configurable 便于恢复）
+  Object.defineProperty(crypto, 'randomUUID', {
+    value: () => `${hex(8)}-${hex(4)}-4${hex(3)}-a${hex(3)}-${hex(12)}`,
+    configurable: true,
+  })
+  return () => {
+    if (!hadOwnUuid) delete (crypto as { randomUUID?: unknown }).randomUUID
+    Math.random = origRandom
+    Date.now = origNow
+  }
+}
+
+/** 种子域执行任意生成逻辑（组件层本地随机字段一并纳管，保证「同种子两次输出逐字节相等」） */
+export function withSeed<T>(seedStr: string, fn: () => T): T {
+  const restore = seedRandomSources(seedStr)
+  try {
+    return fn()
+  } finally {
+    restore()
+  }
+}
+
+/**
+ * 行式假数据（fake-data-generator 用）。
+ * seed：可选种子（数字或字符串）——传入同一种子时输出逐字节可复现（「种子复现」处方），
+ * 不传保持现状（纯随机）。
+ */
+export function fakeRows(
+  count: number,
+  cols: { key: string; label: string }[],
+  seed?: number | string,
+): { header: string[]; rows: string[][] } {
+  const seedStr = seed === undefined ? '' : String(seed).trim()
+  const restore = seedStr ? seedRandomSources(seedStr) : null
+  try {
+    return {
+      header: cols.map((c) => c.label),
+      rows: Array.from({ length: count }, () => cols.map((c) => mockValue(`{{${c.key}}}`))),
+    }
+  } finally {
+    restore?.()
   }
 }
 

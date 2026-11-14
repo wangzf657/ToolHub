@@ -1,5 +1,7 @@
-/** 视频引擎：Canvas/MediaRecorder 快路径 */
+/** 视频引擎：Canvas/MediaRecorder 快路径 + ffmpeg 引擎加载（含下载进度）与轨道探测 */
 import { canvasToBlob } from './imageEngine'
+import { getFf } from './ffmpeg'
+import type { FFmpeg } from '@ffmpeg/ffmpeg'
 
 export interface VideoMeta {
   width: number
@@ -206,6 +208,93 @@ export async function extractAudioBuffer(
   } catch {
     return null
   }
+}
+
+/* ---------- ffmpeg 引擎层：带进度的加载（FfBase 家族）+ 轨道探测 ---------- */
+/** 核心下载进度（字节；total 为 0 表示总大小未知，仅报已下载量） */
+export interface FfCoreProgress { loaded: number; total: number }
+
+/** 与 lib/ffmpeg.ts 内置核心地址保持一致（改版本需两处同步） */
+const FF_CORE_WASM = 'https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd/ffmpeg-core.wasm'
+/** 本页会话内引擎已确认就绪（实例本体由 getFf 全局单例持有，此处仅避免重复预取） */
+let engineReady = false
+/**
+ * 带下载进度的 ffmpeg 引擎加载（视频家族基座共用）：先按字节流预取 wasm 核心
+ * （有 content-length 时给出真实百分比，命中浏览器缓存则秒过），再交给 getFf 完成
+ * 实际加载——复用全局单例不产生第二个实例；预取失败不拦流程（仅失去进度显示）。
+ */
+export async function loadFfEngine(onProgress?: (p: FfCoreProgress) => void): Promise<FFmpeg> {
+  if (engineReady) return getFf()
+  try {
+    const res = await fetch(FF_CORE_WASM)
+    if (!res.ok) throw new Error(String(res.status))
+    const total = Number(res.headers.get('content-length')) || 0
+    if (res.body && total > 0) {
+      const reader = res.body.getReader()
+      let received = 0
+      for (;;) {
+        const { done, value } = await reader.read()
+        if (done) break
+        received += value?.length ?? 0
+        onProgress?.({ loaded: received, total })
+      }
+    } else {
+      // 拿不到流/总大小时退化为一次性报 100%
+      const buf = await res.arrayBuffer()
+      onProgress?.({ loaded: buf.byteLength, total: buf.byteLength })
+    }
+  } catch {
+    /* 预取失败不拦流程：getFf 自会下载，仅失去进度显示 */
+  }
+  const ff = await getFf()
+  engineReady = true
+  return ff
+}
+
+/**
+ * 探测视频文件的音轨/字幕轨（ffprobe 语义：干跑 `ffmpeg -i` 解析 stderr 流信息）。
+ * 每条轨为可读字符串，形如「#0:2 eng · ac3」，前缀 #0:N 为输入流索引（可直接拼 -map 0:N）。
+ * 引擎加载失败或解析不出流信息时诚实返回 null；无音轨/字幕轨则是空数组（有效结果而非失败）。
+ * 注意：文件会全量写入 wasm 内存，大文件慎用。
+ */
+export async function probeTracks(file: File): Promise<{ audio: string[]; subtitles: string[] } | null> {
+  let ff: FFmpeg
+  try {
+    ff = await loadFfEngine()
+  } catch {
+    return null // 引擎加载失败（如网络不可用），诚实返回 null
+  }
+  const lines: string[] = []
+  const onLog = ({ message }: { message: string }) => lines.push(message)
+  // 保留源扩展名帮助识别容器，无扩展名时用通用名兜底
+  const name = `probe_input.${/\.(\w{1,5})$/.exec(file.name)?.[1] ?? 'bin'}`
+  ff.on('log', onLog)
+  try {
+    await ff.writeFile(name, new Uint8Array(await file.arrayBuffer()))
+    // 无输出文件的 -i 以非零码退出属预期，流信息已在日志里
+    await ff.exec(['-hide_banner', '-i', name])
+  } catch {
+    /* 解析不到流信息时按 null 返回 */
+  } finally {
+    ff.off('log', onLog)
+    try {
+      await ff.deleteFile(name)
+    } catch {
+      /* 忽略 */
+    }
+  }
+  const audio: string[] = []
+  const subtitles: string[] = []
+  // 形如 "  Stream #0:2[0x80](eng): Audio: ac3, 48000 Hz, stereo" / "  Stream #0:3(chi): Subtitle: subrip"
+  const re = /Stream #0:(\d+)(?:\[[^\]]*\])?(?:\(([^)]*)\))?:\s*(Audio|Subtitle):\s*([^,]+)/
+  for (const l of lines) {
+    const m = re.exec(l)
+    if (!m) continue
+    const lang = !m[2] || m[2] === 'und' ? '未标注语言' : m[2]
+    ;(m[3] === 'Audio' ? audio : subtitles).push(`#0:${m[1]} ${lang} · ${m[4].trim()}`)
+  }
+  if (!lines.some((l) => /Stream #0:\d+/.test(l))) return null
+  return { audio, subtitles }
 }
 
 export { canvasToBlob }

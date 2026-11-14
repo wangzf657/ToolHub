@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * 提取视频音轨：mp3 / m4a / wav；4 个注册 slug 复用本组件。
- * MP4/MOV/WebM 源优先走浏览器解码快路径（无需 25MB 核心），失败回落 ffmpeg；
+ * MP4/MOV/WebM 源优先走浏览器解码快路径（无需 30MB 核心），失败回落 ffmpeg；
  * WAV/MP3 结果内嵌试听播放器，点下载才落盘。
  */
 import { computed, onBeforeUnmount, ref } from 'vue'
@@ -147,7 +147,7 @@ const run = async () => {
       预计 WAV 输出 ≈ {{ fmtSize(wavEstimate) }}{{ wavEstimate > 300 * 1024 * 1024 ? '，体积较大，如只需通用聆听建议改用 MP3/M4A' : '' }}
     </p>
     <p class="ext-note">
-      MP4 / MOV / WebM 等常见容器会优先走浏览器内置解码（无需下载 25MB 核心、约数秒完成）；音轨较特殊时自动回落 ffmpeg。
+      MP4 / MOV / WebM 等常见容器会优先走浏览器内置解码（无需下载 30MB 核心、约数秒完成）；音轨较特殊时自动回落 ffmpeg。
       MP3 默认 VBR 质量 3，WAV 适合剪辑与语音识别。
     </p>
 
@@ -157,7 +157,7 @@ const run = async () => {
     </div>
     <div v-if="running && !encProgress" class="muted small mt-1"><Loader2 :size="13" class="spin inline" /> 处理中…</div>
 
-    <FfExpectHint text="浏览器解码快路径约数秒完成；ffmpeg 兜底约为视频时长的 1/5~1/10（仅音频编码），首次使用需加载约 25MB 编解码核心。处理期间请保持页面打开。" />
+    <FfExpectHint text="浏览器解码快路径约数秒完成；ffmpeg 兜底约为视频时长的 1/5~1/10（仅音频编码），首次使用需加载约 30MB 编解码核心。处理期间请保持页面打开。" />
 
     <div v-if="resultUrl" class="result-card mt-2">
       <p class="rc-title">提取结果<template v-if="fastUsed">（浏览器快路径）</template></p>

@@ -15,7 +15,7 @@ const mode = ref<'quality' | 'size'>('quality')
 const quality = ref(28)
 const targetMB = ref(10)
 
-/** 首用编解码核心下载进度（约 25MB，读完即入队压缩流程） */
+/** 首用编解码核心下载进度（约 30MB，读完即入队压缩流程） */
 const dlLoaded = ref(0)
 const dlTotal = ref(0)
 const downloading = ref(false)
@@ -192,12 +192,12 @@ const rerunSmaller = () => {
       </template>
     </div>
     <p class="muted small expect-note">
-      浏览器本地压缩速度约为视频时长的 1/2~1/5（首次还需加载 25MB 编解码核心），处理期间请保持页面打开，勿刷新。
+      浏览器本地压缩速度约为视频时长的 1/2~1/5（首次还需加载 30MB 编解码核心），处理期间请保持页面打开，勿刷新。
     </p>
     <p v-if="runningNow" class="expect-note strong">正在压缩中：约为视频时长的 1/2~1/5，请耐心等待，勿刷新或关闭页面。</p>
 
     <div v-if="downloading" class="dl-card mt-1">
-      <span>正在加载编解码核心（约 25MB）…</span>
+      <span>正在加载编解码核心（约 30MB）…</span>
       <div class="dl-track">
         <div class="dl-fill" :style="{ width: dlTotal ? `${Math.max(2, Math.round((dlLoaded / dlTotal) * 100))}%` : '40%' }"></div>
       </div>

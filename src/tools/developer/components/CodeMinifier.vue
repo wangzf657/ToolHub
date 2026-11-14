@@ -5,10 +5,11 @@ import { Minimize2, Loader2 } from 'lucide-vue-next'
 import ResultBox from '@/components/common/ResultBox.vue'
 import { useToast } from '@/composables/useToast'
 import { installCtrlEnter } from '@/composables/usePasteRun'
+import { minifyCode, type MinifyLang } from './minifyCore'
 
 const toast = useToast()
 const input = ref('function hello(name){/* 注释会被移除 */ const msg=`你好, ${name}!`;console.log(msg)}')
-const lang = ref<'auto' | 'js' | 'css'>('auto')
+const lang = ref<MinifyLang>('auto')
 /** mangle 档位（rx4）：激进档压缩模块代码时顶层变量也被重命名 */
 const mangleTop = ref(false)
 const output = ref('')
@@ -24,24 +25,8 @@ const run = async () => {
   detected.value = ''
   try {
     const t = input.value
-    const cssHits = (t.match(/[{;]\s*[-\w]+\s*:\s*[^;{}]+;/g) ?? []).length + (t.match(/@(media|import|charset|font-face|keyframes|supports)\b/g) ?? []).length
-    const jsHits = (t.match(/\b(function|const|let|var|return|import|export|class)\b|=>/g) ?? []).length
-    const isCss = lang.value === 'css' || (lang.value === 'auto' && cssHits > jsHits)
-    detected.value = isCss ? 'CSS（csso）' : 'JavaScript（terser）'
-    let out: string
-    if (isCss) {
-      const csso = await import('csso')
-      out = csso.minify(t).css
-    } else {
-      const { minify } = await import('terser')
-      const r = await minify(t, {
-        module: mangleTop.value, // 激进档：toplevel mangle 重命名顶层变量
-        compress: true,
-        mangle: mangleTop.value ? { toplevel: true } : true,
-        format: { comments: false },
-      })
-      out = r.code ?? ''
-    }
+    const { out, engine } = await minifyCode(t, lang.value, mangleTop.value)
+    detected.value = engine === 'CSS/csso' ? 'CSS（csso）' : 'JavaScript（terser）'
     output.value = out
     const a = new Blob([t]).size
     const b = new Blob([out]).size
@@ -49,7 +34,7 @@ const run = async () => {
     stats.value = `原始 ${a.toLocaleString()} B → ${b.toLocaleString()} B（- ${pct}%）`
     toast.ok('压缩完成')
   } catch (e) {
-    toast.err(`压缩失败：${(e as Error).message}（请确认代码语法正确，或手动指定语言）`)
+    toast.err((e as Error).message)
   } finally {
     busy.value = false
   }

@@ -112,7 +112,7 @@ onBeforeUnmount(() => {
     <p class="gif-note">
       从截取片段采样生成调色板再映射，画质比单次转换好得多。建议控制在 10 秒内：GIF 体积随长度与宽度迅速增大。
     </p>
-    <FfExpectHint text="GIF 编码较慢（两步调色板 + 逐帧编码），10 秒选段约需 30~90 秒；首次使用需加载约 25MB 编解码核心。处理期间请保持页面打开，勿刷新或关闭标签页。" />
+    <FfExpectHint text="GIF 编码较慢（两步调色板 + 逐帧编码），10 秒选段约需 30~90 秒；首次使用需加载约 30MB 编解码核心。处理期间请保持页面打开，勿刷新或关闭标签页。" />
 
     <div v-if="resultUrl" class="result-card mt-2">
       <p class="rc-title">GIF 结果</p>

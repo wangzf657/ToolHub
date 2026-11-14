@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { Bot, Download, Plus, X } from 'lucide-vue-next'
 import { saveText } from '@/lib/download'
 import { useToast } from '@/composables/useToast'
 
 const toast = useToast()
 const router = useRouter()
+const route = useRoute()
 const policy = ref<'allow-all' | 'deny-all'>('allow-all')
 const crawlDelay = ref('0')
 /** Crawl-delay 挂到哪个 UA 组（rx4） */
@@ -87,6 +88,18 @@ const goSitemap = () => {
   if (domain) sessionStorage.setItem('toolhub.transfer.sitemap-generator', JSON.stringify({ domain }))
   router.push('/t/sitemap-generator')
 }
+
+/** 互链契约接收端：SitemapGenerator 跳转带 ?sitemap=<url>（vue-router 已自动解码），预填并提示来源 */
+const sitemapFromQuery = ref('')
+onMounted(() => {
+  const q = route.query.sitemap
+  if (typeof q !== 'string' || !q.trim()) return
+  const url = q.trim()
+  const lines = sitemap.value.split('\n').map((l) => l.trim()).filter(Boolean)
+  if (!lines.includes(url)) sitemap.value = [...lines, url].join('\n')
+  sitemapFromQuery.value = url
+  toast.ok('已带入 Sitemap 生成器传入的地址')
+})
 </script>
 
 <template>
@@ -137,6 +150,9 @@ const goSitemap = () => {
     <div class="mt-2">
       <span class="field-label">Sitemap 地址（每行一条，可多条）</span>
       <textarea v-model="sitemap" class="textarea mono" style="min-height: 56px" placeholder="https://example.com/sitemap.xml"></textarea>
+      <p v-if="sitemapFromQuery" class="notice notice-info small" style="margin-top: 6px">
+        已带入 Sitemap 生成器传入的地址：{{ sitemapFromQuery }}（可继续编辑或删除）。
+      </p>
     </div>
 
     <ResultBox v-model="text" title="robots.txt 预览" min-height="220px" class="mt-3" />

@@ -254,7 +254,7 @@ async function runFf() {
     <div class="notice notice-info mt-1">
       <Info :size="15" />
       <span>
-        WAV / MP3 目标解码后即时完成；M4A / FLAC / OGG / AAC / OPUS 目标自动改用 ffmpeg 引擎（首次约 25MB）。
+        WAV / MP3 目标解码后即时完成；M4A / FLAC / OGG / AAC / OPUS 目标自动改用 ffmpeg 引擎（首次约 30MB）。
         WMA、OPUS 等浏览器解不了的源文件，选 MP3 / WAV 目标时同样会自动走 ffmpeg。
         已按当前工具预设目标格式，也可点击上方按钮切换。
       </span>
@@ -296,7 +296,7 @@ async function runFf() {
       </div>
       <p v-if="silkDetected" class="warn-line mt-1">⚠ 微信 SILK 格式无法被本工具解码：请先转换为 MP3/AMR 等通用格式（见上方提示）</p>
       <div v-if="preloading" class="dl-card mt-1">
-        <span>正在加载编解码核心（约 25MB）…</span>
+        <span>正在加载编解码核心（约 30MB）…</span>
         <div class="prog-track"><div class="prog-fill" :style="{ width: dlTotal ? `${Math.max(2, Math.round((dlLoaded / dlTotal) * 100))}%` : '40%' }"></div></div>
         <span class="muted small">{{ dlTotal ? `已下载 ${sizeLabel(dlLoaded)} / ${sizeLabel(dlTotal)}` : '准备下载…' }}</span>
       </div>

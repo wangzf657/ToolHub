@@ -54,8 +54,15 @@ export function smartCell(v: string): string | number {
 export async function docxToHtml(file: File | Blob): Promise<string> {
   const mammoth = await import('mammoth')
   const buf = await file.arrayBuffer()
-  const r = await mammoth.convertToHtml({ arrayBuffer: buf })
-  return r.value
+  const r = await mammoth.convertToHtml(
+    { arrayBuffer: buf },
+    {
+      // 删除线 styleMap：映射到语义化 <del>（SEO 口径；下游 turndown GFM 再转 ~~文本~~）
+      styleMap: ["r[style-name='Strikethrough'] => del", "r[style-name='删除线'] => del"],
+    },
+  )
+  // mammoth 对直格式删除线可能输出 <s>，统一归一到 <del>
+  return r.value.replace(/<s>/g, '<del>').replace(/<\/s>/g, '</del>')
 }
 
 /** 生成简单 docx（段落） */

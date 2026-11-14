@@ -77,6 +77,8 @@ export interface TextToolDef {
   placeholder?: string
   /** 是否单行输入 */
   singleLine?: boolean
+  /** 统计行（可选）：转换后由 TextTool 调用，渲染在输出区下方——输出正文保持纯净可直接复制 */
+  stats?: (input: string, opts: Record<string, string | number | boolean>, output: string) => string
 }
 
 /** 计算器字段定义 */

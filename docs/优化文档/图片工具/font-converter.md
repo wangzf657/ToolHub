@@ -2,7 +2,7 @@
 
 > 分类：图片工具｜模式：C（单列文件流，独立组件）｜组件：`src/tools/image/components/FontConverter.vue`（全文 227 行）｜引擎：`src/lib/fileExt.ts:92/142/190`（readFontInfo/sfntToWoff/woffToSfnt，自研 WOFF 1.0 容器+pako zlib）
 > 对标标杆：CloudConvert（字体矩阵）＋ Convertio（TTF/WOFF/WOFF2 全互转）
-> 已知边界：WOFF2 不支持为设计文档明确决策（`docs/V1.1/设计文档.md:71`：需 woff2 wasm，未引入）
+> 已知边界：WOFF2 不支持为设计文档明确决策（`docs/V1.0/设计文档.md`「已知边界」：需 woff2 wasm，未引入）
 
 ## 七维评分：62 / 100
 
@@ -26,7 +26,7 @@
 
 ## 扣分点明细
 
-1. 【功能】**WOFF2 双向缺失**：detect 识别 wOF2 后直接拒绝（`FontConverter.vue:48-50`），sfnt→WOFF2 也无法输出——CloudConvert/Convertio 均支持 woff2（含 brotli），当前 web 字体交付事实标准缺失；设计文档已登记为暂缓决策（V1.1 设计文档.md:71），此处计为"已知边界"而非新缺陷
+1. 【功能】**WOFF2 双向缺失**：detect 识别 wOF2 后直接拒绝（`FontConverter.vue:48-50`），sfnt→WOFF2 也无法输出——CloudConvert/Convertio 均支持 woff2（含 brotli），当前 web 字体交付事实标准缺失；设计文档已登记为暂缓决策（docs/V1.0/设计文档.md「已知边界」），此处计为"已知边界"而非新缺陷
 2. 【功能】无批量：`:multiple="false"`（:103），多字重字体族（Light/Regular/Bold）要逐个拖放转换——字体族恰是批量需求最集中的场景
 3. 【可用性】name 记录列表钉 240px（:189-194）：CJK 字体 name 表记录几十条时小窗内滚；表标签多时 tags 区无折叠
 4. 【交互】转换按钮与下载按钮分离两步（:111-115）：转换成功后下载按钮才出现，新手可能不知道要再点一次"下载"（toast 有提示但按钮无高亮变化）

@@ -6,7 +6,7 @@
  * - 编辑器节沿用旧文档约定:工作室在所属分类与编辑器分类各登记一条(求和会高于唯一数)。
  *
  * 用法:node scripts/gen-tool-list.mjs [--out <清单路径>]
- *   默认写入当前版本(docs/V1.1/工具清单-V1.1.md);新版本落地时用 --out 指向新版本文件夹,
+ *   默认写入当前版本(docs/V1.0/工具清单-V1.0.md);新版本落地时用 --out 指向新版本文件夹,
  *   并同步修改本脚本的 DEFAULT_DOC(见 AGENTS.md 文档规约)。
  */
 import { createRequire } from 'node:module'
@@ -18,7 +18,7 @@ const here = import.meta.dirname
 const root = path.resolve(here, '..')
 const require = createRequire(import.meta.url)
 /** 当前版本的工具清单路径(新版本落地时同步更新) */
-const DEFAULT_DOC = 'docs/V1.1/工具清单-V1.1.md'
+const DEFAULT_DOC = 'docs/V1.0/工具清单-V1.0.md'
 const outArg = process.argv.indexOf('--out')
 const DOC = path.join(root, outArg >= 0 && process.argv[outArg + 1] ? process.argv[outArg + 1] : DEFAULT_DOC)
 

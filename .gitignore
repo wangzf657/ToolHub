@@ -53,3 +53,5 @@ scripts/_bundle-tool-list.cjs
 
 # 测试运行时生成的 esbuild 产物
 scripts/tests/_bundle-testables.cjs
+scripts/_bundle-golden.cjs
+scripts/_bundle-ledger.cjs

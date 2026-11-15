@@ -2,13 +2,13 @@
 
 # 百宝工具箱 ToolHub
 
-> **你的文件，永不离机** —— 520 个纯浏览器端工具，聚合一页。
+> **你的文件，永不离机** —— 511 个纯浏览器端工具，聚合一页。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Vue](https://img.shields.io/badge/Vue-3.5-42b883.svg)](https://vuejs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6.svg)](https://www.typescriptlang.org)
 [![Vite](https://img.shields.io/badge/Vite-6-646cff.svg)](https://vite.dev)
-[![Tools](https://img.shields.io/badge/Tools-520%20%E6%9C%AC%E5%9C%B0%E5%A4%84%E7%90%86-f59e0b.svg)](#-工具分类)
+[![Tools](https://img.shields.io/badge/Tools-511%20%E6%9C%AC%E5%9C%B0%E5%A4%84%E7%90%86-f59e0b.svg)](#-工具分类)
 
 图片 · 视频 · 音频 · PDF · 数据 · 开发 · 金融 · SEO · 端侧 AI —— **全部在你的浏览器本地运行，文件永不上传。**
 
@@ -37,19 +37,19 @@
 
 | 分类 | 工具数 | 代表能力 |
 |---|---:|---|
-| 图片工具 | 73 | 压缩、转格式、调整尺寸、裁剪、滤镜、OCR、抠图、GIF 制作 |
-| 实用工具 | 135 | 二维码、密码生成、单位换算、各类计算器、文本处理 |
-| 开发工具 | 92 | JSON 格式化、哈希、Base64、JWT、正则测试、TOTP/加密 |
+| 图片工具 | 71 | 压缩、转格式、调整尺寸、裁剪、滤镜、OCR、抠图、GIF 制作 |
+| 实用工具 | 132 | 二维码、密码生成、单位换算、各类计算器、文本处理 |
+| 开发工具 | 91 | JSON 格式化、哈希、Base64、JWT、正则测试、TOTP/加密 |
 | PDF 工具 | 54 | 合并、拆分、加密、页码、水印、转图片、转 Office |
-| 视频工具 | 42 | 压缩到指定大小、MP4/WebM/MOV 转换、裁剪合并、变速、抽帧、转 GIF |
-| 音频工具 | 38 | MP3/WAV/M4A/FLAC 转换、压缩、降噪、变调、白噪音、调音器 |
+| 视频工具 | 41 | 压缩到指定大小、MP4/WebM/MOV 转换、裁剪合并、变速、抽帧、转 GIF |
+| 音频工具 | 37 | MP3/WAV/M4A/FLAC 转换、压缩、降噪、变调、白噪音、调音器 |
 | 金融交易 | 20 | 期权定价、仓位管理、IRR/NPV、还款计划表等计算器（附计算口径） |
-| 商业 SaaS | 16 | LTV、CAC、流失率、MRR/ARR、留存热力图、简历生成器 |
+| 商业 SaaS | 15 | LTV、CAC、流失率、MRR/ARR、留存热力图、简历生成器 |
 | SEO 工具 | 13 | JSON-LD 结构化数据、hreflang、站点地图、搜索结果预览、关键词分析 |
 | AI 工具 | 15 | 端侧 AI：摘要、情感分析、关键词、翻译、OCR、抠图、图像分类（本地推理） |
 | 数据工具 | 18 | 浏览器内分析 CSV / Excel / Parquet / SQLite：SQL 查询、透视、图表、对比 |
 | 编辑器工作室 | 4 | PDF 工作台、视频工作台、照片工作台、数据工作台 |
-| **合计** | **520** | |
+| **合计** | **511** | |
 
 ## 🚀 快速开始
 
@@ -70,7 +70,7 @@ npm run preview    # 本地预览构建产物
 | 框架 | Vue 3.5（`<script setup>` 组合式 API） |
 | 语言 | TypeScript（strict） |
 | 构建 | Vite 6 |
-| 路由 | Vue Router 4（hash 模式，纯静态可部署） |
+| 路由 | Vue Router 4（history 模式，SEO 友好，需 SPA 回退） |
 | 样式 | 手写设计系统（CSS 变量令牌，明暗双主题） |
 | PDF | @cantoo/pdf-lib（读写+加密）、pdfjs-dist（渲染/文本） |
 | 表格 | papaparse、SheetJS(xlsx)、hyparquet（Parquet） |
@@ -96,7 +96,7 @@ src/
 
 核心设计：**注册表驱动**。每个工具在分类 `registry.ts` 中声明元数据与实现方式（自定义组件 / 内联文本转换 / 内联计算器 / 通用格式转换配置），工具页按声明渲染；共享引擎承担全部重逻辑，工具组件只做输入交互。
 
-- 路由为 hash 模式 + `base: './'`，产物可放任意静态目录，无需服务器 rewrite 配置。
+- 路由为 history 模式 + `base: '/'`（静态资源绝对路径），宿主需支持 SPA 回退（所有路径回退到 index.html）。
 - 首次使用需下载模型/编解码器的工具（OCR、抠图、转写、ffmpeg）标注 `needModel`，界面显示明确下载提示；下载后浏览器缓存，可离线使用。
 - 收藏 / 主题等偏好保存在 localStorage。
 
@@ -118,11 +118,10 @@ history 路由要求宿主支持 SPA 回退（Cloudflare Pages / Netlify / Verce
 | 文档 | 内容 |
 |---|---|
 | [docs/基础设计规约.md](docs/基础设计规约.md) | 唯一全版本规约：产品定位、信息架构、视觉体系、工程契约（注册表格式、实现模式、引擎 API） |
-| [docs/V1.1/](docs/V1.1/) | 当前版本基线（520 项）：需求文档、设计文档、工具清单、依赖清单 |
-| [docs/V1.0/](docs/V1.0/) | 上一版本基线（402 项）快照，只读留档 |
+| [docs/V1.0/](docs/V1.0/) | 当前版本基线（511 项）：需求文档、设计文档、工具清单、依赖清单 |
 
 提交前请确保 `npm run typecheck` 通过（`npm run build` 自带类型检查）。
 
 ## 📄 License
 
-[MIT](LICENSE)（本项目自有代码）。第三方依赖的许可见 [docs/V1.1/依赖清单-V1.1.md](docs/V1.1/依赖清单-V1.1.md)。
+[MIT](LICENSE)（本项目自有代码）。第三方依赖的许可见 [docs/V1.0/依赖清单-V1.0.md](docs/V1.0/依赖清单-V1.0.md)。

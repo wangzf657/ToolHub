@@ -42,7 +42,7 @@
 - **code-minifier**:真 terser/csso 引擎站内领先 → 保留;钉高问题已由 TextTool 壳解决
 - **translator**:档案结论"交互优化+需拓展" → 保留;desc 已改为诚实口径(词级替换,非神经网络)
 
-**联动清理**:EXPECT_COUNT(image 71/video 41/audio 37/utility 132/developer 91/business 15)、各注册表头注释、site.ts 510+、router /studio 重定向指向 studios、popularSlugs(rmb-uppercase→number-to-words)、CodeFormatter slug 分支、V1.1 工具清单重生成(511 行)、测试用例迁移(statistics/tdee/number-to-words 新键)。
+**联动清理**:EXPECT_COUNT(image 71/video 41/audio 37/utility 132/developer 91/business 15)、各注册表头注释、site.ts 510+、router /studio 重定向指向 studios、popularSlugs(rmb-uppercase→number-to-words)、CodeFormatter slug 分支、工具清单重生成(511 行)、测试用例迁移(statistics/tdee/number-to-words 新键)。
 
 ---
 

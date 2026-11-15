@@ -32,7 +32,29 @@ const BGS = [
 ]
 
 /** highlight.js core + 按需注册语言（比 common 全量更轻），auto 模式用这些语言做自动检测 */
-const LANGS = ['javascript', 'typescript', 'python', 'java', 'go', 'rust', 'c', 'cpp', 'csharp', 'php', 'sql', 'bash', 'yaml', 'json', 'css', 'xml', 'markdown']
+const LANGS = ['javascript', 'typescript', 'python', 'java', 'go', 'rust', 'c', 'cpp', 'csharp', 'php', 'sql', 'bash', 'yaml', 'json', 'css', 'xml', 'markdown'] as const
+
+// 语言模块映射表：import 说明符必须写成字面量，Vite 才能在构建期静态分析并打包。
+// BUG-001 教训：模板字符串动态 import 产物中保留原生 import()，浏览器无法解析 npm 包说明符，高亮完全失效。
+const LANG_MODULES: Record<(typeof LANGS)[number], () => Promise<{ default: unknown }>> = {
+  javascript: () => import('highlight.js/lib/languages/javascript'),
+  typescript: () => import('highlight.js/lib/languages/typescript'),
+  python: () => import('highlight.js/lib/languages/python'),
+  java: () => import('highlight.js/lib/languages/java'),
+  go: () => import('highlight.js/lib/languages/go'),
+  rust: () => import('highlight.js/lib/languages/rust'),
+  c: () => import('highlight.js/lib/languages/c'),
+  cpp: () => import('highlight.js/lib/languages/cpp'),
+  csharp: () => import('highlight.js/lib/languages/csharp'),
+  php: () => import('highlight.js/lib/languages/php'),
+  sql: () => import('highlight.js/lib/languages/sql'),
+  bash: () => import('highlight.js/lib/languages/bash'),
+  yaml: () => import('highlight.js/lib/languages/yaml'),
+  json: () => import('highlight.js/lib/languages/json'),
+  css: () => import('highlight.js/lib/languages/css'),
+  xml: () => import('highlight.js/lib/languages/xml'),
+  markdown: () => import('highlight.js/lib/languages/markdown'),
+}
 
 interface HljsLike {
   registerLanguage: (name: string, fn: unknown) => void
@@ -44,11 +66,11 @@ let hljsReady: HljsLike | null = null
 
 const getHljs = async (): Promise<HljsLike> => {
   if (hljsReady) return hljsReady
-  const core = (await import('highlight.js/lib/core')) as unknown as HljsLike
+  // highlight.js/lib/core 为 default-only 导出，须取 .default（裸 namespace 上没有 registerLanguage）
+  const coreMod = (await import('highlight.js/lib/core')) as unknown as { default: HljsLike }
+  const core = coreMod.default
   for (const l of LANGS) {
-    if (l === 'c') continue // c 已随 cpp 注册
-    const mod = (await import(`highlight.js/lib/languages/${l}.js`)) as unknown as { default: unknown }
-    core.registerLanguage(l, mod.default)
+    core.registerLanguage(l, (await LANG_MODULES[l]()).default)
   }
   hljsReady = core
   return core
@@ -57,13 +79,13 @@ const getHljs = async (): Promise<HljsLike> => {
 const highlight = async (codeText: string, langName: string) => {
   const hljs = await getHljs()
   if (langName === 'auto') {
-    const r = hljs.highlightAuto(codeText, LANGS.filter((x) => x !== 'c'))
+    const r = hljs.highlightAuto(codeText, [...LANGS])
     return { html: r.value, detected: r.language ?? '' }
   }
   try {
     return { html: hljs.highlight(codeText, { language: langName }).value, detected: langName }
   } catch {
-    return { html: hljs.highlightAuto(codeText, LANGS.filter((x) => x !== 'c')).value, detected: '' }
+    return { html: hljs.highlightAuto(codeText, [...LANGS]).value, detected: '' }
   }
 }
 

@@ -1,15 +1,17 @@
-// 回归专项:D-01~D-03 C 级缺陷逐项深度复验 + 关键 M 级引擎侧复核
+// 回归专项:D-01~D-03 C 级缺陷逐项深度复验 + 关键 M 级引擎侧复核 + BUG-001~003(V1.0 首轮)哨兵
 import { build } from 'esbuild'
 import { pathToFileURL } from 'node:url'
+import { readFileSync } from 'node:fs'
 import path from 'node:path'
 
 const here = import.meta.dirname
 const root = path.resolve(here, '../..')
 const EXTERNAL = ['papaparse', '@cantoo/pdf-lib', 'pdfjs-dist', 'xlsx', 'mammoth', 'docx', 'pptxgenjs', 'jspdf', 'js-yaml', '@iarna/toml', 'prettier', 'diff', 'sql-formatter', 'jszip']
 
-// 补打本脚本引用的全部入口(textEngine/pdfEngine/jsEngine/nlpEngine/注册表),不依赖其他脚本的产物
+// 补打本脚本引用的全部入口(textEngine/validators/pdfEngine/jsEngine/nlpEngine/注册表),不依赖其他脚本的产物
 for (const [name, entry] of [
   ['textEngine', 'src/lib/textEngine.ts'],
+  ['validators', 'src/lib/validators.ts'],
   ['registry', 'src/tools/index.ts'],
   ['pdfEngine', 'src/lib/pdfEngine.ts'],
   ['jsEngine', 'src/lib/jsEngine.ts'],
@@ -26,6 +28,7 @@ const pdf = await import(pathToFileURL(path.join(root, P, 'pdfEngine.mjs')).href
 const js = await import(pathToFileURL(path.join(root, P, 'jsEngine.mjs')).href)
 const nlp = await import(pathToFileURL(path.join(root, P, 'nlpEngine.mjs')).href)
 const text = await import(pathToFileURL(path.join(root, P, 'textEngine.mjs')).href)
+const val = await import(pathToFileURL(path.join(root, P, 'validators.mjs')).href)
 const reg = await import(pathToFileURL(path.join(root, P, 'registry.mjs')).href)
 
 let pass = 0, fail = 0
@@ -151,6 +154,35 @@ try {
   chk('R-不回归', 'jsonToTs 仍正常', /a:\s*number/.test(kw) && /b:\s*string/.test(kw))
   chk('D-17', '列表去重 trim 输出一致', JSON.stringify(text.removeDuplicateLines('  a\na\nb', { trim: true })) === '{"result":"a\\nb","removed":1}', JSON.stringify(text.removeDuplicateLines('  a\na\nb', { trim: true })))
 } catch (e) { chk('R-不回归', 'misc', false, e.message) }
+
+// ---------- BUG-001~003(V1.0 首轮 qa/V1.0)哨兵 ----------
+try {
+  // BUG-002: numberToEnglish 小数分支(原输出 "thirty-undefined")
+  chk('BUG-002', 'numberToEnglish(1234.56) 逐位读小数', text.numberToEnglish(1234.56) === 'one thousand two hundred and thirty-four point five six', text.numberToEnglish(1234.56))
+  chk('BUG-002', 'numberToEnglish(4.56) 十位以下小数', text.numberToEnglish(4.56) === 'four point five six', text.numberToEnglish(4.56))
+  chk('BUG-002', 'numberToEnglish(0.5) 不足一', text.numberToEnglish(0.5) === 'zero point five', text.numberToEnglish(0.5))
+  chk('BUG-002', 'numberToEnglish(-2.25) 负小数', text.numberToEnglish(-2.25) === 'negative two point two five', text.numberToEnglish(-2.25))
+  chk('BUG-002', 'numberToEnglish(1234) 整数口径不回归', text.numberToEnglish(1234) === 'one thousand two hundred and thirty-four', text.numberToEnglish(1234))
+} catch (e) { chk('BUG-002', 'numberToEnglish', false, e.message) }
+try {
+  // BUG-003: plateValid 捕获组越界(合法格式必抛 TypeError)
+  const p1 = val.plateValid('京A12345')
+  chk('BUG-003', '普通车牌 京A12345 合法', p1.valid === true && p1.kind === '普通车牌' && p1.province === '京', JSON.stringify(p1))
+  const p2 = val.plateValid('粤BD12345')
+  chk('BUG-003', '新能源小型车 粤BD12345', p2.valid === true && p2.kind === '新能源小型车', JSON.stringify(p2))
+  const p3 = val.plateValid('乱写')
+  chk('BUG-003', '乱写返回 invalid 不抛错', p3.valid === false, JSON.stringify(p3))
+} catch (e) { chk('BUG-003', 'plateValid', false, e.message) }
+try {
+  // BUG-001: CodeScreenshot 模板字符串动态 import 在产物中无法解析(源码级哨兵,组件依赖 DOM 无法在 Node 直跑)
+  const src = readFileSync(path.join(root, 'src/tools/developer/components/CodeScreenshot.vue'), 'utf8')
+  chk('BUG-001', '不再含模板字符串动态 import', !/import\(\s*`/.test(src))
+  chk('BUG-001', 'core 导入取 .default(ESM 互操作)', /import\('highlight\.js\/lib\/core'\)/.test(src) && /\.default as unknown as|coreMod\.default/.test(src))
+  const langs = (src.match(/const LANGS = \[([^\]]+)\]/)?.[1] ?? '').split(',').map((s) => s.trim().replace(/^'|'$/g, '')).filter(Boolean)
+  const mapped = [...src.matchAll(/: \(\) => import\('highlight\.js\/lib\/languages\/([a-z]+)'\)/g)].map((m) => m[1])
+  chk('BUG-001', 'LANGS 每项均有字面量 import 映射', langs.length > 0 && langs.every((l) => mapped.includes(l)), `${langs.length} 语言 / ${mapped.length} 映射`)
+  chk('BUG-001', '映射表无冗余条目', langs.length === mapped.length, mapped.join(','))
+} catch (e) { chk('BUG-001', '源码哨兵', false, e.message) }
 
 console.log(`专项复验 ${pass + fail} 项:通过 ${pass},失败 ${fail}`)
 for (const l of lines) console.log(l)

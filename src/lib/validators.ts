@@ -120,7 +120,7 @@ export function plateValid(plate: string): { valid: boolean; kind?: string; prov
   const re = new RegExp(`^([${PLATE_PROVINCES}])[A-HJ-NP-Z]([A-HJ-NP-Z0-9]{5,6})$`)
   const m = re.exec(p)
   if (!m) return { valid: false, reason: '格式应为 省份简称+城市字母+5~6 位序号（如 京A12345 / 粤BD12345）' }
-  const tail = m[3]!
+  const tail = m[2]!
   let kind = '普通车牌'
   if (tail.length === 6) {
     if (/^[DF]/.test(tail)) kind = '新能源小型车'

@@ -709,6 +709,14 @@ const EN_TENS = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy
 
 export function numberToEnglish(n: number): string {
   if (n < 0) return 'negative ' + numberToEnglish(-n)
+  if (!Number.isInteger(n)) {
+    // 小数：整数部分照常读出，小数部分逐位读出（1234.56 → "... point five six"）
+    const frac = String(n).replace(/^\d+\./, '')
+    if (/^\d+$/.test(frac)) {
+      return numberToEnglish(Math.floor(n)) + ' point ' + [...frac].map((d) => EN_ONES[Number(d)]).join(' ')
+    }
+    n = Math.floor(n) // 科学计数法等无法逐位表示的极端小数，退回整数口径兜底
+  }
   if (n < 20) return EN_ONES[n]
   if (n < 100) return EN_TENS[Math.floor(n / 10)] + (n % 10 ? '-' + EN_ONES[n % 10] : '')
   if (n < 1000) return EN_ONES[Math.floor(n / 100)] + ' hundred' + (n % 100 ? ' and ' + numberToEnglish(n % 100) : '')

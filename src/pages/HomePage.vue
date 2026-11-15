@@ -366,13 +366,21 @@ const goSearch = () => {
 }
 .cat-bar-inner {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 6px;
   overflow-x: auto;
   padding: 10px 20px;
   scrollbar-width: none;
 }
 .cat-bar-inner::-webkit-scrollbar {
   display: none;
+}
+/* 胶囊禁止收缩/折行（CJK min-content 是单字宽，默认会被挤成两行）；空间不足走横向滚动 */
+.cat-bar-inner .chip {
+  flex: none;
+  white-space: nowrap;
+  padding: 5px 12px;
+  font-size: 13px;
 }
 .popular {
   margin-top: 34px;

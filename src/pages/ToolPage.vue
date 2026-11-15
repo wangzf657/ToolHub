@@ -5,7 +5,7 @@ import { Star } from 'lucide-vue-next'
 import { toolMap, toolsByCategory } from '@/tools'
 import { categoryMap } from '@/data/categories'
 import Breadcrumbs from '@/components/common/Breadcrumbs.vue'
-import TrustSidebar from '@/components/common/TrustSidebar.vue'
+import ToolMetaStrip from '@/components/common/ToolMetaStrip.vue'
 import TextTool from '@/components/common/TextTool.vue'
 import CalcTool from '@/components/common/CalcTool.vue'
 import ImageConvertTool from '@/components/common/ImageConvertTool.vue'
@@ -73,29 +73,28 @@ const defaultSteps = ['打开工具，输入或拖入内容', '按需调整选�
       </button>
     </div>
 
-    <div class="tool-layout" :class="{ 'tool-layout--wide': tool.studio }">
-      <div class="panel tool-panel">
-        <div v-if="loadingComp" class="loading"><span class="spinner"></span> 加载工具中…</div>
-        <!-- 自定义组件 -->
-        <component :is="component" v-else-if="component" />
-        <!-- 通用文本工具 -->
-        <TextTool v-else-if="tool.textDef" :def="tool.textDef" />
-        <!-- 通用计算器（slug 用于输入记忆隔离） -->
-        <CalcTool v-else-if="tool.calcDef" :def="tool.calcDef" :slug="tool.slug" />
-        <!-- 通用图片格式转换 -->
-        <ImageConvertTool
-          v-else-if="tool.imgcvt"
-          :target="tool.imgcvt.target"
-          :target-label="tool.imgcvt.label"
-          :with-quality="tool.imgcvt.quality !== false"
-          :with-resize="tool.imgcvt.resize"
-        />
-        <div v-else class="notice notice-warn">该工具正在施工中，敬请期待。</div>
-      </div>
-
-      <!-- 工作室类工具豁免右侧信任栏：画布/时间线需要完整宽度（photo 中栏 400→≥750px） -->
-      <TrustSidebar v-if="!tool.studio" :steps="tool.steps ?? defaultSteps" />
+    <!-- 单栏全宽：右侧不设栏，把空间让给工具本体；信任盾/快速指南压成面板下方一条横条 -->
+    <div class="panel tool-panel">
+      <div v-if="loadingComp" class="loading"><span class="spinner"></span> 加载工具中…</div>
+      <!-- 自定义组件 -->
+      <component :is="component" v-else-if="component" />
+      <!-- 通用文本工具 -->
+      <TextTool v-else-if="tool.textDef" :def="tool.textDef" />
+      <!-- 通用计算器（slug 用于输入记忆隔离） -->
+      <CalcTool v-else-if="tool.calcDef" :def="tool.calcDef" :slug="tool.slug" />
+      <!-- 通用图片格式转换 -->
+      <ImageConvertTool
+        v-else-if="tool.imgcvt"
+        :target="tool.imgcvt.target"
+        :target-label="tool.imgcvt.label"
+        :with-quality="tool.imgcvt.quality !== false"
+        :with-resize="tool.imgcvt.resize"
+      />
+      <div v-else class="notice notice-warn">该工具正在施工中，敬请期待。</div>
     </div>
+
+    <!-- 工作室类工具面板内已有步骤向导，横条只保留信任要点，避免二次重复 -->
+    <ToolMetaStrip :steps="tool.studio ? [] : (tool.steps ?? defaultSteps)" />
 
     <p class="tool-about">{{ tool.desc }} 所有处理都在你的浏览器中完成——无上传、无注册、无水印。</p>
 
@@ -155,20 +154,6 @@ const defaultSteps = ['打开工具，输入或拖入内容', '按需调整选�
 .bookmark-btn.on {
   border-color: var(--warn);
   color: var(--warn);
-}
-.tool-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
-  gap: 18px;
-  align-items: start;
-}
-.tool-layout--wide {
-  grid-template-columns: minmax(0, 1fr);
-}
-@media (max-width: 900px) {
-  .tool-layout {
-    grid-template-columns: 1fr;
-  }
 }
 .tool-panel {
   padding: 18px;

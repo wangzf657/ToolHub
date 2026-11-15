@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { Table2, Loader2 } from 'lucide-vue-next'
 import { amortize, formatMoney, type AmortRow } from '@/lib/finance'
@@ -12,11 +12,12 @@ const toast = useToast()
 const busy = ref(false)
 const route = useRoute()
 
-const principal = ref<number | ''>('')
+// 本金单位为万元；站内互链 ?p= 契约仍为元，水合时换算
+const principal = ref<number | ''>(100)
 const rate = ref(3.6)
 const years = ref(30)
 
-// 贷款计算器等站内入口透传 ?p=&r=&y=，带入即算
+// 贷款计算器等站内入口透传 ?p=&r=&y=（p 为元），带入即算
 onMounted(() => {
   const q = route.query
   const p = Number(q.p)
@@ -24,7 +25,7 @@ onMounted(() => {
   const y = Number(q.y)
   let touched = false
   if (Number.isFinite(p) && p > 0) {
-    principal.value = p
+    principal.value = Math.round((p / 10000) * 100) / 100
     touched = true
   }
   if (Number.isFinite(r) && r > 0) {
@@ -50,14 +51,19 @@ const displayed = computed(() => (result.value ? (showAll.value ? result.value.r
 
 const money = (n: number) => formatMoney(n)
 
+let chartStop: (() => void) | null = null
 const run = async () => {
   const p = Number(principal.value)
-  if (!(p > 0)) return toast.warn('请填写贷款本金')
-  const r = amortize(p, Number(rate.value), Math.round(Number(years.value) * 12), mode.value, withPrepay.value && Number(prepayAmount.value) > 0 ? { month: Math.max(1, Math.round(Number(prepayMonth.value))), amount: Number(prepayAmount.value) } : undefined)
+  if (!(p > 0)) return toast.warn('请填写贷款本金（万元）')
+  const months = Math.min(50, Math.round(Number(years.value))) * 12
+  if (!(months > 0)) return toast.warn('请填写贷款年限（1-50 年）')
+  const r = amortize(p * 10000, Number(rate.value), months, mode.value, withPrepay.value && Number(prepayAmount.value) > 0 ? { month: Math.max(1, Math.round(Number(prepayMonth.value))), amount: Number(prepayAmount.value) * 10000 } : undefined)
   result.value = r
   await nextTick()
   drawChart(r)
 }
+
+onBeforeUnmount(() => chartStop?.())
 
 const drawChart = (r: { rows: AmortRow[] }) => {
   // 每年本金/利息累计的柱状图
@@ -72,7 +78,8 @@ const drawChart = (r: { rows: AmortRow[] }) => {
   const yearsArr = [...byYear.keys()].sort((a, b) => a - b)
   const cv = seriesRef.value
   if (!cv) return
-  renderChart(
+  chartStop?.()
+  chartStop = renderChart(
     cv,
     'bar',
     yearsArr.map((y) => `第${y}年`),
@@ -103,32 +110,33 @@ const exportXlsx = async () => {
 
 <template>
   <div>
-    <div class="opts-panel">
-      <div class="row wrap gap">
-        <span class="field-label">贷款本金</span>
-        <input v-model="principal" type="number" class="input n-input" placeholder="元" />
-        <span class="field-label">年利率</span>
+    <form class="opts-panel" @submit.prevent="run">
+      <div class="row row-wrap gap">
+        <span class="field-label">贷款本金（万元）</span>
+        <input v-model="principal" type="number" class="input n-input" step="0.01" placeholder="如 100" />
+        <span class="field-label">年利率（%）</span>
         <input v-model="rate" type="number" class="input n-input" step="0.01" />
-        <span class="field-label">年限</span>
+        <span class="field-label">年限（年）</span>
         <input v-model="years" type="number" class="input n-input" min="1" max="50" />
         <span class="field-label">方式</span>
-        <select v-model="mode" class="input">
+        <select v-model="mode" class="input sel">
           <option value="axbx">等额本息</option>
           <option value="axbj">等额本金</option>
         </select>
-        <button class="btn btn-primary btn-sm" @click="run"><Table2 :size="15" /> 生成计划表</button>
+        <button class="btn btn-primary btn-sm" type="submit"><Table2 :size="15" /> 生成计划表</button>
       </div>
-      <div class="row wrap gap mt-2">
+      <div class="row row-wrap gap mt-2">
         <label class="check"><input v-model="withPrepay" type="checkbox" /> 模拟提前还款</label>
         <template v-if="withPrepay">
           <span class="field-label">第</span>
           <input v-model="prepayMonth" type="number" class="input n-input" min="1" />
           <span class="field-label">期还款后多还</span>
-          <input v-model="prepayAmount" type="number" class="input n-input" placeholder="元" />
+          <input v-model="prepayAmount" type="number" class="input n-input" step="0.01" placeholder="如 20" />
+          <span class="field-label">万元</span>
         </template>
       </div>
-      <p class="hint mt-1">口径：等额本息月供固定、利息先多后少；等额本金每月本金相同、月供递减。提前还款按「月供减少、期限不变」重算。利率以实际合同为准。</p>
-    </div>
+      <p class="hint mt-1">口径：本金单位为万元（100 = 100 万）。等额本息月供固定、利息先多后少；等额本金每月本金相同、月供递减。提前还款按「月供减少、期限不变」重算。利率以实际合同为准。</p>
+    </form>
 
     <div v-if="result" class="mt-2">
       <div class="stat-grid">
@@ -141,7 +149,7 @@ const exportXlsx = async () => {
         <div class="stat"><span class="v">{{ result.rows.length }}</span><span class="l">总期数</span></div>
       </div>
 
-      <canvas ref="seriesRef" class="mt-2" width="720" height="240"></canvas>
+      <div class="chart-box mt-2"><canvas ref="seriesRef"></canvas></div>
 
       <div class="row gap mt-2">
         <button class="btn btn-sm" @click="showAll = !showAll">{{ showAll ? '只看前 12 期' : `展开全部 ${result.rows.length} 期` }}</button>
@@ -168,8 +176,17 @@ const exportXlsx = async () => {
 </template>
 
 <style scoped>
+.opts-panel {
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--panel-solid) 50%, transparent);
+}
 .gap { gap: 10px; }
-.n-input { width: 110px; }
+/* 行内标签与控件禁收缩/折行：CJK 的 min-content 是单字宽，不锁死会被挤成一字一行（竖排） */
+.field-label { white-space: nowrap; flex: none; margin: 0 2px; }
+.n-input { width: 110px; flex: none; }
+.sel { width: auto; min-width: 130px; flex: none; }
 .stat-grid { display: flex; gap: 10px; flex-wrap: wrap; }
 .stat { padding: 10px 16px; border: 1px solid var(--border); border-radius: 10px; display: flex; flex-direction: column; gap: 2px; min-width: 110px; }
 .stat .v { font-size: 18px; font-weight: 700; }
@@ -177,6 +194,8 @@ const exportXlsx = async () => {
 .stat.primary { border-color: var(--accent); }
 .stat.primary .v { color: var(--accent-text); }
 .hint { font-size: 12px; color: var(--muted); }
+/* Chart.js responsive+maintainAspectRatio:false 需要定高定位容器，否则画布在无界父级里无限生长 */
+.chart-box { height: 300px; position: relative; }
 .table-wrap { max-height: 380px; overflow: auto; border: 1px solid var(--border); border-radius: 10px; }
 .tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
 .tbl th, .tbl td { padding: 6px 12px; text-align: right; border-bottom: 1px solid var(--border); }

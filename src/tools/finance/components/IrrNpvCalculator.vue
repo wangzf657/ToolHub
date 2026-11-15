@@ -260,5 +260,5 @@ onBeforeUnmount(() => {
 .warn-box { padding: 10px 14px; border: 1px solid var(--warn); border-radius: 10px; color: var(--warn); font-size: 13px; margin-bottom: 10px; }
 .hint { font-size: 12px; color: var(--muted); }
 .chip.on { background: var(--accent-soft); color: var(--accent-text); font-weight: 700; }
-.chart-stage { height: 300px; border: 1px solid var(--border); border-radius: 12px; padding: 12px; background: color-mix(in srgb, var(--panel-solid) 55%, transparent); }
+.chart-stage { position: relative; height: 300px; border: 1px solid var(--border); border-radius: 12px; padding: 12px; background: color-mix(in srgb, var(--panel-solid) 55%, transparent); }
 </style>

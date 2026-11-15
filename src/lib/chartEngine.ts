@@ -39,6 +39,8 @@ export function renderChart(
   let cleanup = () => {}
   void getChartJs().then(({ Chart }) => {
     if (disposed) return
+    // 复用同一 canvas 前先销毁旧实例，否则二次渲染 new Chart 会抛 "Canvas is already in use"
+    Chart.getChart(canvas)?.destroy()
     const palette = opts.colors ?? ['#6366f1', '#f472b6', '#34d399', '#fbbf24', '#60a5fa', '#a78bfa', '#fb923c', '#2dd4bf']
     const styles = getComputedStyle(document.documentElement)
     const textColor = styles.getPropertyValue('--text-2').trim() || '#94a3b8'

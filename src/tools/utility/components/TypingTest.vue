@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref } from 'vue'
 import { TimerReset, Play } from 'lucide-vue-next'
 import { renderChart } from '@/lib/chartEngine'
 import { useToast } from '@/composables/useToast'
@@ -53,7 +53,7 @@ const start = () => {
   }, 1000)
 }
 
-const finish = () => {
+const finish = async () => {
   if (timer !== null) {
     clearInterval(timer)
     timer = null
@@ -66,6 +66,8 @@ const finish = () => {
   const acc = accuracy.value
   history.value = [{ wpm, acc }, ...history.value].slice(0, 10)
   localStorage.setItem('toolhub-typing', JSON.stringify(history.value))
+  // canvas 在 v-if="finished" 块内，等 DOM 挂载后再画，否则 chartRef 为 null 静默跳过
+  await nextTick()
   drawChart()
   toast.ok(`完成：${LANG.value === 'zh' ? `${Math.round(cpm)} 字/分` : `${wpm} WPM`}，正确率 ${acc}%`)
 }
@@ -162,7 +164,7 @@ onBeforeUnmount(() => {
     <p v-if="started" class="hint mt-1">中文模式按字计速（Composition 输入法友好）；错误字会实时标红。计时结束自动结算。</p>
 
     <div v-if="finished" class="mt-2">
-      <canvas ref="chartRef" width="640" height="220"></canvas>
+      <div class="chart-box"><canvas ref="chartRef"></canvas></div>
       <h4 class="h4 mt-2">历史成绩（本机保存）</h4>
       <div class="chips">
         <span v-for="(h, i) in history" :key="i" class="chip-h">#{{ history.length - i }} · {{ h.wpm }} {{ LANG === 'zh' ? '字/分' : 'WPM' }} · {{ h.acc }}%</span>
@@ -177,6 +179,8 @@ onBeforeUnmount(() => {
 .seg.active { background: var(--accent-soft, var(--accent)); color: var(--accent-text); border-color: var(--accent); }
 .sr { position: absolute; opacity: 0; width: 0; }
 .slim { width: 100px; }
+/* Chart.js responsive+maintainAspectRatio:false 需要定高定位容器，否则画布在自动高度父级里无限生长 */
+.chart-box { height: 220px; position: relative; }
 .stats { display: flex; gap: 10px; flex-wrap: wrap; }
 .stat { padding: 10px 16px; border: 1px solid var(--border); border-radius: 10px; display: flex; flex-direction: column; gap: 2px; min-width: 84px; }
 .stat .v { font-size: 22px; font-weight: 700; }

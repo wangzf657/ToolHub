@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref } from 'vue'
+import { nextTick, onBeforeUnmount, ref } from 'vue'
 import { Loader2, Download, Table2, AlertTriangle } from 'lucide-vue-next'
 import { renderChart } from '@/lib/chartEngine'
 import { rowsToXlsx } from '@/lib/officeEngine'
@@ -57,6 +57,8 @@ const parse = async () => {
     if (scaleWarn.value) {
       toast.warn('检测到非百分比数值（首列应为 100），可点击「按首列归一化」修正量纲')
     }
+    // 图表容器在 v-if="cohorts.length" 内，等 DOM 挂载后再画，否则 stage 为 null 静默跳过
+    await nextTick()
     draw()
     toast.ok(`已解析 ${out.length} 个同期群`)
   } catch (e) {

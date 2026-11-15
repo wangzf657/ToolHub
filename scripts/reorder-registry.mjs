@@ -18,7 +18,7 @@ import { dirname, join } from 'node:path'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 
-/** 期望条目数(与 docs/V1.0/工具清单-V1.0.md 一致),重排前后必须吻合 */
+/** 期望条目数(与 docs/V1.1/工具清单-V1.1.md 一致),重排前后必须吻合 */
 const EXPECT_COUNT = {
   image: 71,
   video: 41,

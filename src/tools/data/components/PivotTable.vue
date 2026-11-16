@@ -301,7 +301,7 @@ tr.leaf td {
   font-weight: 700;
 }
 .table-wrap {
-  max-height: max(480px, calc(100vh - 420px));
+  max-height: max(480px, calc(100dvh - 420px));
   overflow: auto;
 }
 </style>

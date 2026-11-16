@@ -55,3 +55,4 @@ scripts/_bundle-tool-list.cjs
 scripts/tests/_bundle-testables.cjs
 scripts/_bundle-golden.cjs
 scripts/_bundle-ledger.cjs
+scripts/_bundle-menu-groups.cjs

@@ -2,19 +2,21 @@
 import { RouterLink } from 'vue-router'
 import { Star } from 'lucide-vue-next'
 import type { ToolDef } from '@/types'
-import { categoryMap } from '@/data/categories'
+import { menuCategoryOfSlug, menuCatColor } from '@/data/menuTree'
 import AppIcon from './AppIcon.vue'
 import { useSaved } from '@/composables/useSaved'
 
 const props = defineProps<{ tool: ToolDef }>()
 const { isSaved, toggle } = useSaved()
-const cat = categoryMap.get(props.tool.category)
+// 图标/颜色取菜单大类口径(与顶栏/工作台菜单/目录一致)
+const mc = menuCategoryOfSlug(props.tool.slug)?.cat
+const catColor = menuCatColor[mc?.id ?? ''] ?? '#6366f1'
 </script>
 
 <template>
   <RouterLink :to="`/t/${tool.slug}`" class="tool-card card" :title="tool.desc">
-    <div class="tool-icon" :style="{ background: (cat?.color ?? '#6366f1') + '1f', color: cat?.color }">
-      <AppIcon :name="cat?.icon ?? 'info'" :size="19" />
+    <div class="tool-icon" :style="{ background: catColor + '1f', color: catColor }">
+      <AppIcon :name="mc?.icon ?? 'info'" :size="19" />
     </div>
     <div class="tool-body">
       <div class="tool-title-row">

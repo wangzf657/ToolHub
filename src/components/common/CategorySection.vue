@@ -1,11 +1,21 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { ToolDef, CategoryDef } from '@/types'
+import type { ToolDef } from '@/types'
 import ToolCard from './ToolCard.vue'
 import AppIcon from './AppIcon.vue'
 import { RouterLink } from 'vue-router'
 
-const props = defineProps<{ category: CategoryDef; tools: ToolDef[]; limit?: number }>()
+/** 首页目录区块的大类展示信息(菜单大类口径:名称/图标/颜色/简介来自 menuTree 派生层,to=「查看全部」去向) */
+interface HomeCatSection {
+  id: string
+  name: string
+  icon: string
+  color: string
+  desc: string
+  to: string
+}
+
+const props = defineProps<{ category: HomeCatSection; tools: ToolDef[]; limit?: number }>()
 // 必须保持响应式：首页搜索过滤时 tools 整体替换，顶层常量切片会让卡片列表停留在旧数据
 const shown = computed(() => (props.limit ? props.tools.slice(0, props.limit) : props.tools))
 </script>
@@ -23,7 +33,7 @@ const shown = computed(() => (props.limit ? props.tools.slice(0, props.limit) : 
         </div>
         <p class="cat-desc">{{ category.desc }}</p>
       </div>
-      <RouterLink v-if="limit && tools.length > limit" :to="category.path" class="btn btn-ghost btn-sm view-all">
+      <RouterLink v-if="limit && tools.length > limit" :to="category.to" class="btn btn-ghost btn-sm view-all">
         查看全部 →
       </RouterLink>
     </div>

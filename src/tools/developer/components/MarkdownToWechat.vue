@@ -139,7 +139,7 @@ const copyRich = async () => {
   padding: 18px 16px;
   min-height: 400px;
   /* 弹性高度（rx5）：随视口伸展，长文预览少滚屏 */
-  max-height: max(560px, calc(100vh - 330px));
+  max-height: max(560px, calc(100dvh - 330px));
   overflow: auto;
   color: #333;
 }

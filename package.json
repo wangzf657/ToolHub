@@ -8,7 +8,7 @@
     "dev": "vite",
     "build": "vue-tsc -b && vite build && node scripts/gen-sitemap.mjs",
     "preview": "vite preview",
-    "test": "node scripts/tests/run-textcalc-tests.mjs && node scripts/tests/run-engine-tests.mjs && node scripts/tests/run-audio-smoke-tests.mjs && node scripts/tests/verify-defects.mjs",
+    "test": "node scripts/tests/run-textcalc-tests.mjs && node scripts/tests/run-engine-tests.mjs && node scripts/tests/run-audio-smoke-tests.mjs && node scripts/tests/run-menu-tests.mjs && node scripts/tests/verify-defects.mjs",
     "typecheck": "vue-tsc -b --noEmit"
   },
   "dependencies": {
@@ -31,6 +31,7 @@
     "diff": "^7.0.0",
     "docx": "^9.1.1",
     "dompurify": "^3.2.4",
+    "element-plus": "^2.14.8",
     "epubjs": "^0.3.93",
     "file-type": "^22.3.0",
     "gbk.js": "^0.3.0",

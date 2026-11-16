@@ -147,7 +147,7 @@ const loadSample = () => {
   padding: 18px 20px;
   /* 弹性高度（rx2） */
   min-height: 480px;
-  max-height: max(480px, calc(100vh - 330px));
+  max-height: max(480px, calc(100dvh - 330px));
   overflow: auto;
   font-size: 14.5px;
   line-height: 1.75;
@@ -163,7 +163,7 @@ const loadSample = () => {
   inset: 16px;
   z-index: 80;
   max-height: none;
-  height: calc(100vh - 32px);
+  height: calc(100dvh - 32px);
   background: var(--panel-solid);
   box-shadow: 0 24px 70px rgb(0 0 0 / 0.35);
 }

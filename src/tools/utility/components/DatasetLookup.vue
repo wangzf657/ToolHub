@@ -240,7 +240,7 @@ const fmtVal = (v: unknown): string => (Array.isArray(v) ? v.join('\n') : String
 .grow { flex: 1; }
 .hint { font-size: 12px; color: var(--muted); }
 .inline { vertical-align: -2px; }
-.list { display: flex; flex-direction: column; gap: 6px; max-height: clamp(320px, calc(100vh - 340px), 760px); overflow: auto; }
+.list { display: flex; flex-direction: column; gap: 6px; max-height: clamp(320px, calc(100dvh - 340px), 760px); overflow: auto; }
 .zero-tip { padding: 12px 16px; border: 1px solid rgba(217, 119, 6, 0.3); background: rgba(217, 119, 6, 0.07); border-radius: 10px; font-size: 13.5px; color: var(--text-2); }
 .fav-btn { margin-left: auto; border: none; background: none; cursor: pointer; font-size: 15px; color: var(--text-3); padding: 2px 6px; }
 .fav-btn:hover { color: #f59e0b; }

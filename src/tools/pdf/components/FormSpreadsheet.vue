@@ -263,7 +263,7 @@ const exportFdfXfdf = async (kind: 'fdf' | 'xfdf') => {
 }
 /* 弹性结果区：视口为主，下限 420px */
 .result-table {
-  height: max(420px, calc(100vh - 330px));
+  height: max(420px, calc(100dvh - 330px));
   overflow: auto;
 }
 .sortable {

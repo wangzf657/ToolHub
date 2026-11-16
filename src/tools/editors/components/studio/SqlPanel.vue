@@ -197,7 +197,7 @@ const insertExample = () => {
 }
 /* rx4 结果区 vh 化：768 高视口同屏 ≥25 行 */
 .result-wrap {
-  max-height: max(480px, calc(100vh - 320px));
+  max-height: max(480px, calc(100dvh - 320px));
 }
 .badge-warn {
   border-color: rgba(251, 191, 36, 0.5);

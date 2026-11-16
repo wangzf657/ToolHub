@@ -292,7 +292,7 @@ const downloadEpub = () => {
 }
 /* 结果预览弹性高度（1366×768 下可见 ≥25 行正文） */
 .out-box {
-  height: min(420px, calc(100vh - 520px));
+  height: min(420px, calc(100dvh - 520px));
   min-height: 220px;
   font-family: var(--font-mono);
   white-space: pre-wrap;

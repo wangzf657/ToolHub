@@ -43,4 +43,11 @@ const props = withDefaults(
 .crumb.current {
   color: var(--text-2);
 }
+/* 移动端极简:≤480 只显「分类 › 工具名」两级(完整层级由抽屉承担) */
+@media (max-width: 480px) {
+  .breadcrumbs > :nth-child(1),
+  .breadcrumbs > :nth-child(2) {
+    display: none;
+  }
+}
 </style>

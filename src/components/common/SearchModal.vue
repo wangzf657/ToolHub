@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { Search, X, CornerDownLeft } from 'lucide-vue-next'
 import type { ToolDef } from '@/types'
 import { searchTools } from '@/composables/useSearch'
-import { categoryMap } from '@/data/categories'
+import { menuCategoryOfSlug, menuCatColor } from '@/data/menuTree'
 import { useToast } from '@/composables/useToast'
 
 const props = defineProps<{ tools: ToolDef[] }>()
@@ -13,6 +13,9 @@ const inputEl = ref<HTMLInputElement | null>(null)
 const activeIdx = ref(0)
 const router = useRouter()
 const toast = useToast()
+
+/** 结果行的大类标签/图标底色取菜单大类口径(与顶栏/菜单一致) */
+const catOf = (slug: string) => menuCategoryOfSlug(slug)?.cat
 
 const results = computed(() => searchTools(props.tools, query.value, 12))
 
@@ -73,7 +76,7 @@ void toast
           >
             <span
               class="r-icon"
-              :style="{ background: (categoryMap.get(t.category)?.color ?? '#666') + '1f', color: categoryMap.get(t.category)?.color }"
+              :style="{ background: (menuCatColor[catOf(t.slug)?.id ?? ''] ?? '#666') + '1f', color: menuCatColor[catOf(t.slug)?.id ?? ''] ?? '#666' }"
             >
               {{ t.title.slice(0, 1) }}
             </span>
@@ -81,7 +84,7 @@ void toast
               <span class="r-title">{{ t.title }}</span>
               <span class="r-desc">{{ t.desc }}</span>
             </span>
-            <span class="r-cat">{{ categoryMap.get(t.category)?.name }}</span>
+            <span class="r-cat">{{ catOf(t.slug)?.name }}</span>
           </button>
           <p v-if="!results.length" class="no-result">没有找到匹配「{{ query }}」的工具，换个关键词试试？</p>
         </template>
@@ -209,5 +212,33 @@ export default { emits: ['close'] }
   align-items: center;
   justify-content: center;
   gap: 6px;
+}
+/* 移动端全屏 sheet(R5-c):inset 0 + dvh,结果项 ≥48px、关闭按钮 ≥44px 触控目标 */
+@media (max-width: 860px) {
+  .search-modal {
+    padding: 0;
+  }
+  .search-box {
+    width: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+    border: none;
+  }
+  .search-results {
+    flex: 1;
+  }
+  .result-item {
+    min-height: 48px;
+  }
+  .close-btn {
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+  }
+  .search-input-row input {
+    font-size: 16px;
+  }
 }
 </style>

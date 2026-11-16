@@ -384,6 +384,6 @@ const money = (n: number) => `$${n.toLocaleString('zh-CN', { maximumFractionDigi
   padding: 16px;
   background: color-mix(in srgb, var(--panel-solid) 55%, transparent);
 }
-.chart-box { height: max(380px, calc(100vh - 360px)); position: relative; }
+.chart-box { height: max(380px, calc(100dvh - 360px)); position: relative; }
 .hint { font-size: 12px; color: var(--text-3); }
 </style>

@@ -189,7 +189,7 @@ const pack = () => void saveMany(results.value, '拆分结果.zip')
 .list {
   display: grid;
   gap: 6px;
-  height: max(420px, calc(100vh - 360px));
+  height: max(420px, calc(100dvh - 360px));
   overflow: auto;
 }
 .item {

@@ -89,4 +89,12 @@ withDefaults(
   font-weight: 700;
   font-style: normal;
 }
+/* 移动端竖排(R5-c):信任要点/快速指南各占一行,避免窄屏无折行规则挤压 */
+@media (max-width: 860px) {
+  .meta-strip {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+}
 </style>

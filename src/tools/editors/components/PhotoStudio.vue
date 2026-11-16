@@ -677,7 +677,7 @@ onBeforeUnmount(() => {
   gap: 14px;
   align-items: start;
 }
-@media (max-width: 960px) {
+@media (max-width: 860px) {
   .layout {
     grid-template-columns: 1fr;
   }

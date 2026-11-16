@@ -10,6 +10,41 @@ const pct1 = (n: number) => `${n.toFixed(1)}%`
 /** 商业 SaaS 工具注册表（15 项） */
 const tools: ToolDef[] = [
   { slug: 'resume-builder', title: '简历生成器', category: 'business', desc: '填写经历即可生成排版整洁的简历页面，浏览器直接打印/另存 PDF，无水印。', keywords: ['简历', 'cv', 'resume'], component: () => import('./components/ResumeBuilder.vue'), steps: ['填写基本信息与经历', '选择模板样式', '打印或另存为 PDF'] },
+  { slug: 'email-signature-generator', title: '邮件签名生成器', category: 'business', desc: '生成 Outlook/Gmail/Foxmail 兼容的 HTML 邮件签名，一键复制富文本。', keywords: ['邮件签名', '签名档', 'outlook'], component: () => import('./components/EmailSignatureGenerator.vue') },
+  {
+    slug: 'freelance-rate-calculator', title: '自由职业报价计算', category: 'business',
+    desc: '由目标到手收入、税负、开销、可计费小时与利润目标反推时薪与日报价。',
+    keywords: ['自由职业', '时薪', '报价'],
+    calcDef: {
+      fields: [
+        F('income', '目标年净收入（到手口径）', { placeholder: '如 300000' }),
+        F('tax', '综合税负率（%，含个税与社保，建议 15~25；留空 = 不折算）', { step: 1 }),
+        F('expenses', '年业务开销', { default: 30000 }),
+        F('hours', '每周可计费小时', { default: 25, step: 1 }),
+        F('weeks', '每年工作周数', { default: 46, step: 1 }),
+        F('profit', '目标利润率（%）', { default: 15, step: 1 }),
+      ],
+      compute: (v) => {
+        const billable = Number(v.hours) * Number(v.weeks)
+        const tax = Math.min(60, Math.max(0, Number(v.tax) || 0)) / 100
+        const grossIncome = Number(v.income) / (1 - tax)
+        const base = (grossIncome + Number(v.expenses)) / Math.max(1, billable)
+        const rate = base * (1 + (Number(v.profit) || 0) / 100)
+        const weekHours = Number(v.hours)
+        return [
+          { label: '建议时薪', value: `¥${money(rate)}`, primary: true },
+          { label: '建议日薪（8 小时）', value: `¥${money(rate * 8)}` },
+          { label: '周报价', value: `¥${money(rate * weekHours)}` },
+          { label: '月报价', value: `¥${money((rate * billable) / 12)}` },
+          { label: '保守价（保本×1.1）', value: `¥${money(base * 1.1)}` },
+          { label: '溢价价（标准×1.3）', value: `¥${money(rate * 1.3)}` },
+          { label: '保本时薪（无利润）', value: `¥${money(base)}` },
+          { label: '年可计费小时', value: `${billable} 小时` },
+        ]
+      },
+      note: '时薪 =(目标收入 ÷(1−综合税负率)+ 年开销)÷ 可计费小时 ×(1 + 目标利润率)；税负率留空则按 0%（不折算）。weeks 默认 46 已预留约 6 周休假/病假；日薪按 8 可计费小时估算；目标收入建议按到手口径并配合税负率（建议 15~25%）折算成税前成本。',
+    },
+  },
   {
     slug: 'roi-calculator', title: 'ROI / ROAS 计算器', category: 'business',
     desc: '计算投资回报率与广告支出回报率，支持按持有期年化。',
@@ -51,37 +86,45 @@ const tools: ToolDef[] = [
     },
   },
   {
-    slug: 'freelance-rate-calculator', title: '自由职业报价计算', category: 'business',
-    desc: '由目标到手收入、税负、开销、可计费小时与利润目标反推时薪与日报价。',
-    keywords: ['自由职业', '时薪', '报价'],
+    slug: 'profit-margin-calculator', title: '利润率计算器', category: 'business',
+    desc: '由成本与售价计算利润、毛利率与加价率，或按目标毛利率反推售价。',
+    keywords: ['利润率', '毛利', '加价'],
     calcDef: {
       fields: [
-        F('income', '目标年净收入（到手口径）', { placeholder: '如 300000' }),
-        F('tax', '综合税负率（%，含个税与社保，建议 15~25；留空 = 不折算）', { step: 1 }),
-        F('expenses', '年业务开销', { default: 30000 }),
-        F('hours', '每周可计费小时', { default: 25, step: 1 }),
-        F('weeks', '每年工作周数', { default: 46, step: 1 }),
-        F('profit', '目标利润率（%）', { default: 15, step: 1 }),
+        F('cost', '单位成本', { step: 0.01 }),
+        F('price', '售价（与目标毛利率二选一）', { step: 0.01 }),
+        F('targetMargin', '目标毛利率（%，反推售价）', { step: 0.1 }),
       ],
       compute: (v) => {
-        const billable = Number(v.hours) * Number(v.weeks)
-        const tax = Math.min(60, Math.max(0, Number(v.tax) || 0)) / 100
-        const grossIncome = Number(v.income) / (1 - tax)
-        const base = (grossIncome + Number(v.expenses)) / Math.max(1, billable)
-        const rate = base * (1 + (Number(v.profit) || 0) / 100)
-        const weekHours = Number(v.hours)
-        return [
-          { label: '建议时薪', value: `¥${money(rate)}`, primary: true },
-          { label: '建议日薪（8 小时）', value: `¥${money(rate * 8)}` },
-          { label: '周报价', value: `¥${money(rate * weekHours)}` },
-          { label: '月报价', value: `¥${money((rate * billable) / 12)}` },
-          { label: '保守价（保本×1.1）', value: `¥${money(base * 1.1)}` },
-          { label: '溢价价（标准×1.3）', value: `¥${money(rate * 1.3)}` },
-          { label: '保本时薪（无利润）', value: `¥${money(base)}` },
-          { label: '年可计费小时', value: `${billable} 小时` },
-        ]
+        const cost = Number(v.cost)
+        const tm = Number(v.targetMargin)
+        if (Number(v.price)) {
+          const price = Number(v.price)
+          const profit = price - cost
+          const marginPct = cost > 0 ? (profit / price) * 100 : 0
+          return [
+            { label: '单件利润', value: `¥${money(profit)}` },
+            { label: '毛利率', value: cost > 0 ? pct(marginPct) : '—', primary: true },
+            { label: '加价率（Markup）', value: cost > 0 ? pct((profit / cost) * 100) : '—' },
+            { label: '该毛利率对应的加价率', value: marginPct < 100 ? pct((marginPct / (100 - marginPct)) * 100) : '—', hint: '换算口径：加价率 = 毛利率 ÷(1 − 毛利率)' },
+            { label: '成本占比', value: price > 0 ? pct((cost / price) * 100) : '—' },
+            ...(tm > 0 ? [{ label: '提示', value: '已按售价优先计算', hint: '「目标毛利率」已忽略；清空售价后走反推分支' }] : []),
+          ]
+        }
+        if (tm) {
+          if (tm >= 100) {
+            return [{ label: '目标毛利率无效', value: '需低于 100%', primary: true, hint: '等于 100% 意味着零成本，数学上无解' }]
+          }
+          const price = cost / (1 - tm / 100)
+          return [
+            { label: '建议售价', value: `¥${money(price)}`, primary: true },
+            { label: '单件利润', value: `¥${money(price - cost)}` },
+            { label: '成本占比', value: price > 0 ? pct((cost / price) * 100) : '—' },
+          ]
+        }
+        return [{ label: '提示', value: '请填写售价或目标毛利率' }]
       },
-      note: '时薪 =(目标收入 ÷(1−综合税负率)+ 年开销)÷ 可计费小时 ×(1 + 目标利润率)；税负率留空则按 0%（不折算）。weeks 默认 46 已预留约 6 周休假/病假；日薪按 8 可计费小时估算；目标收入建议按到手口径并配合税负率（建议 15~25%）折算成税前成本。',
+      note: '毛利率 =(售价 − 成本)/ 售价；加价率 =(售价 − 成本)/ 成本；反推售价 = 成本 ÷(1 − 目标毛利率)。',
     },
   },
   {
@@ -129,45 +172,152 @@ const tools: ToolDef[] = [
     },
   },
   {
-    slug: 'profit-margin-calculator', title: '利润率计算器', category: 'business',
-    desc: '由成本与售价计算利润、毛利率与加价率，或按目标毛利率反推售价。',
-    keywords: ['利润率', '毛利', '加价'],
+    slug: 'cash-flow-calculator', title: '现金流预测', category: 'business',
+    desc: '逐月编辑收入与支出，查看累计现金曲线、期末余额与最低现金点。',
+    keywords: ['现金流', '预测', '现金'],
+    component: () => import('./components/CashFlowProjection.vue'),
+  },
+  {
+    slug: 'burn-rate-calculator', title: '烧钱率与现金跑道', category: 'business',
+    desc: '由现金余额、收入（可带增长率）与支出计算月烧钱率、现金跑道与现金耗尽月份。',
+    keywords: ['烧钱', '跑道', 'runway'],
     calcDef: {
       fields: [
-        F('cost', '单位成本', { step: 0.01 }),
-        F('price', '售价（与目标毛利率二选一）', { step: 0.01 }),
-        F('targetMargin', '目标毛利率（%，反推售价）', { step: 0.1 }),
+        F('cash', '当前现金余额', { placeholder: '如 2000000' }),
+        F('revenue', '月收入', { placeholder: '如 150000' }),
+        F('expense', '月支出', { placeholder: '如 260000' }),
+        F('growth', '月收入增长率（%，可选，按月复利外推）', { step: 0.5 }),
+      ],
+      compute: (v) => {
+        const cash = Number(v.cash)
+        const revenue = Number(v.revenue)
+        const expense = Number(v.expense)
+        const growth = Math.min(99, Math.max(0, Number(v.growth) || 0)) / 100
+        const burn = expense - revenue
+        const rows: CalcResultRow[] = []
+        let runway: number
+        let mode = ''
+        if (growth > 0 && burn > 0) {
+          // 按月复利外推：收入逐月增长，支出恒定
+          let cum = 0
+          let m = 0
+          const r0 = revenue
+          while (cum < cash && m < 600) {
+            m++
+            cum += expense - r0 * Math.pow(1 + growth, m)
+          }
+          runway = cum >= cash ? m : Infinity
+          mode = '（按增长外推）'
+        } else {
+          runway = burn > 0 ? cash / burn : Infinity
+        }
+        rows.push({ label: '月净烧钱率', value: `¥${money(burn)}`, primary: burn > 0 })
+        rows.push({
+          label: '现金跑道',
+          value: Number.isFinite(runway) ? (runway > 600 ? '盈利，无限跑道' : `${runway.toFixed(1)} 个月${mode}`) : `盈利，无限跑道`,
+        })
+        if (Number.isFinite(runway) && runway <= 600) {
+          const d = new Date()
+          d.setMonth(d.getMonth() + Math.floor(runway))
+          rows.push({ label: '预计现金耗尽', value: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` })
+        }
+        const state = !Number.isFinite(runway) || runway > 18
+          ? '✓ 健康（>18 个月）'
+          : runway > 12
+            ? '⚠ 需要关注（12-18 个月）'
+            : '✗ 危险（<12 个月），尽快融资或削减成本'
+        rows.push({ label: '状态判断', value: state, tone: !Number.isFinite(runway) || runway > 18 ? 'ok' : runway > 12 ? 'warn' : 'err', hint: '跑道假设支出恒定；保守评估可用月总支出（gross burn）替代净烧钱率' })
+        return rows
+      },
+      note: '净烧钱率 = 月支出 − 月收入；跑道 = 现金 ÷ 净烧钱率。收入增长率 >0 时按月复利外推（收入逐月增长、支出恒定）；保守评估可用月总支出（gross burn）替代净烧钱率。',
+      links: [
+        { label: '逐月精算跑道 → 现金流预测', to: '/t/cash-flow-calculator', query: (v) => ({ cash: String(v.cash ?? ''), revenue: String(v.revenue ?? ''), expense: String(v.expense ?? '') }) },
+      ],
+    },
+  },
+  {
+    slug: 'saas-pricing-calculator', title: '定价与毛利计算', category: 'business',
+    desc: '双向定价：按目标毛利定价，或由价格与折扣减让反推毛利与利润。',
+    keywords: ['定价', '毛利', '折扣'],
+    calcDef: {
+      fields: [
+        F('cost', '单单位成本', { step: 0.01 }),
+        { key: 'mode', label: '计算方向', type: 'select', default: 'price', choices: [
+          { value: 'price', label: '按目标毛利 → 定价' },
+          { value: 'margin', label: '按价格 → 毛利' },
+        ] },
+        F('target', '目标毛利率（%）或售价（按方向填）', { step: 0.1 }),
+        F('discount', '折扣减让（%，如 20 表示让利 20%）', { step: 1 }),
       ],
       compute: (v) => {
         const cost = Number(v.cost)
-        const tm = Number(v.targetMargin)
-        if (Number(v.price)) {
-          const price = Number(v.price)
-          const profit = price - cost
-          const marginPct = cost > 0 ? (profit / price) * 100 : 0
-          return [
-            { label: '单件利润', value: `¥${money(profit)}` },
-            { label: '毛利率', value: cost > 0 ? pct(marginPct) : '—', primary: true },
-            { label: '加价率（Markup）', value: cost > 0 ? pct((profit / cost) * 100) : '—' },
-            { label: '该毛利率对应的加价率', value: marginPct < 100 ? pct((marginPct / (100 - marginPct)) * 100) : '—', hint: '换算口径：加价率 = 毛利率 ÷(1 − 毛利率)' },
-            { label: '成本占比', value: price > 0 ? pct((cost / price) * 100) : '—' },
-            ...(tm > 0 ? [{ label: '提示', value: '已按售价优先计算', hint: '「目标毛利率」已忽略；清空售价后走反推分支' }] : []),
+        const t = Number(v.target)
+        const d = Number(v.discount) || 0
+        if (v.mode === 'price') {
+          const price = cost / (1 - t / 100)
+          const discounted = price * (1 - d / 100)
+          const rows: CalcResultRow[] = [
+            { label: '建议定价', value: `¥${money(price)}`, primary: true },
+            { label: '单毛利', value: `¥${money(price - cost)}` },
           ]
-        }
-        if (tm) {
-          if (tm >= 100) {
-            return [{ label: '目标毛利率无效', value: '需低于 100%', primary: true, hint: '等于 100% 意味着零成本，数学上无解' }]
+          if (d > 0) {
+            rows.push({ label: `让利 ${d}% 后价格`, value: `¥${money(discounted)}` })
+            rows.push({ label: '让利后毛利率', value: discounted > 0 ? pct(((discounted - cost) / discounted) * 100) : '—' })
+            if (d > 0 && d <= 10) {
+              rows.push({ label: '折扣心智提示', value: `「打 ${d} 折」= 让利 ${(100 - d * 10)}%`, hint: '若您想表达打 8 折（让利 20%），请在折扣减让中填 20' })
+            }
           }
-          const price = cost / (1 - tm / 100)
-          return [
-            { label: '建议售价', value: `¥${money(price)}`, primary: true },
-            { label: '单件利润', value: `¥${money(price - cost)}` },
-            { label: '成本占比', value: price > 0 ? pct((cost / price) * 100) : '—' },
-          ]
+          return rows
         }
-        return [{ label: '提示', value: '请填写售价或目标毛利率' }]
+        const profit = t - cost
+        return [
+          { label: '单毛利', value: `¥${money(profit)}`, primary: true },
+          { label: '毛利率', value: t ? pct((profit / t) * 100) : '—' },
+          { label: '加价率', value: cost ? pct((profit / cost) * 100) : '—' },
+          { label: '盈亏平衡折扣', value: t ? pct((1 - cost / t) * 100) : '—', hint: '让利百分比低于此值仍可保本' },
+        ]
       },
-      note: '毛利率 =(售价 − 成本)/ 售价；加价率 =(售价 − 成本)/ 成本；反推售价 = 成本 ÷(1 − 目标毛利率)。',
+      note: '定价 = 成本 ÷（1 − 目标毛利率）；毛利率分母为售价；折扣按减让百分比计算（填 20 表示让利 20%，即打 8 折）。',
+      links: [
+        { label: '成本利润率速算 → 利润率计算器', to: '/t/profit-margin-calculator', query: (v) => ({ cost: String(v.cost ?? '') }) },
+      ],
+    },
+  },
+  {
+    slug: 'rule-of-40-calculator', title: 'Rule of 40 计算器', category: 'business',
+    desc: '收入增长率 + 利润率是否达到 40%？一键评估 SaaS 成长健康度。',
+    keywords: ['rule of 40', 'saas', '增长'],
+    calcDef: {
+      fields: [
+        F('growth', '收入增长率（%，YoY 口径）', { placeholder: '如 35', step: 0.1 }),
+        F('margin', '利润率（%，亏损为负）', { placeholder: '如 10', step: 0.1 }),
+        { key: 'basis', label: '利润率口径', type: 'select', default: 'ebitda', choices: [
+          { value: 'ebitda', label: 'EBITDA 率' },
+          { value: 'fcf', label: '自由现金流率（FCF）' },
+          { value: 'op', label: '经营利润率' },
+        ] },
+      ],
+      compute: (v) => {
+        const score = Number(v.growth) + Number(v.margin)
+        const basisLabel = v.basis === 'fcf' ? '自由现金流率' : v.basis === 'op' ? '经营利润率' : 'EBITDA 率'
+        const quadrant =
+          Number(v.growth) >= 40 && Number(v.margin) >= 0
+            ? '增长驱动型（增长 ≥40 且未亏损）'
+            : Number(v.margin) >= 40 && Number(v.growth) >= 0
+              ? '盈利驱动型（利润 ≥40 且仍在增长）'
+              : Number(v.growth) < 20 && Number(v.margin) < 20
+                ? '双低（增长与利润均低于 20，优先补增长）'
+                : '均衡型（40 线附近，增长与利润互补）'
+        const rows: CalcResultRow[] = [
+          { label: 'Rule of 40 得分', value: score.toFixed(1), primary: true },
+          { label: '是否达标（≥40）', value: score >= 40 ? '✓ 达标' : '⚠ 未达标', tone: score >= 40 ? 'ok' : score >= 30 ? 'warn' : 'err' },
+          { label: '差距', value: score >= 40 ? `超出 ${pct(score - 40)}` : `还差 ${pct(40 - score)}` },
+          { label: '象限解读', value: quadrant },
+          { label: '参照（示例值，请以最新报告为准）', value: '上市 SaaS 中位约 35；前 1/4 > 60', hint: '来源：Bessemer / Battery 年度云基准报告' },
+        ]
+        return rows
+      },
+      note: 'Rule of 40 = 收入增长率%（YoY）+ 利润率%（当前口径见上方下拉），≥40% 视为优秀。参照值为公开基准报告的示例量级，请以最新报告为准。',
     },
   },
   {
@@ -220,12 +370,6 @@ const tools: ToolDef[] = [
         { label: '算回收 → CAC', to: '/t/cac-calculator', query: (v) => ({ arpu: String(v.arpu ?? ''), margin: String(v.margin ?? '') }) },
       ],
     },
-  },
-  {
-    slug: 'cash-flow-calculator', title: '现金流预测', category: 'business',
-    desc: '逐月编辑收入与支出，查看累计现金曲线、期末余额与最低现金点。',
-    keywords: ['现金流', '预测', '现金'],
-    component: () => import('./components/CashFlowProjection.vue'),
   },
   {
     slug: 'cac-calculator', title: '获客成本与回收期', category: 'business',
@@ -337,150 +481,6 @@ const tools: ToolDef[] = [
     keywords: ['留存', '同期群', 'cohort'],
     component: () => import('./components/CohortRetention.vue'),
   },
-  {
-    slug: 'burn-rate-calculator', title: '烧钱率与现金跑道', category: 'business',
-    desc: '由现金余额、收入（可带增长率）与支出计算月烧钱率、现金跑道与现金耗尽月份。',
-    keywords: ['烧钱', '跑道', 'runway'],
-    calcDef: {
-      fields: [
-        F('cash', '当前现金余额', { placeholder: '如 2000000' }),
-        F('revenue', '月收入', { placeholder: '如 150000' }),
-        F('expense', '月支出', { placeholder: '如 260000' }),
-        F('growth', '月收入增长率（%，可选，按月复利外推）', { step: 0.5 }),
-      ],
-      compute: (v) => {
-        const cash = Number(v.cash)
-        const revenue = Number(v.revenue)
-        const expense = Number(v.expense)
-        const growth = Math.min(99, Math.max(0, Number(v.growth) || 0)) / 100
-        const burn = expense - revenue
-        const rows: CalcResultRow[] = []
-        let runway: number
-        let mode = ''
-        if (growth > 0 && burn > 0) {
-          // 按月复利外推：收入逐月增长，支出恒定
-          let cum = 0
-          let m = 0
-          const r0 = revenue
-          while (cum < cash && m < 600) {
-            m++
-            cum += expense - r0 * Math.pow(1 + growth, m)
-          }
-          runway = cum >= cash ? m : Infinity
-          mode = '（按增长外推）'
-        } else {
-          runway = burn > 0 ? cash / burn : Infinity
-        }
-        rows.push({ label: '月净烧钱率', value: `¥${money(burn)}`, primary: burn > 0 })
-        rows.push({
-          label: '现金跑道',
-          value: Number.isFinite(runway) ? (runway > 600 ? '盈利，无限跑道' : `${runway.toFixed(1)} 个月${mode}`) : `盈利，无限跑道`,
-        })
-        if (Number.isFinite(runway) && runway <= 600) {
-          const d = new Date()
-          d.setMonth(d.getMonth() + Math.floor(runway))
-          rows.push({ label: '预计现金耗尽', value: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` })
-        }
-        const state = !Number.isFinite(runway) || runway > 18
-          ? '✓ 健康（>18 个月）'
-          : runway > 12
-            ? '⚠ 需要关注（12-18 个月）'
-            : '✗ 危险（<12 个月），尽快融资或削减成本'
-        rows.push({ label: '状态判断', value: state, tone: !Number.isFinite(runway) || runway > 18 ? 'ok' : runway > 12 ? 'warn' : 'err', hint: '跑道假设支出恒定；保守评估可用月总支出（gross burn）替代净烧钱率' })
-        return rows
-      },
-      note: '净烧钱率 = 月支出 − 月收入；跑道 = 现金 ÷ 净烧钱率。收入增长率 >0 时按月复利外推（收入逐月增长、支出恒定）；保守评估可用月总支出（gross burn）替代净烧钱率。',
-      links: [
-        { label: '逐月精算跑道 → 现金流预测', to: '/t/cash-flow-calculator', query: (v) => ({ cash: String(v.cash ?? ''), revenue: String(v.revenue ?? ''), expense: String(v.expense ?? '') }) },
-      ],
-    },
-  },
-  {
-    slug: 'rule-of-40-calculator', title: 'Rule of 40 计算器', category: 'business',
-    desc: '收入增长率 + 利润率是否达到 40%？一键评估 SaaS 成长健康度。',
-    keywords: ['rule of 40', 'saas', '增长'],
-    calcDef: {
-      fields: [
-        F('growth', '收入增长率（%，YoY 口径）', { placeholder: '如 35', step: 0.1 }),
-        F('margin', '利润率（%，亏损为负）', { placeholder: '如 10', step: 0.1 }),
-        { key: 'basis', label: '利润率口径', type: 'select', default: 'ebitda', choices: [
-          { value: 'ebitda', label: 'EBITDA 率' },
-          { value: 'fcf', label: '自由现金流率（FCF）' },
-          { value: 'op', label: '经营利润率' },
-        ] },
-      ],
-      compute: (v) => {
-        const score = Number(v.growth) + Number(v.margin)
-        const basisLabel = v.basis === 'fcf' ? '自由现金流率' : v.basis === 'op' ? '经营利润率' : 'EBITDA 率'
-        const quadrant =
-          Number(v.growth) >= 40 && Number(v.margin) >= 0
-            ? '增长驱动型（增长 ≥40 且未亏损）'
-            : Number(v.margin) >= 40 && Number(v.growth) >= 0
-              ? '盈利驱动型（利润 ≥40 且仍在增长）'
-              : Number(v.growth) < 20 && Number(v.margin) < 20
-                ? '双低（增长与利润均低于 20，优先补增长）'
-                : '均衡型（40 线附近，增长与利润互补）'
-        const rows: CalcResultRow[] = [
-          { label: 'Rule of 40 得分', value: score.toFixed(1), primary: true },
-          { label: '是否达标（≥40）', value: score >= 40 ? '✓ 达标' : '⚠ 未达标', tone: score >= 40 ? 'ok' : score >= 30 ? 'warn' : 'err' },
-          { label: '差距', value: score >= 40 ? `超出 ${pct(score - 40)}` : `还差 ${pct(40 - score)}` },
-          { label: '象限解读', value: quadrant },
-          { label: '参照（示例值，请以最新报告为准）', value: '上市 SaaS 中位约 35；前 1/4 > 60', hint: '来源：Bessemer / Battery 年度云基准报告' },
-        ]
-        return rows
-      },
-      note: 'Rule of 40 = 收入增长率%（YoY）+ 利润率%（当前口径见上方下拉），≥40% 视为优秀。参照值为公开基准报告的示例量级，请以最新报告为准。',
-    },
-  },
-  {
-    slug: 'saas-pricing-calculator', title: '定价与毛利计算', category: 'business',
-    desc: '双向定价：按目标毛利定价，或由价格与折扣减让反推毛利与利润。',
-    keywords: ['定价', '毛利', '折扣'],
-    calcDef: {
-      fields: [
-        F('cost', '单单位成本', { step: 0.01 }),
-        { key: 'mode', label: '计算方向', type: 'select', default: 'price', choices: [
-          { value: 'price', label: '按目标毛利 → 定价' },
-          { value: 'margin', label: '按价格 → 毛利' },
-        ] },
-        F('target', '目标毛利率（%）或售价（按方向填）', { step: 0.1 }),
-        F('discount', '折扣减让（%，如 20 表示让利 20%）', { step: 1 }),
-      ],
-      compute: (v) => {
-        const cost = Number(v.cost)
-        const t = Number(v.target)
-        const d = Number(v.discount) || 0
-        if (v.mode === 'price') {
-          const price = cost / (1 - t / 100)
-          const discounted = price * (1 - d / 100)
-          const rows: CalcResultRow[] = [
-            { label: '建议定价', value: `¥${money(price)}`, primary: true },
-            { label: '单毛利', value: `¥${money(price - cost)}` },
-          ]
-          if (d > 0) {
-            rows.push({ label: `让利 ${d}% 后价格`, value: `¥${money(discounted)}` })
-            rows.push({ label: '让利后毛利率', value: discounted > 0 ? pct(((discounted - cost) / discounted) * 100) : '—' })
-            if (d > 0 && d <= 10) {
-              rows.push({ label: '折扣心智提示', value: `「打 ${d} 折」= 让利 ${(100 - d * 10)}%`, hint: '若您想表达打 8 折（让利 20%），请在折扣减让中填 20' })
-            }
-          }
-          return rows
-        }
-        const profit = t - cost
-        return [
-          { label: '单毛利', value: `¥${money(profit)}`, primary: true },
-          { label: '毛利率', value: t ? pct((profit / t) * 100) : '—' },
-          { label: '加价率', value: cost ? pct((profit / cost) * 100) : '—' },
-          { label: '盈亏平衡折扣', value: t ? pct((1 - cost / t) * 100) : '—', hint: '让利百分比低于此值仍可保本' },
-        ]
-      },
-      note: '定价 = 成本 ÷（1 − 目标毛利率）；毛利率分母为售价；折扣按减让百分比计算（填 20 表示让利 20%，即打 8 折）。',
-      links: [
-        { label: '成本利润率速算 → 利润率计算器', to: '/t/profit-margin-calculator', query: (v) => ({ cost: String(v.cost ?? '') }) },
-      ],
-    },
-  },
-  { slug: 'email-signature-generator', title: '邮件签名生成器', category: 'business', desc: '生成 Outlook/Gmail/Foxmail 兼容的 HTML 邮件签名，一键复制富文本。', keywords: ['邮件签名', '签名档', 'outlook'], component: () => import('./components/EmailSignatureGenerator.vue') },
 ]
 
 /** CAC 投放健康度判定（文案 + 语义着色） */

@@ -136,7 +136,7 @@ const download = async () => {
 .page-list {
   display: grid;
   gap: 8px;
-  max-height: max(420px, calc(100vh - 420px));
+  max-height: max(420px, calc(100dvh - 420px));
   overflow: auto;
 }
 .page-card {

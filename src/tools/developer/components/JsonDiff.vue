@@ -151,7 +151,7 @@ const visibleChanges = () => (kindFilter.value === 'all' ? changes.value : chang
 <style scoped>
 /* 输入区弹性高度：随视口伸展，高屏多看行、低屏不撑爆页面 */
 .diff-input {
-  min-height: min(400px, calc(100vh - 420px));
+  min-height: min(400px, calc(100dvh - 420px));
 }
 /* 差异列表约束：内部滚动 + 计数徽章/过滤常驻顶部，千项差异不撑长页面 */
 .diff-out {

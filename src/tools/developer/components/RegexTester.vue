@@ -215,14 +215,14 @@ onMounted(() => {
 /* 双区弹性高度：默认视口口径，可勾选扩展 */
 .textarea.tall,
 .hl.tall {
-  height: max(420px, calc(100vh - 420px));
+  height: max(420px, calc(100dvh - 420px));
   max-height: none;
 }
 .textarea {
-  height: min(280px, max(160px, calc(100vh - 480px)));
+  height: min(280px, max(160px, calc(100dvh - 480px)));
 }
 .hl {
-  height: min(280px, max(160px, calc(100vh - 480px)));
+  height: min(280px, max(160px, calc(100dvh - 480px)));
   overflow: auto;
 }
 .hl :deep(mark) {

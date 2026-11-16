@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue'
 import type { ToolDef } from '@/types'
-import { categoryMap } from '@/data/categories'
+import { menuCategoryOfSlug } from '@/data/menuTree'
 
 /** 全站搜索：中文名称 + 描述 + 关键词匹配 */
 export function searchTools(allTools: ToolDef[], query: string, limit = 24): ToolDef[] {
@@ -32,9 +32,9 @@ export function useSearch() {
   return { searchOpen: open, openSearch: () => (open.value = true), closeSearch: () => (open.value = false) }
 }
 
-/** 全局搜索弹层状态由 App 级组件消费 */
-export function searchCategoryName(id: string): string {
-  return categoryMap.get(id as never)?.name ?? ''
+/** 全局搜索弹层状态由 App 级组件消费(分类名取菜单大类口径,与顶栏/菜单一致) */
+export function searchCategoryName(slug: string): string {
+  return menuCategoryOfSlug(slug)?.cat.name ?? ''
 }
 
 export const searchActive = computed(() => open.value)

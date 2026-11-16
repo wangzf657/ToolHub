@@ -320,7 +320,7 @@ const previewRows = (t: TableInfo) => t.rows.slice(0, 3)
 }
 /* 编辑器弹性高度：视口口径，可拖拽调高 */
 .sql-box {
-  height: min(280px, calc(100vh - 520px));
+  height: min(280px, calc(100dvh - 520px));
   min-height: 140px;
   resize: vertical;
 }

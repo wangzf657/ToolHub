@@ -174,7 +174,7 @@ const run = async () => {
 }
 /* 预览弹性高度：视口为主，下限 480px，页面少滚动即可通读 */
 .preview {
-  height: max(480px, calc(100vh - 320px));
+  height: max(480px, calc(100dvh - 320px));
   max-height: 900px;
   overflow: auto;
   white-space: pre-wrap;

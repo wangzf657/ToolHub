@@ -7,6 +7,15 @@
 }
 html {
   scroll-behavior: smooth;
+  /* iOS 横屏字体膨胀与安卓输入聚焦缩放基线 */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+*,
+*::before,
+*::after {
+  /* 去安卓点击高亮色块(:active 反馈保留) */
+  -webkit-tap-highlight-color: transparent;
 }
 body {
   margin: 0;
@@ -291,6 +300,41 @@ html[data-theme='light'] input[type='datetime-local'] {
   background: rgba(52, 211, 153, 0.08);
   color: var(--ok);
   border: 1px solid rgba(52, 211, 153, 0.25);
+}
+
+/* ---------- 移动端基座(权威断点 860/480,R5-a) ---------- */
+@media (max-width: 860px) {
+  /* 输入控件 ≥16px:iOS Safari 聚焦小于 16px 的输入框会强制放大页面 */
+  .input,
+  .select,
+  .textarea,
+  .textarea.mono,
+  .input.mono {
+    font-size: 16px;
+  }
+  /* 触控目标 ≥44×44(小按钮放大热区) */
+  .icon-btn {
+    width: 40px;
+    height: 40px;
+  }
+  .btn-sm {
+    min-height: 40px;
+    padding: 8px 16px;
+  }
+  .check input {
+    width: 20px;
+    height: 20px;
+  }
+}
+@media (hover: none) and (pointer: coarse) {
+  .icon-btn {
+    width: 44px;
+    height: 44px;
+  }
+}
+/* 表格横滑顺滑(表格类工具宽表横滑可用) */
+.table-wrap {
+  -webkit-overflow-scrolling: touch;
 }
 
 /* ---------- 布局工具 ---------- */

@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { Star } from 'lucide-vue-next'
+import { Star, Smartphone } from 'lucide-vue-next'
 import { toolMap, toolsByCategory } from '@/tools'
-import { categoryMap } from '@/data/categories'
+import { menuCategoryOfSlug } from '@/data/menuTree'
 import Breadcrumbs from '@/components/common/Breadcrumbs.vue'
 import ToolMetaStrip from '@/components/common/ToolMetaStrip.vue'
 import TextTool from '@/components/common/TextTool.vue'
@@ -12,6 +12,7 @@ import ImageConvertTool from '@/components/common/ImageConvertTool.vue'
 import ToolCard from '@/components/common/ToolCard.vue'
 import NotFoundPage from './NotFoundPage.vue'
 import { useSaved } from '@/composables/useSaved'
+import { isWeChat } from '@/lib/download'
 import type { ToolDef } from '@/types'
 
 const route = useRoute()
@@ -40,7 +41,8 @@ watch(
   { immediate: true },
 )
 
-const category = computed(() => (tool.value ? categoryMap.get(tool.value.category) : undefined))
+/** 面包屑分类口径 = 菜单大类(与顶栏/工作台菜单/目录一致),指向 /tools?cat= 分组目录 */
+const menuCat = computed(() => (tool.value ? menuCategoryOfSlug(tool.value.slug)?.cat : undefined))
 const related = computed(() =>
   tool.value ? toolsByCategory(tool.value.category).filter((t) => t.slug !== tool.value!.slug).slice(0, 3) : [],
 )
@@ -50,11 +52,12 @@ const defaultSteps = ['打开工具，输入或拖入内容', '按需调整选�
 
 <template>
   <NotFoundPage v-if="!tool" />
-  <div v-else class="container tool-page" style="padding-top: 14px">
+  <!-- V1.1:脱离 .container 居中容器,面板全宽(R4);纯说明段落保留行宽上限 -->
+  <div v-else class="tool-page">
     <Breadcrumbs
       :items="[
         { label: '首页', to: '/' },
-        { label: category?.name ?? '', to: category?.path },
+        { label: menuCat?.name ?? '工具', to: menuCat ? `/tools?cat=${menuCat.id}` : '/tools' },
         { label: tool.title },
       ]"
     />
@@ -64,14 +67,26 @@ const defaultSteps = ['打开工具，输入或拖入内容', '按需调整选�
         <h1>{{ tool.title }}</h1>
         <span class="privacy-badge">
           🔒 100% 隐私 —— 在你的设备上运行，从不上传。加载后可离线使用。
-          <em v-if="tool.needModel">（部分能力首次使用需下载模型）</em>
+          <em v-if="tool.needModel">（部分能力首次使用需下载模型，建议 Wi-Fi 环境）</em>
         </span>
       </div>
-      <button class="bookmark-btn" :class="{ on: isSaved(tool.slug) }" @click="toggle(tool.slug)">
+      <button class="bookmark-btn" :class="{ on: isSaved(tool.slug) }" :title="isSaved(tool.slug) ? '取消收藏' : '收藏工具'" @click="toggle(tool.slug)">
         <Star :size="15" :fill="isSaved(tool.slug) ? 'currentColor' : 'none'" />
-        {{ isSaved(tool.slug) ? '已收藏' : '收藏' }}
+        <span class="bookmark-text">{{ isSaved(tool.slug) ? '已收藏' : '收藏' }}</span>
       </button>
     </div>
+
+    <!-- 微信内置浏览器下载降级提示(R5-d:blob 下载经常静默失效) -->
+    <p v-if="isWeChat()" class="notice notice-warn wechat-tip">
+      <Smartphone :size="15" style="flex: none; margin-top: 2px" />
+      当前在微信内打开，文件可能无法直接保存——点右上角「···」选「在浏览器打开」后再下载。
+    </p>
+
+    <!-- 编辑器工作室移动降级提示(R5-e:面板垂直堆叠精简模式,仅 ≤860 显示) -->
+    <p v-if="tool.studio" class="notice notice-info studio-mobile-tip">
+      <Smartphone :size="15" style="flex: none; margin-top: 2px" />
+      移动端精简模式：面板已改为垂直堆叠，复杂操作建议在桌面使用。
+    </p>
 
     <!-- 单栏全宽：右侧不设栏，把空间让给工具本体；信任盾/快速指南压成面板下方一条横条 -->
     <div class="panel tool-panel">
@@ -155,6 +170,18 @@ const defaultSteps = ['打开工具，输入或拖入内容', '按需调整选�
   border-color: var(--warn);
   color: var(--warn);
 }
+.wechat-tip {
+  margin-bottom: 12px;
+}
+.studio-mobile-tip {
+  display: none;
+  margin-bottom: 12px;
+}
+@media (max-width: 860px) {
+  .studio-mobile-tip {
+    display: flex;
+  }
+}
 .tool-panel {
   padding: 18px;
   min-height: 240px;
@@ -166,22 +193,29 @@ const defaultSteps = ['打开工具，输入或拖入内容', '按需调整选�
   color: var(--text-2);
   padding: 30px 0;
 }
+/* 可读性例外:纯说明段落保留行宽上限,交互面板全宽 */
 .tool-about {
   margin-top: 14px;
   color: var(--text-2);
-  max-width: 760px;
+  max-width: 900px;
+}
+.related {
+  margin-top: 26px;
 }
 .related h2 {
   font-size: 20px;
 }
 .related-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 13px;
 }
-@media (max-width: 900px) {
-  .related-grid {
-    grid-template-columns: 1fr;
+@media (max-width: 480px) {
+  .bookmark-btn {
+    padding: 8px 11px;
+  }
+  .bookmark-text {
+    display: none;
   }
 }
 </style>

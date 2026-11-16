@@ -93,7 +93,7 @@ onBeforeUnmount(() => {
 .slim { width: 90px; }
 .area { width: 100%; resize: vertical; }
 .stage { position: relative; height: 300px; overflow: hidden; border: 1px solid var(--border); border-radius: 12px; background: #000; }
-.stage.full { position: fixed; inset: 0; z-index: 9999; border: none; border-radius: 0; height: 100vh; }
+.stage.full { position: fixed; inset: 0; z-index: 9999; border: none; border-radius: 0; height: 100dvh; }
 .tele { color: #fff; padding: 40vh 15% 60vh; line-height: 2; white-space: pre-wrap; will-change: transform; }
 .tele.mirror { transform-origin: center; scale: -1 1; }
 .center-line { position: absolute; top: 50%; left: 0; right: 0; height: 2px; background: rgba(255, 235, 59, .55); pointer-events: none; }

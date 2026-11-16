@@ -239,13 +239,17 @@ const clearAll = () => {
   gap: 10px;
   margin-top: 14px;
 }
-@media (max-width: 760px) {
+/* 移动端单列(R5-c:760 旧断点归一到权威断点 860) */
+@media (max-width: 860px) {
   .text-io {
     grid-template-columns: 1fr;
   }
   .io-actions {
     justify-content: center;
     flex-direction: row;
+  }
+  .io-flex {
+    min-height: 140px;
   }
 }
 .io-pane {

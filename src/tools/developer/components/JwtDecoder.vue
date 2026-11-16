@@ -227,7 +227,7 @@ const copy = async (v: string, label: string) => {
   overflow: auto;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  max-height: max(260px, calc(100vh - 420px));
+  max-height: max(260px, calc(100dvh - 420px));
 }
 .seg-body.sig {
   word-break: break-all;

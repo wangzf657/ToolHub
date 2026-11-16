@@ -217,7 +217,7 @@ const dlXlsx = async () => {
 }
 /* schema 弹性高度（1366×768 下 30 列 schema 同屏可见 ≥15 行） */
 .schema-box {
-  height: min(320px, calc(100vh - 560px));
+  height: min(320px, calc(100dvh - 560px));
   min-height: 160px;
   overflow: auto;
   margin: 0;

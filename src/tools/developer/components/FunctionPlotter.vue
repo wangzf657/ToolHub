@@ -283,7 +283,7 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .cv-wrap { position: relative; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
-.cv { display: block; width: 100%; height: clamp(320px, calc(100vh - 380px), 640px); cursor: crosshair; }
+.cv { display: block; width: 100%; height: clamp(320px, calc(100dvh - 380px), 640px); cursor: crosshair; }
 .tip {
   position: absolute;
   pointer-events: none;

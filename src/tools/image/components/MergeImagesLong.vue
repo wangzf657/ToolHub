@@ -273,7 +273,7 @@ watch(gap, () => {
 }
 .lightbox img {
   max-width: 100%;
-  max-height: calc(100vh - 40px);
+  max-height: calc(100dvh - 40px);
 }
 .spin {
   animation: spin 0.8s linear infinite;

@@ -27,6 +27,9 @@
   --radius: 16px;
   --radius-sm: 12px;
   --code-bg: #0d1426;
+  /* 全面屏安全区(抽屉/吸底/页脚叠加 calc(… + var(--safe-b))) */
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-t: env(safe-area-inset-top, 0px);
 }
 
 html[data-theme='light'] {

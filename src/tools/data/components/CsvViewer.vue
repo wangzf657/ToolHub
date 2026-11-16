@@ -317,7 +317,7 @@ const dlJson = () => {
 }
 /* 表格弹性高度：视口口径，首屏尽量多行 */
 .table-wrap {
-  height: max(480px, calc(100vh - 330px));
+  height: max(480px, calc(100dvh - 330px));
   overflow: auto;
 }
 td.hit,

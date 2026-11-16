@@ -192,6 +192,24 @@ const applyRe = (r: ResultItem) => {
   height: 100%;
   object-fit: contain;
 }
+/* 移动端(R5-c):卡片竖排、下载按钮全宽;大图预览限高防撑爆 */
+@media (max-width: 860px) {
+  .thumb {
+    width: 64px;
+    height: 64px;
+  }
+  .thumb img {
+    max-width: 100%;
+    max-height: 60dvh;
+  }
+  .acts {
+    width: 100%;
+  }
+  .acts .btn {
+    flex: 1;
+    justify-content: center;
+  }
+}
 .meta {
   min-width: 0;
   display: grid;
@@ -226,6 +244,12 @@ const applyRe = (r: ResultItem) => {
   display: grid;
   gap: 6px;
   justify-items: end;
+}
+@media (max-width: 860px) {
+  .acts {
+    display: flex;
+    justify-items: stretch;
+  }
 }
 .re-row {
   display: flex;

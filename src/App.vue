@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue'
+import { defineAsyncComponent, onMounted, onUnmounted, ref } from 'vue'
 import SiteHeader from '@/components/layout/SiteHeader.vue'
 import SiteFooter from '@/components/layout/SiteFooter.vue'
 import CookieBanner from '@/components/layout/CookieBanner.vue'
@@ -7,11 +7,18 @@ import SearchModal from '@/components/common/SearchModal.vue'
 import { useSearch } from '@/composables/useSearch'
 import { useTheme } from '@/composables/useTheme'
 import { useToast } from '@/composables/useToast'
+import { useWorkbench } from '@/composables/useWorkbench'
 import { allTools } from '@/tools'
 
+// 抽屉(含 Element Plus 菜单)按需异步:桌面端不挂载则不加载 chunk,EP 不进静态入口与首页首屏
+const ToolDrawer = defineAsyncComponent(() => import('@/components/layout/ToolDrawer.vue'))
+
 const { searchOpen, closeSearch, openSearch } = useSearch()
+const { drawerOpen } = useWorkbench()
 const { toasts } = useToast()
 useTheme()
+
+const isMobile = ref(typeof matchMedia !== 'undefined' && matchMedia('(max-width: 860px)').matches)
 
 const onKey = (e: KeyboardEvent) => {
   if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
@@ -30,6 +37,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
   <RouterView />
   <SiteFooter />
   <CookieBanner />
+  <!-- 移动端工具抽屉(顶栏汉堡=唯一入口;移动端常挂载,桌面仅打开时加载) -->
+  <ToolDrawer v-if="drawerOpen || isMobile" />
   <SearchModal v-if="searchOpen" :tools="allTools" @close="closeSearch" />
 
   <!-- 全局提示 -->

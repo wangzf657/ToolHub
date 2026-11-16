@@ -223,7 +223,7 @@ const copyPath = async (h: Hit, i: number) => {
 <style scoped>
 /* 弹性高度：随视口伸展，命中列表多时不撑爆页面 */
 .jp-input {
-  min-height: min(420px, calc(100vh - 360px));
+  min-height: min(420px, calc(100dvh - 360px));
 }
 .result-area {
   border: 1px solid var(--border);
@@ -231,7 +231,7 @@ const copyPath = async (h: Hit, i: number) => {
   background: var(--code-bg);
   padding: 10px;
   min-height: 420px;
-  height: calc(100vh - 340px);
+  height: calc(100dvh - 340px);
   max-height: 780px;
   overflow: auto;
   display: grid;

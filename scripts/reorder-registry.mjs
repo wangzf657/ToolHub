@@ -1,20 +1,21 @@
 /**
- * 一次性迁移脚本:按「常用 + 高技术含量优先」原则重排各分类注册表的工具顺序。
+ * 注册表全序重排脚本(V1.1:FRONT 前置白名单机制已升级为 FULL 全序表)。
  *
  * 规则:
- * 1. `FRONT` 中列出的 slug 按目标顺序提到数组最前(首页每个分类只露出前 8 个,前 8 直接决定曝光);
- * 2. 未列出的 slug 保持原有相对顺序依次排在后面,组注释跟随其后的条目一起移动;
- * 3. 强断言:条目数不变、slug 集合不变、无重复,防止重排弄丢工具;
- * 4. 顺带把文件头注释里过期的「N 项」计数修正为真实条目数。
+ * 1. `FULL`(scripts/reorder-order.mjs,由 gen-menu-groups.mjs 从蓝图生成)给出每个分类的
+ *    完整目标序——注册表数组序 = 菜单二级顺序,未列入/多余均报错(双向死链断言);
+ * 2. 强断言:条目数不变、slug 集合不变、无重复、FULL 全覆盖,防止重排弄丢工具;
+ * 3. 顺带把文件头注释里过期的「N 项」计数修正为真实条目数。
  *
  * 解析器为字符级状态机:支持单行/多行条目、模板字符串与 ${} 插值、行/块注释,
- * 对 src/tools 下全部 11 个分类注册表统一处理(editors 仅 4 项无需重排)。
+ * 对 src/tools 下全部 12 个分类注册表统一处理。
  *
  * 用法:node scripts/reorder-registry.mjs(可重复执行,幂等)
  */
 import { readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
+import { FULL } from './reorder-order.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -31,176 +32,7 @@ const EXPECT_COUNT = {
   business: 15,
   seo: 13,
   ai: 15,
-}
-
-/** 各分类希望前置的高频/旗舰工具,按目标顺序书写 */
-const FRONT = {
-  image: [
-    'compress-image-to-size',
-    'resize-image',
-    'crop-image',
-    'remove-background',
-    'ocr',
-    'passport-photo',
-    'png-to-jpg',
-    'jpg-to-png',
-    'webp-to-jpg',
-    'add-watermark',
-    'photo-filters',
-    'meme-generator',
-    'merge-images-long',
-    'batch-image-process',
-    'gif-frame-extractor',
-    'screen-color-picker',
-  ],
-  video: [
-    'compress-video',
-    'convert-video',
-    'trim-video',
-    'video-to-mp3',
-    'merge-video',
-    'video-to-gif',
-    'add-subtitles-to-video',
-    'video-thumbnail',
-    'mute-video',
-    'rotate-video',
-    'video-editor',
-  ],
-  audio: [
-    'text-to-speech',
-    'audio-transcribe',
-    'audio-trimmer',
-    'voice-recorder',
-    'speech-to-text',
-    'convert-audio',
-    'wav-to-mp3',
-    'mp3-to-wav',
-    'merge-audio',
-    'vocal-remover',
-    'remove-noise-from-audio',
-    'audio-pitch-shift',
-  ],
-  pdf: [
-    'merge-pdf',
-    'split-pdf',
-    'compress-pdf',
-    'pdf-to-word',
-    'pdf-to-jpg',
-    'images-to-pdf',
-    'unlock-pdf',
-    'protect-pdf',
-    'pdf-to-png',
-    'watermark-pdf',
-    'delete-pdf-pages',
-    'pdf-editor',
-    'signature-drawing',
-    'insert-image-pdf',
-    'compress-pptx',
-  ],
-  data: [
-    'csv-viewer',
-    'excel-to-csv',
-    'csv-to-excel',
-    'chart-from-csv',
-    'compare-csv-files',
-    'merge-csv-files',
-    'remove-duplicates-from-csv',
-    'data-analysis-tool',
-    'excel-viewer',
-  ],
-  utility: [
-    'qr-code-generator',
-    'unit-converter',
-    'word-counter',
-    'loan-calculator',
-    'mortgage-calculator',
-    'password-generator',
-    'uuid-generator',
-    'age-calculator',
-    'percentage-calculator',
-    'bmi-calculator',
-    'currency-converter',
-    'scientific-calculator',
-    'date-difference-calculator',
-    'wifi-qr-code',
-    'qr-code-scanner',
-    'income-tax-calculator',
-    'social-insurance-calculator',
-    'pinyin-converter',
-    'chinese-variant-converter',
-    'lunar-calendar',
-    'id-card-validator',
-    'qr-code-styled',
-    'qr-code-batch',
-    'copybook-generator',
-  ],
-  developer: [
-    'json-formatter',
-    'timestamp-converter',
-    'regex-tester',
-    'text-diff',
-    'base64-encoder',
-    'url-encoder',
-    'jwt-decoder',
-    'hash-generator',
-    'csv-to-json',
-    'json-to-csv',
-    'number-base-converter',
-    'sql-formatter',
-    'javascript-formatter',
-    'docx-to-markdown',
-    'markdown-to-docx',
-    'html-to-markdown',
-    'markdown-to-wechat',
-    'code-playground',
-    'json-to-excel',
-    'regex-visualizer',
-    'color-converter',
-    'markdown-formatter',
-    'markdown-toc',
-    'markdown-to-image',
-  ],
-  finance: [
-    'stock-average-calculator',
-    'crypto-profit-calculator',
-    'sip-calculator',
-    'position-size-calculator',
-    'cagr-calculator',
-    'dividend-calculator',
-    'fire-calculator',
-    'kelly-criterion-calculator',
-    'black-scholes-calculator',
-  ],
-  business: [
-    'resume-builder',
-    'take-home-pay-calculator',
-    'roi-calculator',
-    'freelance-rate-calculator',
-    'break-even-calculator',
-    'profit-margin-calculator',
-    'ltv-calculator',
-    'cash-flow-calculator',
-  ],
-  seo: [
-    'sitemap-generator',
-    'keyword-density-checker',
-    'utm-builder',
-    'serp-snippet-preview',
-    'schema-faq-generator',
-    'readability-checker',
-    'heading-structure-checker',
-    'schema-article-generator',
-  ],
-  ai: [
-    'text-summarizer',
-    'keyword-extractor',
-    'translator',
-    'sentiment-analyzer',
-    'grammar-corrector',
-    'paraphraser',
-    'entity-extractor',
-    'chat-with-pdf',
-  ],
+  editors: 4,
 }
 
 const DECL_RE = /^\s*(?:export )?const tools: ToolDef\[\] = \[\s*$/
@@ -336,7 +168,7 @@ function parseRegistry(src, cat) {
   return { lines, declIdx, endLine, items }
 }
 
-for (const [cat, order] of Object.entries(FRONT)) {
+for (const [cat, order] of Object.entries(FULL)) {
   const file = join(root, `src/tools/${cat}/registry.ts`)
   const { lines, declIdx, endLine, items } = parseRegistry(readFileSync(file, 'utf8'), cat)
 
@@ -352,14 +184,15 @@ for (const [cat, order] of Object.entries(FRONT)) {
     bySlug.set(m[1], it)
   }
 
+  // FULL 双向死链断言:FULL 列入的必须存在,注册表存在的必须被 FULL 覆盖
   const missing = order.filter((s) => !bySlug.has(s))
-  if (missing.length) throw new Error(`${cat}: 目标顺序包含不存在的 slug: ${missing.join(', ')}`)
+  if (missing.length) throw new Error(`${cat}: FULL 目标序包含不存在的 slug: ${missing.join(', ')}`)
+  const regSlugs = items.map((it) => it.body.join('\n').match(SLUG_RE)[1])
+  const uncovered = regSlugs.filter((s) => !order.includes(s))
+  if (uncovered.length) throw new Error(`${cat}: 注册表存在但 FULL 未覆盖的 slug: ${uncovered.join(', ')}`)
+  if (new Set(order).size !== order.length) throw new Error(`${cat}: FULL 目标序存在重复 slug`)
 
-  const listedSet = new Set(order)
-  const listed = order.map((s) => bySlug.get(s))
-  const rest = items.filter((it) => !listedSet.has(it.body.join('\n').match(SLUG_RE)[1]))
-
-  const outItems = [...listed, ...rest]
+  const outItems = order.map((s) => bySlug.get(s))
   const bodyLines = outItems.flatMap((it) => [...it.head, ...it.body])
 
   // 修正文件头注释里过期的「N 项」计数
@@ -373,7 +206,8 @@ for (const [cat, order] of Object.entries(FRONT)) {
   if (before !== after) throw new Error(`${cat}: slug 集合发生变化!`)
 
   writeFileSync(file, out.join('\n'))
-  console.log(`✓ ${cat}: 共 ${items.length} 项,前置 ${listed.length} 项`)
+  const changed = regSlugs.join() !== slugsOf(outItems).join()
+  console.log(`✓ ${cat}: 共 ${items.length} 项,全序 ${order.length} 项${changed ? '' : '(已一致)'}`)
 }
 
 console.log('完成。请运行 npm run test 与 npm run build 验证。')

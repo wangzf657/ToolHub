@@ -231,7 +231,7 @@ const run = async () => {
   transition: width 0.2s;
 }
 .result-list {
-  max-height: max(360px, calc(100vh - 480px));
+  max-height: max(360px, calc(100dvh - 480px));
   overflow: auto;
   border: 1px solid var(--border);
   border-radius: 10px;

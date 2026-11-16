@@ -216,7 +216,7 @@ const dlAll = async () => {
 }
 /* 预览弹性高度：视口口径 */
 .table-wrap {
-  height: min(420px, calc(100vh - 480px));
+  height: min(420px, calc(100dvh - 480px));
   min-height: 240px;
   overflow: auto;
 }

@@ -278,7 +278,7 @@ watch([tab, startMrr, newMrr, expandMrr, contractMrr, churnMrr], () => {
 .hint { font-size: 12px; color: var(--text-3); }
 .wf-box {
   position: relative;
-  height: min(300px, calc(100vh - 560px));
+  height: min(300px, calc(100dvh - 560px));
   min-height: 200px;
   border: 1px solid var(--border);
   border-radius: 12px;

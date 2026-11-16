@@ -5,22 +5,9 @@ const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
 /** SEO 工具注册表（13 项） */
 const tools: ToolDef[] = [
   { slug: 'sitemap-generator', title: 'XML 站点地图生成', category: 'seo', desc: '粘贴 URL 列表生成带 changefreq、priority 与 lastmod 的 sitemap.xml。', keywords: ['sitemap', '站点地图', 'xml'], component: () => import('./components/SitemapGenerator.vue') },
-  {
-    slug: 'keyword-density-checker', title: '关键词密度分析', category: 'seo',
-    desc: '统计 1–3 词短语的出现次数与密度占比，可选过滤停用词，支持目标词判级。',
-    keywords: ['关键词密度', 'keyword', '密度'],
-    component: () => import('./components/KeywordDensity.vue'),
-  },
+  { slug: 'hreflang-generator', title: 'hreflang 标签生成', category: 'seo', desc: '为多语言/多地区站点生成正确的 rel=alternate hreflang 标签，含 x-default。', keywords: ['hreflang', '多语言', 'alternate'], component: () => import('./components/HreflangGenerator.vue') },
   { slug: 'utm-builder', title: 'UTM 链接构建器', category: 'seo', desc: '生成正确编码的 utm_source/medium/campaign/term/content 追踪链接。', keywords: ['utm', '追踪', 'campaign'], component: () => import('./components/UtmBuilder.vue') },
-  { slug: 'serp-snippet-preview', title: '搜索结果预览', category: 'seo', desc: '预览标题、描述与 URL 在搜索结果中的样子，附像素宽度与字符数提示。', keywords: ['serp', '预览', '搜索结果'], component: () => import('./components/SerpPreview.vue') },
   { slug: 'schema-faq-generator', title: 'FAQ Schema 生成', category: 'seo', desc: '把问答对转成 FAQPage JSON-LD，争取搜索结果中的 FAQ 展示位。', keywords: ['faq', 'schema', '问答'], component: () => import('./components/SchemaGenerators.vue') },
-  {
-    slug: 'readability-checker', title: '可读性评分', category: 'seo',
-    desc: '分析文本可读性：句长、词长与综合评分，逐句标色并给出改进建议（中英双口径）。',
-    keywords: ['可读性', 'flesch', '可读'],
-    component: () => import('./components/ReadabilityChecker.vue'),
-  },
-  { slug: 'heading-structure-checker', title: '标题结构检查', category: 'seo', desc: '粘贴 HTML 提取 H1–H6 结构，检查缺失 H1、多 H1 与跳级等问题。', keywords: ['标题', 'h1', '结构'], component: () => import('./components/HeadingStructure.vue') },
   {
     slug: 'schema-article-generator', title: '文章 Schema 生成', category: 'seo',
     desc: '生成 Article 等 JSON-LD 结构化数据，助力搜索富摘要。',
@@ -31,7 +18,20 @@ const tools: ToolDef[] = [
   { slug: 'schema-localbusiness-generator', title: '本地商家 Schema 生成', category: 'seo', desc: '生成含地址、坐标、营业时间与价位的 LocalBusiness JSON-LD。', keywords: ['localbusiness', 'schema', '本地'], component: () => import('./components/SchemaGenerators.vue') },
   { slug: 'schema-event-generator', title: '活动 Schema 生成', category: 'seo', desc: '生成含时间、地点与票务的 Event JSON-LD，用于活动富结果。', keywords: ['event', 'schema', '活动'], component: () => import('./components/SchemaGenerators.vue') },
   { slug: 'schema-breadcrumb-generator', title: '面包屑 Schema 生成', category: 'seo', desc: '生成位置编号正确的 BreadcrumbList JSON-LD，优化面包屑富摘要。', keywords: ['breadcrumb', 'schema', '面包屑'], component: () => import('./components/SchemaGenerators.vue') },
-  { slug: 'hreflang-generator', title: 'hreflang 标签生成', category: 'seo', desc: '为多语言/多地区站点生成正确的 rel=alternate hreflang 标签，含 x-default。', keywords: ['hreflang', '多语言', 'alternate'], component: () => import('./components/HreflangGenerator.vue') },
+  {
+    slug: 'keyword-density-checker', title: '关键词密度分析', category: 'seo',
+    desc: '统计 1–3 词短语的出现次数与密度占比，可选过滤停用词，支持目标词判级。',
+    keywords: ['关键词密度', 'keyword', '密度'],
+    component: () => import('./components/KeywordDensity.vue'),
+  },
+  { slug: 'serp-snippet-preview', title: '搜索结果预览', category: 'seo', desc: '预览标题、描述与 URL 在搜索结果中的样子，附像素宽度与字符数提示。', keywords: ['serp', '预览', '搜索结果'], component: () => import('./components/SerpPreview.vue') },
+  {
+    slug: 'readability-checker', title: '可读性评分', category: 'seo',
+    desc: '分析文本可读性：句长、词长与综合评分，逐句标色并给出改进建议（中英双口径）。',
+    keywords: ['可读性', 'flesch', '可读'],
+    component: () => import('./components/ReadabilityChecker.vue'),
+  },
+  { slug: 'heading-structure-checker', title: '标题结构检查', category: 'seo', desc: '粘贴 HTML 提取 H1–H6 结构，检查缺失 H1、多 H1 与跳级等问题。', keywords: ['标题', 'h1', '结构'], component: () => import('./components/HeadingStructure.vue') },
 ]
 
 export default tools

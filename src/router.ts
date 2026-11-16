@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomePage from '@/pages/HomePage.vue'
 import { toolMap } from '@/tools'
+import { menuTree } from '@/data/menuTree'
 import { guideBySlug } from '@/data/guides'
 import { site } from '@/data/site'
 
@@ -9,17 +10,27 @@ const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: '/', name: 'home', component: HomePage },
-    { path: '/tools', name: 'all-tools', component: () => import('@/pages/AllToolsPage.vue') },
-    { path: '/tools/:id', name: 'category-all', component: () => import('@/pages/CategoryPage.vue') },
-    { path: '/:id(image-tools|video-tools|audio-tools|pdf-tools|data-tools|utility-tools|developer-tools|finance-tools|business-tools|seo-tools|ai-tools|studios)', name: 'category', component: () => import('@/pages/CategoryPage.vue') },
-    { path: '/t/:slug', name: 'tool', component: () => import('@/pages/ToolPage.vue') },
-    { path: '/saved', name: 'saved', component: () => import('@/pages/SavedPage.vue') },
+    /* 内容页(指南/关于/法务)不套工作台壳,保持营销/阅读形态 */
     { path: '/guides', name: 'guides', component: () => import('@/pages/GuidesPage.vue') },
     { path: '/guides/:slug', name: 'guide', component: () => import('@/pages/GuidePage.vue') },
     { path: '/about', name: 'about', component: () => import('@/pages/AboutPage.vue') },
     { path: '/contact', name: 'contact', component: () => import('@/pages/ContactPage.vue') },
     { path: '/privacy', name: 'privacy', component: () => import('@/pages/PrivacyPage.vue') },
     { path: '/terms', name: 'terms', component: () => import('@/pages/TermsPage.vue') },
+    /* 工作台壳:左侧菜单 + 右侧全宽工作区。children 用绝对路径——URL 形态完全不变,仅渲染层级变化;
+       工具间切换是兄弟 children 间导航,壳与菜单不重挂载(展开态/滚动位置保持) */
+    {
+      path: '/workbench', // 占位父路径(无入口链接指向)
+      component: () => import('@/components/layout/WorkbenchLayout.vue'),
+      children: [
+        { path: '/t/:slug', name: 'tool', component: () => import('@/pages/ToolPage.vue') },
+        { path: '/tools', name: 'all-tools', component: () => import('@/pages/AllToolsPage.vue') },
+        { path: '/tools/:id', name: 'category-all', component: () => import('@/pages/CategoryPage.vue') },
+        { path: '/:id(image-tools|video-tools|audio-tools|pdf-tools|data-tools|utility-tools|developer-tools|finance-tools|business-tools|seo-tools|ai-tools|studios)', name: 'category', component: () => import('@/pages/CategoryPage.vue') },
+        { path: '/saved', name: 'saved', component: () => import('@/pages/SavedPage.vue') },
+        { path: '', redirect: '/' },
+      ],
+    },
     { path: '/studio/:id', redirect: (to) => {
       const map: Record<string, string> = { pdf: 'pdf-editor', video: 'video-studio', photo: 'photo-studio', data: 'data-studio' }
       return `/t/${map[to.params.id as string] ?? 'tools'}`
@@ -70,6 +81,12 @@ router.afterEach((to) => {
   }
   document.title = titles[to.name as string] ?? '百宝工具箱 ToolHub'
   let desc = descs[to.name as string] ?? site.desc
+  // /tools?cat=<菜单大类> 的目录页标题带大类名(全站 6 大类口径);
+  // 大类名本身以「工具」结尾(实用工具/开发工具)则不再追加,避免「实用工具工具」
+  if (to.name === 'all-tools') {
+    const mc = menuTree.find((c) => c.cat.id === String(to.query.cat ?? ''))
+    if (mc) document.title = `${mc.cat.name.endsWith('工具') ? mc.cat.name : mc.cat.name + '工具'} | 百宝工具箱`
+  }
   // 工具页标题带上工具名，便于多标签页区分与分享/SEO
   if (to.name === 'tool') {
     const tool = toolMap.get(String(to.params.slug ?? ''))

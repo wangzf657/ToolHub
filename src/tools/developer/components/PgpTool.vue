@@ -402,7 +402,7 @@ const onPlainDrop = (e: DragEvent) => {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   /* 弹性高度（rx4）：随视口伸展，下限 240px */
-  max-height: max(240px, calc(100vh - 460px));
+  max-height: max(240px, calc(100dvh - 460px));
   overflow-y: auto;
   color: var(--text-2);
 }

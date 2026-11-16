@@ -2,54 +2,55 @@
 import { computed, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { allTools, toolsByCategory } from '@/tools'
-import { categories, categoryByRoute } from '@/data/categories'
-import ToolCard from '@/components/common/ToolCard.vue'
+import { categoryByRoute } from '@/data/categories'
+import { menuTree } from '@/data/menuTree'
 import AppIcon from '@/components/common/AppIcon.vue'
 import Breadcrumbs from '@/components/common/Breadcrumbs.vue'
+import GroupedToolGrid from '@/components/common/GroupedToolGrid.vue'
 import NotFoundPage from './NotFoundPage.vue'
 
+/** 分类目录页(12 数据分类的历史 URL,SEO 兼容保留;主导航已统一 6 菜单大类口径 → /tools?cat=):
+ *  本页按领域族分组全宽网格,排序与工作台菜单同源。 */
 const route = useRoute()
 const catId = computed(() => route.params.id as string)
 const category = computed(() => categoryByRoute(catId.value))
-const tools = computed(() =>
-  catId.value === 'all' ? allTools : toolsByCategory(category.value?.id ?? catId.value),
-)
 const filter = ref('')
-const filtered = computed(() => {
-  const q = filter.value.trim().toLowerCase()
-  if (!q) return tools.value
-  return tools.value.filter((t) => t.title.toLowerCase().includes(q) || (t.keywords ?? []).some((k) => k.toLowerCase().includes(q)) || t.desc.toLowerCase().includes(q))
-})
 </script>
 
 <template>
   <NotFoundPage v-if="!category && catId !== 'all'" />
-  <div v-else class="container" style="padding-top: 34px">
-    <Breadcrumbs :items="[{ label: '首页', to: '/' }, { label: catId === 'all' ? '全部工具' : category!.name }]" />
+  <div v-else class="cat-page">
+    <Breadcrumbs
+      :items="
+        catId === 'all'
+          ? [{ label: '首页', to: '/' }, { label: '全部工具' }]
+          : [{ label: '首页', to: '/' }, { label: '全部工具', to: '/tools' }, { label: category!.name }]
+      "
+    />
 
     <div class="cat-hero">
       <div class="cat-big-icon" :style="{ background: (category?.color ?? '#6366f1') + '1c', color: category?.color }">
         <AppIcon :name="category?.icon ?? 'grid'" :size="30" />
       </div>
-      <div>
+      <div class="cat-hero-main">
         <h1>{{ catId === 'all' ? '全部工具' : category!.name }}</h1>
-        <p class="muted">{{ catId === 'all' ? `共 ${allTools.length} 个工具，全部在浏览器本地运行，按分类浏览或直接搜索。` : category!.desc }}</p>
+        <p class="muted cat-desc">
+          {{ catId === 'all' ? `共 ${allTools.length} 个工具，全部在浏览器本地运行，按领域族分组浏览或直接筛选。` : category!.desc }}
+        </p>
+      </div>
+      <div class="cat-filter">
+        <input v-model="filter" class="input" :placeholder="`在 ${catId === 'all' ? allTools.length : toolsByCategory(category!.id).length} 个工具中筛选…`" />
       </div>
     </div>
 
-    <div class="tool-filter">
-      <input v-model="filter" class="input" :placeholder="`在 ${tools.length} 个工具中筛选…`" />
-    </div>
+    <GroupedToolGrid v-if="catId === 'all'" scope="menu" :filter="filter" />
+    <GroupedToolGrid v-else scope="category" :category-id="category!.id" :filter="filter" />
 
-    <div class="tools-grid">
-      <ToolCard v-for="t in filtered" :key="t.slug" :tool="t" />
-    </div>
-    <p v-if="!filtered.length" class="muted" style="padding: 40px 0">没有匹配的工具。</p>
-
-    <div class="other-cats mt-3">
-      <span class="muted small">其他分类：</span>
-      <RouterLink v-for="c in categories.filter((x) => x.id !== category?.id)" :key="c.id" :to="c.path" class="chip">
-        {{ c.name }}
+    <div class="other-cats">
+      <span class="muted small">按大类浏览：</span>
+      <RouterLink to="/tools" class="chip">全部</RouterLink>
+      <RouterLink v-for="c in menuTree" :key="c.cat.id" :to="`/tools?cat=${c.cat.id}`" class="chip">
+        {{ c.cat.name }}
       </RouterLink>
     </div>
   </div>
@@ -60,11 +61,20 @@ const filtered = computed(() => {
   display: flex;
   gap: 16px;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.cat-hero-main {
+  flex: 1;
+  min-width: 240px;
 }
 .cat-hero h1 {
   margin: 0;
   font-size: 30px;
+}
+.cat-desc {
+  max-width: 640px;
+  margin: 4px 0 0;
 }
 .cat-big-icon {
   flex: none;
@@ -74,35 +84,25 @@ const filtered = computed(() => {
   height: 64px;
   border-radius: 18px;
 }
-.tool-filter {
-  margin-bottom: 18px;
-}
-.tool-filter .input {
-  max-width: 420px;
-}
-.tools-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 13px;
-}
-@media (max-width: 1000px) {
-  .tools-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-@media (max-width: 600px) {
-  .tools-grid {
-    grid-template-columns: 1fr;
-  }
+.cat-filter {
+  flex: none;
+  width: min(320px, 100%);
 }
 .other-cats {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
-  text-decoration: none;
+  margin-top: 30px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
 }
 .other-cats a {
-  text-decoration: none;
+  text-decoration: none !important;
+}
+@media (max-width: 860px) {
+  .cat-filter {
+    order: 3;
+  }
 }
 </style>

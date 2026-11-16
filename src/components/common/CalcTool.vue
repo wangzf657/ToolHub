@@ -307,4 +307,17 @@ const downloadResults = () => {
 .calc-links {
   margin-top: 4px;
 }
+/* 移动端(R5-c):字段网格单列、按钮全宽,触屏不需要两列小字段 */
+@media (max-width: 480px) {
+  .calc-form {
+    grid-template-columns: 1fr !important;
+  }
+  .calc-tool .btn {
+    width: 100%;
+    justify-content: center;
+  }
+  .calc-samples {
+    justify-content: flex-start;
+  }
+}
 </style>

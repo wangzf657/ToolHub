@@ -234,7 +234,7 @@ const download = async () => {
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 12px 14px;
-  max-height: max(360px, calc(100vh - 460px));
+  max-height: max(360px, calc(100dvh - 460px));
   overflow: auto;
 }
 .pv-block { margin-bottom: 6px; }

@@ -341,7 +341,7 @@ onBeforeUnmount(() => {
 }
 .lightbox img {
   max-width: 100%;
-  max-height: calc(100vh - 72px);
+  max-height: calc(100dvh - 72px);
   object-fit: contain;
 }
 .log {

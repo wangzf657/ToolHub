@@ -240,10 +240,10 @@ table.heat { border-collapse: separate; border-spacing: 3px; }
 }
 /* 弹性高度：热力表与图表均以视口为主 */
 .heat-wrap {
-  height: max(360px, calc(100vh - 420px));
+  height: max(360px, calc(100dvh - 420px));
   overflow: auto;
 }
-.chart-box { height: min(420px, calc(100vh - 460px)); min-height: 240px; position: relative; }
+.chart-box { height: min(420px, calc(100dvh - 460px)); min-height: 240px; position: relative; }
 .hint { font-size: 12px; color: var(--text-3); }
 .opt-inline {
   display: inline-flex;

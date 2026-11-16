@@ -1,27 +1,33 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
-import { Zap, Star, Sun, Moon, Menu, X, Github, Search as SearchIcon } from 'lucide-vue-next'
-import { categories } from '@/data/categories'
+import { Zap, Star, Sun, Moon, Menu, Github, Search as SearchIcon } from 'lucide-vue-next'
+import { menuTree, menuCategoryOfSlug } from '@/data/menuTree'
 import { site } from '@/data/site'
 import { useTheme } from '@/composables/useTheme'
 import { useSaved } from '@/composables/useSaved'
 import { useSearch } from '@/composables/useSearch'
-import { ref, watch } from 'vue'
+import { useWorkbench } from '@/composables/useWorkbench'
+import { useMenuSync } from '@/composables/useMenuSync'
 
 const { theme, toggle } = useTheme()
 const { saved } = useSaved()
 const { openSearch } = useSearch()
+const { drawerOpen } = useWorkbench()
+const { solo, expandAll } = useMenuSync()
 const route = useRoute()
-const mobileOpen = ref(false)
 
-const navCats = categories.filter((c) => ['image', 'pdf', 'video', 'audio', 'data', 'utility', 'developer'].includes(c.id))
-
-watch(
-  () => route.path,
-  () => {
-    mobileOpen.value = false
-  },
-)
+/** 顶栏大类与工作台菜单同口径(V1.1 验收追加):6 个菜单大类 + 全部工具;
+ *  激活态跟随当前工具/目录页所属大类 */
+const activeMenuCat = computed(() => {
+  if (route.name === 'tool') return menuCategoryOfSlug(String(route.params.slug ?? ''))?.cat.id ?? ''
+  if (route.name === 'all-tools') {
+    const mc = String(route.query.cat ?? '')
+    return menuTree.some((c) => c.cat.id === mc) ? mc : ''
+  }
+  return ''
+})
+const allToolsActive = computed(() => route.name === 'all-tools' && !activeMenuCat.value)
 </script>
 
 <template>
@@ -33,14 +39,16 @@ watch(
       </RouterLink>
 
       <nav class="nav-desktop">
+        <!-- 与工作台菜单同口径:6 菜单大类(点击=菜单独占展开该类并折叠其他) + 全部工具(点击=全部展开) -->
         <RouterLink
-          v-for="c in navCats"
-          :key="c.id"
-          :to="c.path"
+          v-for="c in menuTree"
+          :key="c.cat.id"
+          :to="`/tools?cat=${c.cat.id}`"
           class="nav-link"
-          :class="{ active: route.path === c.path }"
-        >{{ c.short }}</RouterLink>
-        <RouterLink to="/tools" class="nav-link" :class="{ active: route.path === '/tools' }">全部工具</RouterLink>
+          :class="{ active: activeMenuCat === c.cat.id }"
+          @click="solo(c.cat.id)"
+        >{{ c.cat.name }}</RouterLink>
+        <RouterLink to="/tools" class="nav-link" :class="{ active: allToolsActive }" @click="expandAll()">全部工具</RouterLink>
         <RouterLink to="/guides" class="nav-link" :class="{ active: route.path.startsWith('/guides') }">指南</RouterLink>
         <RouterLink to="/about" class="nav-link" :class="{ active: route.path === '/about' }">关于</RouterLink>
       </nav>
@@ -68,27 +76,11 @@ watch(
           <Sun v-if="theme === 'dark'" :size="17" />
           <Moon v-else :size="17" />
         </button>
-        <button class="icon-btn hide-desktop" :aria-label="mobileOpen ? '关闭菜单' : '打开菜单'" @click="mobileOpen = !mobileOpen">
-          <X v-if="mobileOpen" :size="19" />
-          <Menu v-else :size="19" />
+        <button class="icon-btn hide-desktop" aria-label="打开工具菜单" @click="drawerOpen = true">
+          <Menu :size="19" />
         </button>
       </div>
     </div>
-
-    <transition name="slide">
-      <nav v-if="mobileOpen" class="nav-mobile">
-        <RouterLink
-          v-for="c in categories"
-          :key="c.id"
-          :to="c.path"
-          class="nav-mobile-link"
-        >{{ c.name }}</RouterLink>
-        <RouterLink to="/tools" class="nav-mobile-link">全部工具</RouterLink>
-        <RouterLink to="/guides" class="nav-mobile-link">指南</RouterLink>
-        <RouterLink to="/about" class="nav-mobile-link">关于</RouterLink>
-        <RouterLink to="/saved" class="nav-mobile-link">★ 我的收藏</RouterLink>
-      </nav>
-    </transition>
   </header>
 </template>
 
@@ -213,33 +205,6 @@ watch(
   border-radius: 999px;
   background: var(--accent);
   color: #fff;
-}
-.nav-mobile {
-  display: grid;
-  gap: 2px;
-  padding: 10px 16px 16px;
-  border-top: 1px solid var(--border);
-  background: var(--bg);
-}
-.nav-mobile-link {
-  padding: 10px 12px;
-  border-radius: 10px;
-  color: var(--text-2);
-  text-decoration: none !important;
-  font-size: 15px;
-}
-.nav-mobile-link:hover {
-  background: var(--accent-soft);
-  color: var(--text);
-}
-.slide-enter-active,
-.slide-leave-active {
-  transition: all 0.18s ease;
-}
-.slide-enter-from,
-.slide-leave-to {
-  opacity: 0;
-  transform: translateY(-6px);
 }
 @media (max-width: 860px) {
   .nav-desktop {

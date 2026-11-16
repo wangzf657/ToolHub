@@ -316,8 +316,8 @@ const exportAs = async (target: string) => {
 .chip-btn.active { border-color: var(--accent); color: var(--accent-text); }
 .chip-btn.vs { border-style: dashed; border-color: var(--accent); }
 /* 预览弹性高度（rx2）：随视口伸展 */
-.preview-box { padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; height: calc(100vh - 430px); min-height: 260px; max-height: 720px; overflow: auto; white-space: pre-wrap; word-break: break-all; font-size: 13px; cursor: pointer; }
-.preview-box.compare { height: calc(100vh - 500px); min-height: 220px; cursor: default; }
+.preview-box { padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; height: calc(100dvh - 430px); min-height: 260px; max-height: 720px; overflow: auto; white-space: pre-wrap; word-break: break-all; font-size: 13px; cursor: pointer; }
+.preview-box.compare { height: calc(100dvh - 500px); min-height: 220px; cursor: default; }
 .fffd { background: rgba(248, 113, 113, 0.35); color: #fecaca; border-radius: 3px; padding: 0 2px; }
 .fffd.flash { outline: 2px solid #f87171; }
 .cmp-row { padding: 0 2px; }

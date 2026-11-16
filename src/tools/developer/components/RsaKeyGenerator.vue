@@ -302,7 +302,7 @@ const downloadJwk = (which: 'pub' | 'priv') => {
   white-space: pre-wrap;
   color: var(--text-2);
   /* PEM 区弹性高度（rx5） */
-  max-height: max(260px, calc(100vh - 420px));
+  max-height: max(260px, calc(100dvh - 420px));
   overflow-y: auto;
 }
 .spin { animation: spin 1s linear infinite; }

@@ -223,7 +223,7 @@ const ext = computed(() => (lang.value === 'javascript' ? 'js' : lang.value === 
 }
 /* 输入区弹性高度，输出区下限 480px 保证高屏多看行 */
 .fmt-input {
-  min-height: min(480px, calc(100vh - 400px));
+  min-height: min(480px, calc(100dvh - 400px));
 }
 .out-col {
   display: grid;

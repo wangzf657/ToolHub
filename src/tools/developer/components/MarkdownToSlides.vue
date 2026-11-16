@@ -108,7 +108,7 @@ ${slides.value.map((s, i) => `<section class="slide${i === 0 ? ' active' : ''}">
         <button class="btn btn-primary btn-sm" @click="exportHtml"><Presentation :size="15" /> 导出 HTML 幻灯片</button>
         <span class="hint">用 `---` 单独一行分页，共 {{ slides.length }} 页</span>
       </div>
-      <textarea v-model="input" class="input area mono mt-2" rows="10" spellcheck="false" style="min-height: calc(100vh - 420px)"></textarea>
+      <textarea v-model="input" class="input area mono mt-2" rows="10" spellcheck="false" style="min-height: calc(100dvh - 420px)"></textarea>
       <p class="hint mt-1">导出的是零依赖单文件 HTML：双击打开即可全屏演示，方向键/空格/点击翻页，适合快速分享讲稿。</p>
     </div>
 

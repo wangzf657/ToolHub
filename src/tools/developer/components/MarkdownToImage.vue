@@ -210,7 +210,7 @@ watch([input, theme, outWidth, cardStyle], () => deb?.call())
   border-radius: 12px;
   overflow: auto;
   /* 弹性高度（rx2） */
-  height: calc(100vh - 330px);
+  height: calc(100dvh - 330px);
   min-height: 480px;
   max-height: 780px;
 }

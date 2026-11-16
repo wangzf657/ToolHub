@@ -224,7 +224,7 @@ const syncSideScroll = (e: Event) => {
 <style scoped>
 /* 输入区弹性高度（rx1） */
 .diff-input {
-  min-height: min(340px, calc(100vh - 440px));
+  min-height: min(340px, calc(100dvh - 440px));
 }
 .sr-only {
   position: absolute;
@@ -248,7 +248,7 @@ const syncSideScroll = (e: Event) => {
   border-radius: 10px;
   overflow: auto;
   /* 结果区默认高度（rx2） */
-  height: calc(100vh - 360px);
+  height: calc(100dvh - 360px);
   min-height: 340px;
   font-size: 12.5px;
   background: var(--code-bg);
@@ -302,7 +302,7 @@ mark.hit {
   border: 1px solid var(--border);
   border-radius: 10px;
   overflow: auto;
-  height: calc(100vh - 360px);
+  height: calc(100dvh - 360px);
   min-height: 340px;
   font-size: 12.5px;
   background: var(--code-bg);

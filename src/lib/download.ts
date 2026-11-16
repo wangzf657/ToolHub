@@ -1,5 +1,10 @@
 /** 统一下载能力：单文件、多文件打包 ZIP */
 
+/** 微信内置浏览器检测（iOS WKWebView / Android X5 对 blob: 下载经常静默失效，需降级提示） */
+export function isWeChat(): boolean {
+  return typeof navigator !== 'undefined' && /MicroMessenger/i.test(navigator.userAgent)
+}
+
 async function zipLib() {
   return import('jszip')
 }

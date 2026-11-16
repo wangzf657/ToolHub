@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
 import { Zap } from 'lucide-vue-next'
-import { categories } from '@/data/categories'
+import { menuTree } from '@/data/menuTree'
 import { site } from '@/data/site'
 </script>
 
@@ -20,23 +20,9 @@ import { site } from '@/data/site'
 
       <div class="footer-col">
         <h4>工具目录</h4>
+        <!-- 与顶栏/工作台菜单同口径:全部工具 + 6 个菜单大类(指向 /tools?cat= 分组目录) -->
         <RouterLink to="/tools">全部工具</RouterLink>
-        <RouterLink to="/image-tools">图片工具</RouterLink>
-        <RouterLink to="/pdf-tools">PDF 工具</RouterLink>
-        <RouterLink to="/video-tools">视频工具</RouterLink>
-        <RouterLink to="/audio-tools">音频工具</RouterLink>
-        <RouterLink to="/data-tools">数据工具</RouterLink>
-        <RouterLink to="/ai-tools">AI 工具</RouterLink>
-      </div>
-
-      <div class="footer-col">
-        <h4>分类</h4>
-        <!-- 显式指定,避免分类数组顺序调整后错位 -->
-        <RouterLink
-          v-for="c in categories.filter((c) => ['utility', 'developer', 'finance', 'business', 'seo', 'ai'].includes(c.id))"
-          :key="c.id"
-          :to="c.path"
-        >{{ c.name }}</RouterLink>
+        <RouterLink v-for="c in menuTree" :key="c.cat.id" :to="`/tools?cat=${c.cat.id}`">{{ c.cat.name }}</RouterLink>
       </div>
 
       <div class="footer-col">
@@ -70,12 +56,12 @@ import { site } from '@/data/site'
 .site-footer {
   border-top: 1px solid var(--border);
   margin-top: 60px;
-  padding: 44px 0 28px;
+  padding: 44px 0 calc(28px + var(--safe-b));
   background: color-mix(in srgb, var(--bg-soft) 60%, transparent);
 }
 .footer-grid {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
   gap: 28px;
 }
 @media (max-width: 900px) {

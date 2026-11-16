@@ -559,7 +559,7 @@ const exportPdf = () => {
   gap: 16px;
   align-items: start;
 }
-@media (max-width: 900px) {
+@media (max-width: 860px) {
   .layout {
     grid-template-columns: 1fr;
   }

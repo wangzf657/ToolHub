@@ -206,7 +206,7 @@ const buildXlsx = async (): Promise<Blob> => {
 }
 /* 结果预览弹性高度 */
 .table-wrap {
-  height: min(420px, calc(100vh - 500px));
+  height: min(420px, calc(100dvh - 500px));
   min-height: 240px;
   overflow: auto;
 }

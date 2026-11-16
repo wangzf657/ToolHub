@@ -1,9 +1,10 @@
 /**
- * 从注册表快照重生成当前版本的工具清单(docs/V<主.次>/工具清单-V<主.次>.md),使其与 src/tools
- * 下各分类注册表完全一致:
- * - 节顺序 = categories 顺序,节内顺序 = 各注册表数组顺序(常用优先);
- * - 「模式」列尽量沿用旧文档的人工标注,缺失的工具按实现方式推导并打印出来供人工复核;
- * - 编辑器节沿用旧文档约定:工作室在所属分类与编辑器分类各登记一条(求和会高于唯一数)。
+ * 从注册表快照重生成当前版本的工具清单(docs/V<主.次>/工具清单-V<主.次>.md)。
+ * V1.1 起输出「菜单分组蓝图」格式:6 菜单大类 → 77 领域族 → 工具(组内序=注册表数组序),
+ * 与 src/data/menuGroups.ts(gen-menu-groups.mjs 生成)同源——清单、菜单、注册表三者顺序一致。
+ *
+ * - 「模式」列沿用旧文档的人工标注,缺失的工具按实现方式推导并打印出来供人工复核;
+ * - 落地一致性门禁:重生成后的表格行必须与蓝图零差异(scripts/tests/run-menu-tests.mjs MENU-4)。
  *
  * 用法:node scripts/gen-tool-list.mjs [--out <清单路径>]
  *   默认写入当前版本(docs/V1.1/工具清单-V1.1.md);新版本落地时用 --out 指向新版本文件夹,
@@ -24,11 +25,11 @@ const DOC = path.join(root, outArg >= 0 && process.argv[outArg + 1] ? process.ar
 
 const EXTERNAL = ['papaparse', '@cantoo/pdf-lib', 'pdfjs-dist', 'xlsx', 'mammoth', 'docx', 'pptxgenjs', 'jspdf', 'js-yaml', '@iarna/toml', 'prettier', 'diff', 'sql-formatter', 'jszip']
 
-// 打包注册表 + 分类定义快照
+// 打包注册表 + 菜单分组快照(与菜单运行时同一数据源)
 const bundle = path.join(here, '_bundle-tool-list.cjs')
 await build({
   stdin: {
-    contents: `import { allTools } from '@/tools/index'\nimport { categories } from '@/data/categories'\nmodule.exports = { allTools, categories }`,
+    contents: `import { allTools } from '@/tools/index'\nimport { menuTree } from '@/data/menuTree'\nmodule.exports = { allTools, menuTree }`,
     resolveDir: root,
     loader: 'ts',
   },
@@ -40,7 +41,7 @@ await build({
   alias: { '@': path.join(root, 'src') },
   logLevel: 'silent',
 })
-const { allTools, categories } = require(bundle)
+const { allTools, menuTree } = require(bundle)
 
 // 旧文档中的人工模式标注(slug 去掉「（工作室 …）」后缀)
 const oldText = readFileSync(DOC, 'utf8')
@@ -69,34 +70,44 @@ function deriveMode(t) {
 const missing = []
 const modeOf = (t) => oldModes.get(t.slug) ?? (missing.push(`${t.slug}→${deriveMode(t)}`), deriveMode(t))
 
-// 按分类分节(节内 = 注册表顺序)
-const sections = categories.map((c) => ({
-  name: c.name,
-  tools: allTools.filter((t) => t.category === c.id),
-}))
-const editors = sections[sections.length - 1] // 最后一个分类 = editors
-
 const out = []
-out.push(`# 工具清单总表（${allTools.length} 项，以 \`src/tools/*/registry.ts\` 的唯一 slug 为准）`)
+out.push('# 工具清单总表（511 项 · V1.1 分组排序蓝图）')
 out.push('')
-out.push('> slug 为全站唯一 URL 标识；中文名称为本项目原创命名；「模式」列指定实现模式，详见 `docs/基础设计规约.md`。')
+out.push('> **本版定位**：V1.1 的分组（领域族）与全量排序已落地——本清单由 `node scripts/gen-tool-list.mjs` 从注册表与 `src/data/menuGroups.ts`（`scripts/gen-menu-groups.mjs` 生成）重生成，三者顺序一致（哨兵 `run-menu-tests.mjs` 锁定）。')
+out.push('> **菜单大类 ≠ 数据分类**：菜单一级为 **6 个菜单大类**，是领域族的显示层归并——音视频 = 视频+音频；文档与数据 = PDF+数据；实用工具 = 实用+金融+商业+SEO+编辑器工作室。底层数据分类（12 个）、分类页、注册表 `category` 字段、路由、sitemap 不变；分类页按 12 数据分类组织（库存目录），菜单按 6 大类组织（任务导航）。')
+out.push('> slug 为全站唯一 URL 标识；中文名称为本项目原创命名；「模式」列沿用人工标注，详见 `docs/基础设计规约.md`。')
 out.push('> 模式缩写：`text`=文本转换 `compare`=双输入对比 `calc`=计算表单 `img`=图像画布 `imgcvt`=图像格式转换 `pdf`=PDF 操作 `aud`=音频 `vid`=视频 `data`=表格数据 `ai`=AI `special`=自定义组件')
-out.push('> 各分类与节内工具顺序与 `src/tools/*/registry.ts` 一致（按「常用 + 高技术含量优先」重排，可用 `node scripts/reorder-registry.mjs` 维护前置区）。')
 out.push('')
-for (const s of sections) {
-  out.push(`## ${s.name}（${s.tools.length}）`)
-  out.push('| slug | 中文名 | 模式 |')
-  out.push('|---|---|---|')
-  for (const t of s.tools) {
-    out.push(`| ${t.slug} | ${t.title} | ${modeOf(t)} |`)
-  }
-  out.push('')
+out.push('## 分组与排序口径')
+out.push('')
+out.push('- **分组**：**6 个菜单大类 → 77 个领域族**（类内小标题），族内成员不跨数据分类（脚本断言锁定）；菜单大类 = 菜单一级（可折叠），领域族 = 类内聚拢小标题。')
+out.push('- **排序口径**（需求 R2.3）：组间与组内统一按 **使用频率 40% + 技术含量/差异化 25% + 人群广度 20% + 传播引流 15%** 加权；每个菜单大类小节的第一个工具 = 该大类**默认落地页**（菜单大类头点击目标，即「子工具默认路由是第一个工具」）。')
+out.push('- **大类节顺序**：图片 → 音视频 → 文档与数据 → 实用工具 → 开发 → AI（大众媒体处理在前，专业集群靠后）。')
+out.push('')
+out.push('| 菜单大类 | 归并的数据分类 | 工具数 | 组数 | 默认落地工具 |')
+out.push('|---|---|---|---|---|')
+const MERGE = { image: 'image', av: 'video + audio', docdata: 'pdf + data', utility: 'utility + editors + finance + business + seo', dev: 'developer', ai: 'ai' }
+for (const c of menuTree) {
+  out.push(`| ${c.cat.name} | ${MERGE[c.cat.id] ?? ''} | ${c.toolCount} | ${c.groups.length} | ${c.firstTool?.slug ?? ''} |`)
 }
-out.push(`> 统计：全站唯一 slug 共 **${allTools.length} 项**（以 \`src/tools/*/registry.ts\` 为准，各节行数相加即唯一数）。`)
+out.push('')
+menuTree.forEach((c, ci) => {
+  out.push(`## ${ci + 1}. ${c.cat.name}（${c.toolCount} · ${c.groups.length} 组）`)
+  c.groups.forEach((g, gi) => {
+    out.push('')
+    out.push(`### ${ci + 1}.${gi + 1} ${g.group.name}`)
+    out.push('| slug | 中文名 | 模式 |')
+    out.push('|---|---|---|')
+    for (const t of g.tools) {
+      out.push(`| ${t.slug} | ${t.title} | ${modeOf(t)} |`)
+    }
+  })
+  out.push('')
+})
+out.push('> 统计：全站唯一 slug 共 **511 项**（6 菜单大类 · 77 领域族；菜单大类为显示层归并，数据分类 12 个不动；与 `src/tools/*/registry.ts` 及 `src/data/menuGroups.ts` 一致）。')
 out.push('')
 
 writeFileSync(DOC, out.join('\n'))
-const total = sections.reduce((n, s) => n + s.tools.length, 0)
-console.log(`✓ ${path.relative(root, DOC)} 已重生成:${categories.length} 节,分类行合计 ${total} 行`)
-console.log(`  编辑器节工具:${editors.tools.map((t) => t.slug).join(', ')}`)
+const groupsTotal = menuTree.reduce((n, c) => n + c.groups.length, 0)
+console.log(`✓ ${path.relative(root, DOC)} 已重生成:${menuTree.length} 菜单大类 / ${groupsTotal} 领域族 / ${allTools.length} 项`)
 console.log(missing.length ? `⚠ 旧文档缺失、已按实现方式推导模式(${missing.length} 项,请复核):\n  ${missing.join('\n  ')}` : '✓ 全部模式均沿用旧文档人工标注')

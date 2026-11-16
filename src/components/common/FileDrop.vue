@@ -12,8 +12,12 @@ const props = withDefaults(
     label?: string
     hint?: string
   }>(),
-  { multiple: true, label: '拖放文件到此处，或点击选择', hint: '在你的设备上处理 —— 从不上传' },
+  { multiple: true, label: '', hint: '在你的设备上处理 —— 从不上传' },
 )
+
+/* 触屏文案自适应(R5-c):无 hover 的设备主文案改为「点击选择文件」,拖放降为辅助提示 */
+const coarse = typeof matchMedia !== 'undefined' && matchMedia('(hover: none)').matches
+const dropLabel = computed(() => props.label || (coarse ? '点击选择文件' : '拖放文件到此处，或点击选择'))
 
 const emit = defineEmits<{ files: [files: File[]] }>()
 const dragging = ref(false)
@@ -136,7 +140,7 @@ void toast
         @change="onInput"
       />
       <UploadCloud :size="30" class="drop-icon" />
-      <p class="drop-label">{{ label }}</p>
+      <p class="drop-label">{{ dropLabel }}</p>
       <p class="drop-hint">{{ hint }}{{ acceptsImage ? ' · 支持 Ctrl+V 粘贴截图' : '' }}</p>
     </div>
 
@@ -275,5 +279,16 @@ void toast
 .mini-btn.danger:hover {
   border-color: var(--err);
   color: var(--err);
+}
+
+/* 移动端(R5-c):空态高度收敛到 ~180px,减少触屏滚动成本 */
+@media (max-width: 860px) {
+  .drop-zone {
+    padding: 26px 16px;
+  }
+  .drop-icon {
+    width: 24px;
+    height: 24px;
+  }
 }
 </style>

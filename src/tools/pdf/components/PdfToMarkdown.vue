@@ -259,7 +259,7 @@ const run = async () => {
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 16px 20px;
-  height: max(300px, calc(100vh - 420px));
+  height: max(300px, calc(100dvh - 420px));
   overflow: auto;
   background: var(--panel);
   font-size: 14px;

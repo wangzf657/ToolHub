@@ -111,7 +111,7 @@ const dlFiltered = () => {
   max-width: 260px;
 }
 .ds-table {
-  max-height: max(480px, calc(100vh - 340px));
+  max-height: max(480px, calc(100dvh - 340px));
 }
 .sortable {
   cursor: pointer;

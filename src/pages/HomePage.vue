@@ -3,9 +3,9 @@ import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { Search, Zap, Lock, Zap as ZapIcon, WifiOff, Infinity as Inf, ArrowRight } from 'lucide-vue-next'
 import { heroFeatures, site, formatGroups, faqs } from '@/data/site'
-import { categories } from '@/data/categories'
+import { menuTree, menuCatColor, menuCatDesc } from '@/data/menuTree'
 import { guides } from '@/data/guides'
-import { allTools, popularTools, studioTools, toolsByCategory } from '@/tools'
+import { allTools, popularTools, studioTools } from '@/tools'
 import ToolCard from '@/components/common/ToolCard.vue'
 import CategorySection from '@/components/common/CategorySection.vue'
 import FaqList from '@/components/common/FaqList.vue'
@@ -19,22 +19,29 @@ const input = ref('')
 
 const heroIcons = [Lock, ZapIcon, WifiOff, Inf]
 
+/** 工具目录区块:与顶栏/工作台菜单同口径(6 菜单大类,组内序=注册表序=菜单同源);
+ *  「查看全部」指向 /tools?cat=<大类> 的分组目录 */
 const filteredSections = computed(() => {
-  const q = input.value.trim()
-  if (q) {
-    const lower = q.toLowerCase()
-    return categories
-      .map((c) => ({
-        category: c,
-        tools: toolsByCategory(c.id).filter(
-          (t) => t.title.toLowerCase().includes(lower) || (t.keywords ?? []).some((k) => k.toLowerCase().includes(lower)),
-        ),
-      }))
-      .filter((s) => s.tools.length)
-  }
-  return categories
-    .filter((c) => activeCat.value === 'all' || c.id === activeCat.value)
-    .map((c) => ({ category: c, tools: toolsByCategory(c.id) }))
+  const q = input.value.trim().toLowerCase()
+  return menuTree
+    .filter((c) => activeCat.value === 'all' || c.cat.id === activeCat.value)
+    .map((c) => {
+      const tools = c.groups.flatMap((g) => g.tools)
+      return {
+        id: c.cat.id,
+        name: c.cat.name,
+        icon: c.cat.icon,
+        color: menuCatColor[c.cat.id],
+        desc: menuCatDesc[c.cat.id],
+        to: `/tools?cat=${c.cat.id}`,
+        tools: q
+          ? tools.filter(
+              (t) => t.title.toLowerCase().includes(q) || (t.keywords ?? []).some((k) => k.toLowerCase().includes(q)),
+            )
+          : tools,
+      }
+    })
+    .filter((s) => !q || s.tools.length > 0)
 })
 
 const latestGuides = guides.slice(0, 3)
@@ -96,20 +103,20 @@ const goSearch = () => {
       </div>
     </section>
 
-    <!-- 工具目录 -->
+    <!-- 工具目录:大类胶囊与顶栏/工作台菜单同口径(6 菜单大类) -->
     <div class="cat-bar">
       <div class="container cat-bar-inner">
         <button class="chip" :class="{ active: activeCat === 'all' }" @click="activeCat = 'all'">
           ✦ 全部
         </button>
         <button
-          v-for="c in categories"
-          :key="c.id"
+          v-for="c in menuTree"
+          :key="c.cat.id"
           class="chip"
-          :class="{ active: activeCat === c.id }"
-          @click="activeCat = c.id"
+          :class="{ active: activeCat === c.cat.id }"
+          @click="activeCat = c.cat.id"
         >
-          {{ c.name }}
+          {{ c.cat.name }}
         </button>
       </div>
     </div>
@@ -128,8 +135,8 @@ const goSearch = () => {
 
       <CategorySection
         v-for="sec in filteredSections"
-        :key="sec.category.id"
-        :category="sec.category"
+        :key="sec.id"
+        :category="sec"
         :tools="sec.tools"
         :limit="8"
       />

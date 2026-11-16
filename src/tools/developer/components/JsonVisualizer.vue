@@ -209,14 +209,14 @@ const collapseAll = () => {
   border: 1px solid var(--border);
   border-radius: 12px;
   background: color-mix(in srgb, var(--panel-solid) 55%, transparent);
-  height: max(480px, calc(100vh - 380px));
+  height: max(480px, calc(100dvh - 380px));
   overflow: auto;
 }
 .tree.full {
   position: fixed;
   inset: 0;
   z-index: 60;
-  height: 100vh;
+  height: 100dvh;
   max-height: none;
   border-radius: 0;
   background: var(--bg);

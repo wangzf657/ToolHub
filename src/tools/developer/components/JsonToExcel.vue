@@ -214,7 +214,7 @@ const fillSample = () => {
   border: 1px solid var(--border);
   border-radius: 10px;
   overflow: auto;
-  height: calc(100vh - 460px);
+  height: calc(100dvh - 460px);
   min-height: 300px;
   max-height: 640px;
   background: color-mix(in srgb, var(--panel-solid) 60%, transparent);

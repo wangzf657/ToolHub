@@ -14,6 +14,7 @@ export type CategoryId =
   | 'seo'
   | 'ai'
   | 'editors'
+  | 'games'
 
 export interface ToolDef {
   /** 全站唯一的 URL 标识，如 merge-pdf */

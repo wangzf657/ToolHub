@@ -110,6 +110,15 @@ export const categories: CategoryDef[] = [
     color: '#818cf8',
     path: '/studios',
   },
+  {
+    id: 'games',
+    name: '小游戏',
+    short: '游戏',
+    desc: '纯浏览器小游戏：数独（Word 打印）、五子棋人机、贪吃蛇、2048、扫雷、数字华容道，无音效无弹窗，安静摸鱼。',
+    icon: 'gamepad-2',
+    color: '#fb7185',
+    path: '/games',
+  },
 ]
 
 export const categoryMap = new Map(categories.map((c) => [c.id, c]))

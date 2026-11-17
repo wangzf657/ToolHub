@@ -1,8 +1,8 @@
-// V1.1 菜单数据断言哨兵(R1-f)+ R5 移动基座哨兵 —— 进 npm run test 门禁
+// V1.2 菜单数据断言哨兵(R1-f/V1.1 承继)+ R5 移动基座哨兵 —— 进 npm run test 门禁
 // 1. groupOf 覆盖 allTools 全部 slug,无遗漏/无多余/无重复;
 // 2. 每组成员 category === 组定义 category(领域族不跨数据分类);每组 ≥2 项;
-// 3. 每组 menuCategory ∈ 6 菜单大类;菜单树 6 大类/77 族/511 项,各菜单大类 firstTool 存在;
-// 4. 注册表数组序与蓝图(docs/V1.1/工具清单-V1.1.md)逐分类一致(重排漂移即 FAIL);
+// 3. 每组 menuCategory ∈ 7 菜单大类;菜单树 7 大类/78 族/516 项,各菜单大类 firstTool 存在;
+// 4. 注册表数组序与蓝图(docs/V1.2/工具清单-V1.2-过渡蓝图516.md)逐分类一致(重排漂移即 FAIL);
 // 5. R5 哨兵:base.css 含 ≤860 输入 16px 规则;src/ 零 100vh(无白名单强断言)。
 // 6. V1.1 首轮 QA 缺陷防复发哨兵(§6):触控目标镜像/族索引弹层受控/抽屉返回关闭/独占·联动与恢复时序。
 import { build } from 'esbuild'
@@ -61,7 +61,7 @@ chk('MENU-1', 'groupOf 无遗漏', missing.length === 0, missing.slice(0, 5).joi
 // ---------- 2/3. 组结构与菜单树 ----------
 const groupById = new Map(menuGroups.map((g) => [g.id, g]))
 const catIds = new Set(menuCategories.map((c) => c.id))
-chk('MENU-2', '菜单大类 = 6', menuCategories.length === 6, menuCategories.map((c) => c.id).join(','))
+chk('MENU-2', '菜单大类 = 7', menuCategories.length === 7, menuCategories.map((c) => c.id).join(','))
 const byGroup = new Map()
 for (const t of allTools) {
   const gid = groupOf[t.slug]
@@ -83,8 +83,8 @@ for (const [gid, tools] of byGroup) {
 }
 chk('MENU-2', '领域族不跨数据分类', crossCat.length === 0, crossCat.join(','))
 chk('MENU-2', '每组 ≥2 项(无碎片组)', small.length === 0, small.join(','))
-chk('MENU-2', 'menuCategory ∈ 6 菜单大类', badMenuCat.length === 0, badMenuCat.join(','))
-chk('MENU-3', '领域族总数 = 77', menuGroups.length === 77, String(menuGroups.length))
+chk('MENU-2', 'menuCategory ∈ 7 菜单大类', badMenuCat.length === 0, badMenuCat.join(','))
+chk('MENU-3', '领域族总数 = 78', menuGroups.length === 78, String(menuGroups.length))
 for (const c of menuCategories) {
   const groups = menuGroups.filter((g) => g.menuCategory === c.id)
   const n = groups.reduce((s, g) => s + (byGroup.get(g.id)?.length ?? 0), 0)
@@ -92,19 +92,19 @@ for (const c of menuCategories) {
 }
 
 // ---------- 4. 注册表序 = 蓝图序(逐分类) ----------
-const md = readFileSync(path.join(root, 'docs/V1.1/工具清单-V1.1.md'), 'utf8')
+const md = readFileSync(path.join(root, 'docs/V1.2/工具清单-V1.2-过渡蓝图516.md'), 'utf8')
 const blueprint = []
 for (const line of md.split('\n')) {
   const m = line.match(/^\| ([a-z0-9-]+) \|/)
   if (m && m[1] !== 'slug') blueprint.push(m[1])
 }
-chk('MENU-4', '蓝图行数 = 511', blueprint.length === 511, String(blueprint.length))
+chk('MENU-4', '蓝图行数 = 516', blueprint.length === 516, String(blueprint.length))
 const bpByCat = {}
 for (const slug of blueprint) {
   const cat = toolMap.get(slug)?.category
   if (cat) (bpByCat[cat] ??= []).push(slug)
 }
-const EXPECT = { image: 71, video: 41, audio: 37, pdf: 54, data: 18, utility: 132, developer: 91, finance: 20, business: 15, seo: 13, ai: 15, editors: 4 }
+const EXPECT = { image: 71, video: 41, audio: 37, pdf: 54, data: 18, utility: 131, developer: 91, finance: 20, business: 15, seo: 13, ai: 15, editors: 4, games: 6 }
 for (const [cat, expect] of Object.entries(EXPECT)) {
   const regOrder = allTools.filter((t) => t.category === cat).map((t) => t.slug)
   const same = regOrder.join() === (bpByCat[cat] ?? []).join()

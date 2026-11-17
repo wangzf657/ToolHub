@@ -26,7 +26,7 @@ const router = createRouter({
         { path: '/t/:slug', name: 'tool', component: () => import('@/pages/ToolPage.vue') },
         { path: '/tools', name: 'all-tools', component: () => import('@/pages/AllToolsPage.vue') },
         { path: '/tools/:id', name: 'category-all', component: () => import('@/pages/CategoryPage.vue') },
-        { path: '/:id(image-tools|video-tools|audio-tools|pdf-tools|data-tools|utility-tools|developer-tools|finance-tools|business-tools|seo-tools|ai-tools|studios)', name: 'category', component: () => import('@/pages/CategoryPage.vue') },
+        { path: '/:id(image-tools|video-tools|audio-tools|pdf-tools|data-tools|utility-tools|developer-tools|finance-tools|business-tools|seo-tools|ai-tools|studios|games)', name: 'category', component: () => import('@/pages/CategoryPage.vue') },
         { path: '/saved', name: 'saved', component: () => import('@/pages/SavedPage.vue') },
         { path: '', redirect: '/' },
       ],
@@ -75,7 +75,7 @@ router.afterEach((to) => {
   }
   const descs: Record<string, string> = {
     home: site.desc,
-    'all-tools': '510+ 个免费纯本地浏览器工具完整目录：图片、PDF、视频、音频、数据、开发与 AI，文件永不上传。',
+    'all-tools': '510+ 个免费纯本地浏览器工具完整目录：图片、PDF、视频、音频、数据、开发、AI 与小游戏，文件永不上传。',
     guides: '原创使用指南：图片压缩、PDF 处理、音视频转换等常见任务在浏览器本地完成的最简做法。',
     about: '关于百宝工具箱：为什么所有处理都留在你的浏览器里。',
   }

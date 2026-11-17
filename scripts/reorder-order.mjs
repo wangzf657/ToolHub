@@ -101,10 +101,10 @@ export const FULL = {
     'invoice-generator', 'vcard-generator', 'address-parser', 'clothing-size-chart',
     'shoe-size-converter', 'lucky-wheel', 'typing-test', 'mbti-personality-test',
     'random-group-splitter', 'random-number', 'dice-roller', 'digital-muyu',
-    'handheld-marquee', 'online-piano', 'sudoku-solver', 'name-generator',
-    'avatar-generator', 'screen-dead-pixel-test', 'keyboard-test', 'whiteboard',
-    'er-diagram-editor', 'teleprompter', 'ephemeral-notepad', 'screen-recorder',
-    'text-to-handwriting', 'text-behind-image', 'seal-generator', 'kids-coloring',
+    'handheld-marquee', 'online-piano', 'name-generator', 'avatar-generator',
+    'screen-dead-pixel-test', 'keyboard-test', 'whiteboard', 'er-diagram-editor',
+    'teleprompter', 'ephemeral-notepad', 'screen-recorder', 'text-to-handwriting',
+    'text-behind-image', 'seal-generator', 'kids-coloring',
   ],
   editors: [
     'pdf-studio', 'video-studio', 'photo-studio', 'data-studio',
@@ -158,5 +158,9 @@ export const FULL = {
     'chat-with-pdf', 'sentiment-analyzer', 'emotion-detector', 'grammar-corrector',
     'paraphraser', 'translator', 'text-similarity', 'zero-shot-classifier',
     'image-classifier', 'object-detector', 'image-caption',
+  ],
+  games: [
+    'sudoku-solver', 'gomoku', 'snake', '2048',
+    'minesweeper', 'sliding-puzzle',
   ],
 }

@@ -2,7 +2,7 @@ export const site = {
   name: '百宝工具箱',
   nameEn: 'ToolHub',
   slogan: '你的文件，永不离机',
-  desc: '免费、纯本地的浏览器工具箱：图片、PDF、视频、音频、数据、开发与 AI，510+ 工具全部在本地运行。',
+  desc: '免费、纯本地的浏览器工具箱：图片、PDF、视频、音频、数据、开发、AI 与小游戏，510+ 工具全部在本地运行。',
   toolCountLabel: '510+ 工具 · 100% 本地处理',
   /** GitHub 开源仓库地址（header/footer 入口共用） */
   repoUrl: 'https://github.com/wangzf657/ToolHub',

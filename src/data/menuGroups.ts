@@ -1,10 +1,10 @@
 /**
- * 菜单领域族数据层(V1.1)——由 scripts/gen-menu-groups.mjs 从 docs/V1.1/工具清单-V1.1.md 蓝图生成,勿手改;
+ * 菜单领域族数据层(V1.2 过渡态)——由 scripts/gen-menu-groups.mjs 从蓝图生成,勿手改;
  * 改分组/排序请先改蓝图再重跑生成器。单一事实源:工具名/简介/URL 实时取自注册表,本文件只定义归属与顺序。
  */
 import type { CategoryId } from '@/types'
 
-/** 菜单大类(6 个,显示层归并;≠ 数据分类 CategoryId 12 个) */
+/** 菜单大类(7 个,显示层归并;≠ 数据分类 CategoryId 13 个) */
 export interface MenuCategoryDef { id: string; name: string; icon: string }
 
 export interface MenuGroupDef {
@@ -16,7 +16,7 @@ export interface MenuGroupDef {
   icon: string
   /** 所属数据分类(组成员必须一致,脚本断言) */
   category: CategoryId
-  /** 所属菜单大类(6 值之一,显示层归并) */
+  /** 所属菜单大类(7 值之一,显示层归并) */
   menuCategory: string
 }
 
@@ -27,6 +27,7 @@ export const menuCategories: MenuCategoryDef[] = [
   { id: 'utility', name: '实用工具', icon: 'utility' },
   { id: 'dev', name: '开发工具', icon: 'code' },
   { id: 'ai', name: 'AI', icon: 'ai' },
+  { id: 'games', name: '小游戏', icon: 'gamepad-2' },
 ]
 
 /** 数组顺序 = 菜单组级顺序(蓝图定稿);组内工具序 = 注册表数组序(reorder 后与蓝图一致) */
@@ -114,9 +115,11 @@ export const menuGroups: MenuGroupDef[] = [
   { id: 'ai-1', name: '摘要·提取·问答', icon: 'wrench', category: 'ai', menuCategory: 'ai' },
   { id: 'ai-2', name: '分析与改写', icon: 'wrench', category: 'ai', menuCategory: 'ai' },
   { id: 'ai-3', name: '图像 AI', icon: 'wrench', category: 'ai', menuCategory: 'ai' },
+  /* ---- 小游戏 ---- */
+  { id: 'games-1', name: '休闲游戏', icon: 'wrench', category: 'games', menuCategory: 'games' },
 ]
 
-/** slug → 组 id,511 项全覆盖 */
+/** slug → 组 id,516 项全覆盖 */
 export const groupOf: Record<string, string> = {
   /* 压缩与调整 */
   'compress-image-to-size': 'image-1', 'resize-image': 'image-1', 'crop-image': 'image-1', 'circle-crop': 'image-1', 'rotate-image': 'image-1', 'flip-image': 'image-1', 'adjust-brightness': 'image-1', 'grayscale-image': 'image-1', 'invert-image': 'image-1', 'add-watermark': 'image-1', 'social-media-resizer': 'image-1', 'batch-image-process': 'image-1',
@@ -215,7 +218,7 @@ export const groupOf: Record<string, string> = {
   /* 生活服务 */
   'garbage-classifier': 'utility-13', 'food-calorie-lookup': 'utility-13', 'invoice-assistant': 'utility-13', 'invoice-generator': 'utility-13', 'vcard-generator': 'utility-13', 'address-parser': 'utility-13', 'clothing-size-chart': 'utility-13', 'shoe-size-converter': 'utility-13',
   /* 互动·娱乐·检测 */
-  'lucky-wheel': 'utility-14', 'typing-test': 'utility-14', 'mbti-personality-test': 'utility-14', 'random-group-splitter': 'utility-14', 'random-number': 'utility-14', 'dice-roller': 'utility-14', 'digital-muyu': 'utility-14', 'handheld-marquee': 'utility-14', 'online-piano': 'utility-14', 'sudoku-solver': 'utility-14', 'name-generator': 'utility-14', 'avatar-generator': 'utility-14', 'screen-dead-pixel-test': 'utility-14', 'keyboard-test': 'utility-14',
+  'lucky-wheel': 'utility-14', 'typing-test': 'utility-14', 'mbti-personality-test': 'utility-14', 'random-group-splitter': 'utility-14', 'random-number': 'utility-14', 'dice-roller': 'utility-14', 'digital-muyu': 'utility-14', 'handheld-marquee': 'utility-14', 'online-piano': 'utility-14', 'name-generator': 'utility-14', 'avatar-generator': 'utility-14', 'screen-dead-pixel-test': 'utility-14', 'keyboard-test': 'utility-14',
   /* 创作与设计 */
   'whiteboard': 'utility-15', 'er-diagram-editor': 'utility-15', 'teleprompter': 'utility-15', 'ephemeral-notepad': 'utility-15', 'screen-recorder': 'utility-15', 'text-to-handwriting': 'utility-15', 'text-behind-image': 'utility-15', 'seal-generator': 'utility-15', 'kids-coloring': 'utility-15',
   /* 编辑器工作室 */
@@ -272,4 +275,6 @@ export const groupOf: Record<string, string> = {
   'sentiment-analyzer': 'ai-2', 'emotion-detector': 'ai-2', 'grammar-corrector': 'ai-2', 'paraphraser': 'ai-2', 'translator': 'ai-2', 'text-similarity': 'ai-2', 'zero-shot-classifier': 'ai-2',
   /* 图像 AI */
   'image-classifier': 'ai-3', 'object-detector': 'ai-3', 'image-caption': 'ai-3',
+  /* 休闲游戏 */
+  'sudoku-solver': 'games-1', 'gomoku': 'games-1', 'snake': 'games-1', '2048': 'games-1', 'minesweeper': 'games-1', 'sliding-puzzle': 'games-1',
 }

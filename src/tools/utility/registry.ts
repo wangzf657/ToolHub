@@ -33,7 +33,7 @@ const fmtDuration = (mins: number): string => {
 }
 const TZ_CHOICES = COMMON_TIMEZONES.map((t) => ({ value: t.value, label: t.label }))
 
-/** 实用工具注册表（132 项）—— 文本/编码类走内联 textDef，其余为自定义组件 */
+/** 实用工具注册表（131 项）—— 文本/编码类走内联 textDef，其余为自定义组件 */
 const tools: ToolDef[] = [
   { slug: 'qr-code-generator', title: '二维码生成器', category: 'utility', desc: '为链接、文本、电话生成高清二维码，自定义颜色/边距/纠错等级，支持 PNG 与 SVG 下载、图片复制；中心 Logo 请用「艺术二维码」。', keywords: ['qr', '二维码', 'qrcode'], component: () => import('./components/QrGenerator.vue'), steps: ['输入链接或文本内容', '调整尺寸与纠错级别', '下载 PNG 或 SVG'] },
   { slug: 'wifi-qr-code', title: 'WiFi 二维码生成', category: 'utility', desc: '生成扫码即可加入 WiFi 的二维码，客人无需手动输入密码。', keywords: ['wifi', '无线', '二维码'], component: () => import('./components/WifiQr.vue'), steps: ['填写 WiFi 名称与密码', '选择加密方式', '下载二维码供客人扫码'] },
@@ -1929,12 +1929,6 @@ const tools: ToolDef[] = [
     desc: '一个半八度虚拟键盘，鼠标点击或键盘映射弹奏，音色本地合成。',
     keywords: ['钢琴', '键盘', '乐器', '弹奏'],
     component: () => import('./components/OnlinePiano.vue'),
-  },
-  {
-    slug: 'sudoku-solver', title: '数独生成与求解', category: 'utility',
-    desc: '三档难度出题（唯一解）、冲突标红、逐格提示，也可手输题目求解。',
-    keywords: ['数独', 'sudoku', '解谜'],
-    component: () => import('./components/SudokuSolver.vue'),
   },
   {
     slug: 'name-generator', title: '随机起名器', category: 'utility',

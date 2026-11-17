@@ -1,14 +1,14 @@
 /**
- * 蓝图 → 代码 转写器:解析 docs/V1.1/工具清单-V1.1.md(分组排序蓝图,唯一权威载体),
+ * 蓝图 → 代码 转写器:解析分组排序蓝图(唯一权威载体;当前指向 V1.2 过渡蓝图 516 项),
  * 生成两份产物(幂等,可重复执行):
- *   1. src/data/menuGroups.ts   —— 菜单领域族数据层(6 菜单大类 + 77 领域族 + slug 归属)
+ *   1. src/data/menuGroups.ts   —— 菜单领域族数据层(7 菜单大类 + 78 领域族 + slug 归属)
  *   2. scripts/reorder-order.mjs —— 12 数据分类的 FULL 全序表(reorder-registry.mjs 消费)
  *
  * 校验(转写前全部通过才落盘):
  *   - 蓝图 slug 全部存在于注册表 toolMap,无重复;
  *   - 每组成员 category 一致(领域族不跨数据分类),每组 ≥2 项;
  *   - 每组成员的注册表中文名与蓝图一致(防 slug 错位);
- *   - 6 菜单大类数/组数/工具数与蓝图小节标题一致,总计 511。
+ *   - 7 菜单大类数/组数/工具数与蓝图小节标题一致,总计 516(V1.2 过渡态)。
  *
  * 用法:node scripts/gen-menu-groups.mjs
  * 注意:本脚本只读蓝图与注册表;改分组请先改蓝图再重跑本脚本。
@@ -21,7 +21,7 @@ import path from 'node:path'
 const here = import.meta.dirname
 const root = path.resolve(here, '..')
 const require = createRequire(import.meta.url)
-const BLUEPRINT = path.join(root, 'docs/V1.1/工具清单-V1.1.md')
+const BLUEPRINT = path.join(root, 'docs/V1.2/工具清单-V1.2-过渡蓝图516.md') // V1.2 过渡态:小游戏增量已落地(R7 落地后切终态蓝图工具清单-V1.2.md)
 
 const EXTERNAL = ['papaparse', '@cantoo/pdf-lib', 'pdfjs-dist', 'xlsx', 'mammoth', 'docx', 'pptxgenjs', 'jspdf', 'js-yaml', '@iarna/toml', 'prettier', 'diff', 'sql-formatter', 'jszip']
 
@@ -52,6 +52,7 @@ const MENU_CAT = [
   { match: '实用工具', id: 'utility', name: '实用工具', icon: 'utility' },
   { match: '开发工具', id: 'dev', name: '开发工具', icon: 'code' },
   { match: 'AI', id: 'ai', name: 'AI', icon: 'ai' },
+  { match: '小游戏', id: 'games', name: '小游戏', icon: 'gamepad-2' },
 ]
 
 // ---------- 解析蓝图 ----------
@@ -106,7 +107,7 @@ for (const cat of cats) {
 const total = [...seen.keys()].length
 if (total !== allTools.length) errors.push(`蓝图覆盖 ${total} 项 ≠ 注册表 ${allTools.length} 项`)
 for (const t of allTools) if (!seen.has(t.slug)) errors.push(`注册表 slug 未入蓝图: ${t.slug}`)
-if (cats.length !== 6) errors.push(`菜单大类 ${cats.length} ≠ 6`)
+if (cats.length !== 7) errors.push(`菜单大类 ${cats.length} ≠ 7`)
 if (errors.length) {
   console.error('蓝图校验失败:\n  ' + errors.join('\n  '))
   process.exit(1)
@@ -116,12 +117,12 @@ if (errors.length) {
 const esc = (s) => s.replace(/'/g, "\\'")
 const mg = []
 mg.push('/**')
-mg.push(' * 菜单领域族数据层(V1.1)——由 scripts/gen-menu-groups.mjs 从 docs/V1.1/工具清单-V1.1.md 蓝图生成,勿手改;')
+mg.push(' * 菜单领域族数据层(V1.2 过渡态)——由 scripts/gen-menu-groups.mjs 从蓝图生成,勿手改;')
 mg.push(' * 改分组/排序请先改蓝图再重跑生成器。单一事实源:工具名/简介/URL 实时取自注册表,本文件只定义归属与顺序。')
 mg.push(' */')
 mg.push("import type { CategoryId } from '@/types'")
 mg.push('')
-mg.push('/** 菜单大类(6 个,显示层归并;≠ 数据分类 CategoryId 12 个) */')
+mg.push('/** 菜单大类(7 个,显示层归并;≠ 数据分类 CategoryId 13 个) */')
 mg.push('export interface MenuCategoryDef { id: string; name: string; icon: string }')
 mg.push('')
 mg.push('export interface MenuGroupDef {')
@@ -133,7 +134,7 @@ mg.push('  /** lucide 图标名(预留,当前菜单不渲染族图标) */')
 mg.push('  icon: string')
 mg.push('  /** 所属数据分类(组成员必须一致,脚本断言) */')
 mg.push('  category: CategoryId')
-mg.push('  /** 所属菜单大类(6 值之一,显示层归并) */')
+mg.push('  /** 所属菜单大类(7 值之一,显示层归并) */')
 mg.push('  menuCategory: string')
 mg.push('}')
 mg.push('')

@@ -18,8 +18,10 @@ import path from 'node:path'
 const here = import.meta.dirname
 const root = path.resolve(here, '..')
 const require = createRequire(import.meta.url)
-/** 当前版本的工具清单路径(新版本落地时同步更新) */
-const DEFAULT_DOC = 'docs/V1.1/工具清单-V1.1.md'
+/** 当前版本的工具清单路径(V1.2 过渡态:小游戏增量;R7 落地后切 docs/V1.2/工具清单-V1.2.md 终态蓝图) */
+const DEFAULT_DOC = 'docs/V1.2/工具清单-V1.2-过渡蓝图516.md'
+/** 清单标题版本口径 */
+const DOC_LABEL = 'V1.2 过渡蓝图：小游戏增量'
 const outArg = process.argv.indexOf('--out')
 const DOC = path.join(root, outArg >= 0 && process.argv[outArg + 1] ? process.argv[outArg + 1] : DEFAULT_DOC)
 
@@ -71,7 +73,8 @@ const missing = []
 const modeOf = (t) => oldModes.get(t.slug) ?? (missing.push(`${t.slug}→${deriveMode(t)}`), deriveMode(t))
 
 const out = []
-out.push('# 工具清单总表（511 项 · V1.1 分组排序蓝图）')
+const groupsTotal = menuTree.reduce((n, c) => n + c.groups.length, 0)
+out.push(`# 工具清单总表（${allTools.length} 项 · ${DOC_LABEL}）`)
 out.push('')
 out.push('> **本版定位**：V1.1 的分组（领域族）与全量排序已落地——本清单由 `node scripts/gen-tool-list.mjs` 从注册表与 `src/data/menuGroups.ts`（`scripts/gen-menu-groups.mjs` 生成）重生成，三者顺序一致（哨兵 `run-menu-tests.mjs` 锁定）。')
 out.push('> **菜单大类 ≠ 数据分类**：菜单一级为 **6 个菜单大类**，是领域族的显示层归并——音视频 = 视频+音频；文档与数据 = PDF+数据；实用工具 = 实用+金融+商业+SEO+编辑器工作室。底层数据分类（12 个）、分类页、注册表 `category` 字段、路由、sitemap 不变；分类页按 12 数据分类组织（库存目录），菜单按 6 大类组织（任务导航）。')
@@ -86,7 +89,7 @@ out.push('- **大类节顺序**：图片 → 音视频 → 文档与数据 → �
 out.push('')
 out.push('| 菜单大类 | 归并的数据分类 | 工具数 | 组数 | 默认落地工具 |')
 out.push('|---|---|---|---|---|')
-const MERGE = { image: 'image', av: 'video + audio', docdata: 'pdf + data', utility: 'utility + editors + finance + business + seo', dev: 'developer', ai: 'ai' }
+const MERGE = { image: 'image', av: 'video + audio', docdata: 'pdf + data', utility: 'utility + editors + finance + business + seo', dev: 'developer', ai: 'ai', games: 'games' }
 for (const c of menuTree) {
   out.push(`| ${c.cat.name} | ${MERGE[c.cat.id] ?? ''} | ${c.toolCount} | ${c.groups.length} | ${c.firstTool?.slug ?? ''} |`)
 }
@@ -104,10 +107,9 @@ menuTree.forEach((c, ci) => {
   })
   out.push('')
 })
-out.push('> 统计：全站唯一 slug 共 **511 项**（6 菜单大类 · 77 领域族；菜单大类为显示层归并，数据分类 12 个不动；与 `src/tools/*/registry.ts` 及 `src/data/menuGroups.ts` 一致）。')
+out.push(`> 统计：全站唯一 slug 共 **${allTools.length} 项**（${menuTree.length} 菜单大类 · ${groupsTotal} 领域族；菜单大类为显示层归并；与 \`src/tools/*/registry.ts\` 及 \`src/data/menuGroups.ts\` 一致）。`)
 out.push('')
 
 writeFileSync(DOC, out.join('\n'))
-const groupsTotal = menuTree.reduce((n, c) => n + c.groups.length, 0)
 console.log(`✓ ${path.relative(root, DOC)} 已重生成:${menuTree.length} 菜单大类 / ${groupsTotal} 领域族 / ${allTools.length} 项`)
 console.log(missing.length ? `⚠ 旧文档缺失、已按实现方式推导模式(${missing.length} 项,请复核):\n  ${missing.join('\n  ')}` : '✓ 全部模式均沿用旧文档人工标注')

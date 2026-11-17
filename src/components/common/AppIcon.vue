@@ -5,7 +5,7 @@ import {
   Building2, Search, BrainCircuit, PenTool, Lock, Zap, WifiOff, Infinity as InfinityIcon,
   Star, Upload, Download, Copy, Check, X, Menu, Sun, Moon, ChevronRight, FileUp,
   Loader2, Play, Pause, RotateCw, Trash2, Plus, Minus, RefreshCw, Settings2, Info,
-  AlertTriangle, CheckCircle2, Grid3X3, Layers, Square, Scissors, Type as TypeIcon,
+  AlertTriangle, CheckCircle2, Grid3X3, Layers, Square, Scissors, Type as TypeIcon, Gamepad2,
 } from 'lucide-vue-next'
 
 const props = defineProps<{ name: string; size?: number | string }>()
@@ -13,7 +13,7 @@ const props = defineProps<{ name: string; size?: number | string }>()
 const map: Record<string, unknown> = {
   image: ImageIcon, video: Video, audio: Music, pdf: FileText, data: Database,
   utility: Wrench, code: Code2, finance: TrendingUp, business: Building2, seo: Search,
-  ai: BrainCircuit, studio: PenTool, lock: Lock, zap: Zap, 'wifi-off': WifiOff,
+  ai: BrainCircuit, studio: PenTool, 'gamepad-2': Gamepad2, lock: Lock, zap: Zap, 'wifi-off': WifiOff,
   infinity: InfinityIcon, star: Star, upload: Upload, download: Download, copy: Copy,
   check: Check, x: X, menu: Menu, sun: Sun, moon: Moon, 'chevron-right': ChevronRight,
   'file-up': FileUp, loader: Loader2, play: Play, pause: Pause, rotate: RotateCw,

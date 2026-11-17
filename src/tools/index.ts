@@ -13,6 +13,7 @@ import business from './business/registry'
 import seo from './seo/registry'
 import ai from './ai/registry'
 import editors from './editors/registry'
+import games from './games/registry'
 
 export const allTools: ToolDef[] = [
   ...image,
@@ -27,6 +28,7 @@ export const allTools: ToolDef[] = [
   ...seo,
   ...ai,
   ...editors,
+  ...games,
 ]
 
 export const toolMap = new Map(allTools.map((t) => [t.slug, t]))

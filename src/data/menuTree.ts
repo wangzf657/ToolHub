@@ -44,6 +44,7 @@ export const menuCatColor: Record<string, string> = {
   utility: '#4ade80',
   dev: '#60a5fa',
   ai: '#c084fc',
+  games: '#fb7185',
 }
 
 /** 菜单大类一句话简介(首页目录/页脚等展示位用) */
@@ -54,6 +55,7 @@ export const menuCatDesc: Record<string, string> = {
   utility: '二维码、密码生成、单位换算、各类计算器与文本处理等日常高频工具。',
   dev: 'JSON、哈希、Base64、JWT、正则测试与代码格式化等开发者常用工具。',
   ai: '端侧 AI 文本与图像工具：摘要、翻译、情感分析、OCR 与抠图，本地推理。',
+  games: '数独、五子棋、贪吃蛇、2048、扫雷与数字华容道：无音效无弹窗，安静摸鱼。',
 }
 
 /** 当前工具所在菜单大类(高亮/强制展开用) */

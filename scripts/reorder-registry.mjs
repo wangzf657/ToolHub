@@ -8,7 +8,7 @@
  * 3. 顺带把文件头注释里过期的「N 项」计数修正为真实条目数。
  *
  * 解析器为字符级状态机:支持单行/多行条目、模板字符串与 ${} 插值、行/块注释,
- * 对 src/tools 下全部 12 个分类注册表统一处理。
+ * 对 src/tools 下全部 13 个分类注册表统一处理。
  *
  * 用法:node scripts/reorder-registry.mjs(可重复执行,幂等)
  */
@@ -19,20 +19,21 @@ import { FULL } from './reorder-order.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 
-/** 期望条目数(与 docs/V1.1/工具清单-V1.1.md 一致),重排前后必须吻合 */
+/** 期望条目数(与 V1.2 过渡蓝图 docs/V1.2/工具清单-V1.2-过渡蓝图516.md 一致),重排前后必须吻合 */
 const EXPECT_COUNT = {
   image: 71,
   video: 41,
   audio: 37,
   pdf: 54,
   data: 18,
-  utility: 132,
+  utility: 131,
   developer: 91,
   finance: 20,
   business: 15,
   seo: 13,
   ai: 15,
   editors: 4,
+  games: 6,
 }
 
 const DECL_RE = /^\s*(?:export )?const tools: ToolDef\[\] = \[\s*$/

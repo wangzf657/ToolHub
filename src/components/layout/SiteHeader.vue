@@ -13,7 +13,7 @@ import { useMenuSync } from '@/composables/useMenuSync'
 const { theme, toggle } = useTheme()
 const { saved } = useSaved()
 const { openSearch } = useSearch()
-const { drawerOpen } = useWorkbench()
+const { openDrawer } = useWorkbench()
 const { solo, expandAll } = useMenuSync()
 const route = useRoute()
 
@@ -76,7 +76,7 @@ const allToolsActive = computed(() => route.name === 'all-tools' && !activeMenuC
           <Sun v-if="theme === 'dark'" :size="17" />
           <Moon v-else :size="17" />
         </button>
-        <button class="icon-btn hide-desktop" aria-label="打开工具菜单" @click="drawerOpen = true">
+        <button class="icon-btn hide-desktop" aria-label="打开工具菜单" @click="openDrawer">
           <Menu :size="19" />
         </button>
       </div>
@@ -212,6 +212,18 @@ const allToolsActive = computed(() => route.name === 'all-tools' && !activeMenuC
   }
   .hide-mobile {
     display: none;
+  }
+  /* 触控目标镜像 base.css 基座契约(BUG-005):局部样式带 [data-v] 特异性高于单类名媒体规则,
+     不在组件内显式对齐就会被 34px 覆盖——哨兵 R5-S3 锁定两侧一致 */
+  .icon-btn {
+    width: 40px;
+    height: 40px;
+  }
+}
+@media (hover: none) and (pointer: coarse) {
+  .icon-btn {
+    width: 44px;
+    height: 44px;
   }
 }
 @media (min-width: 861px) {

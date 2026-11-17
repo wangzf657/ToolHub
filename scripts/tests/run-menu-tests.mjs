@@ -4,6 +4,7 @@
 // 3. 每组 menuCategory ∈ 6 菜单大类;菜单树 6 大类/77 族/511 项,各菜单大类 firstTool 存在;
 // 4. 注册表数组序与蓝图(docs/V1.1/工具清单-V1.1.md)逐分类一致(重排漂移即 FAIL);
 // 5. R5 哨兵:base.css 含 ≤860 输入 16px 规则;src/ 零 100vh(无白名单强断言)。
+// 6. V1.1 首轮 QA 缺陷防复发哨兵(§6):触控目标镜像/族索引弹层受控/抽屉返回关闭/独占·联动与恢复时序。
 import { build } from 'esbuild'
 import { pathToFileURL } from 'node:url'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
@@ -128,6 +129,28 @@ function walk(dir) {
 }
 walk(path.join(root, 'src'))
 chk('R5-S2', 'src/ 零 100vh(一律 dvh)', vhFiles.length === 0, vhFiles.slice(0, 5).join(','))
+
+// ---------- 6. V1.1 首轮 QA 缺陷防复发哨兵(qa/V1.1/defects) ----------
+// BUG-005:局部样式带 [data-v] 特异性高于 base.css 单类名媒体规则,凡组件内自定义 .icon-btn
+// 尺寸的常驻导航组件必须显式镜像 40/44 触控契约
+const headerVue = readFileSync(path.join(root, 'src/components/layout/SiteHeader.vue'), 'utf8')
+chk('R5-S3', 'SiteHeader 镜像基座触控目标(≤860→40px)', /@media \(max-width: 860px\)[\s\S]*\.icon-btn\s*\{[\s\S]{0,120}width: 40px/.test(headerVue))
+chk('R5-S3', 'SiteHeader 镜像基座触控目标(coarse→44px)', /@media \(hover: none\) and \(pointer: coarse\)[\s\S]*width: 44px/.test(headerVue))
+const menuVue = readFileSync(path.join(root, 'src/components/layout/ToolMenu.vue'), 'utf8')
+// BUG-003:族索引弹层必须受控(:visible 自管开合),click 触发的 pointerdown/toggle 竞争不可回归
+chk('BUG-003', '族索引弹层受控模式(:visible 绑定 familyOpenId)', menuVue.includes(':visible="familyOpenId === c.cat.id"'))
+chk('BUG-003', '族索引弹层含 Esc/点外部关闭监听', menuVue.includes("e.key === 'Escape'") && menuVue.includes('onDocClick'))
+// BUG-004:抽屉监听 popstate + 路由变化双兜底;打开走 openDrawer(压入哨兵历史)
+const drawerVue = readFileSync(path.join(root, 'src/components/layout/ToolDrawer.vue'), 'utf8')
+chk('BUG-004', '抽屉监听 popstate(返回先关抽屉)', drawerVue.includes("addEventListener('popstate'"))
+chk('BUG-004', '抽屉路由变化兜底关闭 + openDrawer 哨兵', drawerVue.includes('route.fullPath') && readFileSync(path.join(root, 'src/composables/useWorkbench.ts'), 'utf8').includes('toolhubDrawer'))
+// BUG-001/002:独占展开与过滤恢复必须 after 恢复 watcher/EP initMenu(nextTick 后施加)
+chk('BUG-001', 'applySolo 过滤态 nextTick 后施加独占', /function applySolo[\s\S]*?void nextTick\(apply\)/.test(menuVue))
+chk('BUG-002', '过滤恢复 nextTick 二次对齐(防 EP initMenu 回灌)', /const align = \(\)[\s\S]*?void nextTick\(align\)/.test(menuVue))
+// BUG-006:applySync(顶栏联动)同口径——清 query 前设置挂起标记使恢复两轮对齐让位,回调收口复位
+chk('BUG-006', 'applySync 清过滤前设置挂起(联动开合不被恢复对齐回滚)', /function applySync[\s\S]{0,500}?pendingApplyCatId = r\.kind === 'all' \? '' : \(r\.catId \?\? ''\)\s*query\.value = ''/.test(menuVue))
+chk('BUG-006', '恢复 watcher 按挂起标记整体让位(含联动路径)', menuVue.includes('if (pendingApplyCatId !== null) return'))
+chk('BUG-006', 'applySync 回调收口后复位挂起标记', /pendingApplyCatId = null\s*consumedNonce\.value = r\.nonce/.test(menuVue))
 
 console.log(`菜单与移动基座哨兵 ${pass + fail} 项:通过 ${pass},失败 ${fail}`)
 for (const l of lines) console.log(l)

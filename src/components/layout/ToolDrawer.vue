@@ -2,9 +2,9 @@
 /**
  * 移动端工具抽屉(≤860px,顶栏汉堡=唯一入口):ToolMenu(菜单大类折叠+过滤框,族定位只走过滤框)
  * + 抽屉底部站点导航区(工具菜单与站点导航合并,杜绝双菜单)。
- * 关闭路径:遮罩点击 / 选中链接路由切换 / Esc;overscroll-behavior contain 防滚动穿透。
+ * 关闭路径:遮罩点击 / 选中链接路由切换 / Esc / 浏览器返回(popstate,首次返回仅关抽屉);overscroll-behavior contain 防滚动穿透。
  */
-import { onMounted, onUnmounted } from 'vue'
+import { onMounted, onUnmounted, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { X, Home, LayoutGrid, BookOpen, Info, Star } from 'lucide-vue-next'
 import ToolMenu from '@/components/layout/ToolMenu.vue'
@@ -25,14 +25,24 @@ const siteLinks = [
 const onKey = (e: KeyboardEvent) => {
   if (e.key === 'Escape') drawerOpen.value = false
 }
+/** 浏览器返回（R5.3/BUG-004）：popstate 一律先关抽屉——openDrawer 压入的哨兵历史使首次返回
+ *  delta=0 仅关抽屉不导航；哨兵缺失（pushState 失败/历史边界）时仅多余一次无感 popstate */
+const onPopState = () => {
+  drawerOpen.value = false
+}
 const closeOnRoute = () => {
   drawerOpen.value = false
 }
+/** 任何路由变化（抽屉内链接、程序化导航、跨页返回）都关闭抽屉——兜底哨兵未覆盖的路径 */
+watch(() => route.fullPath, closeOnRoute)
 onMounted(() => {
   window.addEventListener('keydown', onKey)
+  window.addEventListener('popstate', onPopState)
 })
-onUnmounted(() => window.removeEventListener('keydown', onKey))
-void route
+onUnmounted(() => {
+  window.removeEventListener('keydown', onKey)
+  window.removeEventListener('popstate', onPopState)
+})
 void saved
 </script>
 

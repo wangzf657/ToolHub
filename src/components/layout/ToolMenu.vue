@@ -9,10 +9,10 @@
  * - 族索引弹层(仅桌面):大类头右端图标弹出该类族目录,点击滚动定位+闪烁高亮;
  * - 吸顶链:过滤框/大类头/当前族小标题在侧栏滚动容器内分层 sticky。
  */
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { ElMenu, ElSubMenu, ElMenuItem, ElMenuItemGroup, ElPopover } from 'element-plus'
-import type { MenuInstance, PopoverInstance } from 'element-plus'
+import type { MenuInstance } from 'element-plus'
 import 'element-plus/es/components/menu/style/css'
 import 'element-plus/es/components/popover/style/css'
 import { Search as SearchIcon, X, ListTree, ChevronsUpDown, Star, LayoutGrid } from 'lucide-vue-next'
@@ -63,6 +63,8 @@ function applyOpen(id: string) {
 }
 function applyClose(id: string) {
   openedIds.value = openedIds.value.filter((x) => x !== id)
+  // 大类关闭时同步关闭其族索引弹层(弹层随 v-if 卸载,状态不残留)
+  if (familyOpenId.value === id) familyOpenId.value = ''
   persist()
 }
 /** 用 menu.open/close 撑开/收起 EP 内部态,并同步本地数组 */
@@ -123,11 +125,30 @@ function scrollActiveIntoView() {
   el?.scrollIntoView({ block: 'nearest' })
 }
 
+/** 施加挂起(BUG-001/BUG-006):凡「先清过滤、nextTick 后施加开合」的入口(独占 applySolo /
+ *  顶栏联动 applySync),都必须在清 query **之前**设置本标记,使「过滤恢复」watcher 的两轮
+ *  对齐整体让位——否则第二轮对齐会按 preFilter 快照回滚本次施加(独占变双开/全展开被折回)。
+ *  null=无挂起;''=非独占挂起(全部展开);分类 id=独占挂起。开合统一由各自 nextTick 回调收口。 */
+let pendingApplyCatId: string | null = null
+
 /** 独占展开:折叠其他大类 + 展开目标 + 清空过滤(不路由——路由由调用方决定) */
 function applySolo(catId: string) {
-  for (const id of [...openedIds.value]) if (id !== catId) closeCat(id)
-  if (!openedIds.value.includes(catId)) openCat(catId)
+  familyOpenId.value = ''
+  const apply = () => {
+    for (const id of [...openedIds.value]) if (id !== catId) closeCat(id)
+    if (!openedIds.value.includes(catId)) openCat(catId)
+    pendingApplyCatId = null
+  }
+  if (!filtering.value) {
+    apply()
+    return
+  }
+  // 过滤态(BUG-001):先设挂起再清过滤,等清空触发的渲染收尾(含活动菜单项重挂的 EP initMenu
+  // 自动展开)跑完后,nextTick 再施加独占开合态——否则独占被恢复/自动展开逻辑回滚
+  // (与 applySync 同口径,设计文档坑位 6)
+  pendingApplyCatId = catId
   query.value = ''
+  void nextTick(apply)
 }
 
 /** 大类头主体点击:独占展开 + 路由到类内第一个工具 + 清空过滤 */
@@ -138,7 +159,11 @@ function soloEnter(c: { cat: { id: string }; firstTool?: ToolDef }) {
 
 // ---------- 顶栏联动(顶栏大类=菜单独占展开;「全部工具」=全部展开) ----------
 function applySync(r: MenuSyncRequest) {
-  // 先清过滤:等「过滤恢复」watcher 按 preFilterOpened 对齐完成后,再施加联动开合态(否则会被恢复逻辑覆盖)
+  // 清过滤前先设挂起(BUG-006,与 applySolo 同口径):否则「过滤恢复」watcher 的第二轮
+  // nextTick 对齐排在本回调之后,会按 preFilter 快照回滚联动开合——独占变双开、
+  // 全展开被折回过滤前快照(RG-005/006/013)。挂起后恢复两轮对齐整体让位,
+  // 开合由本回调收口并复位标记。
+  pendingApplyCatId = r.kind === 'all' ? '' : (r.catId ?? '')
   query.value = ''
   void nextTick(() => {
     if (r.kind === 'all') {
@@ -146,6 +171,7 @@ function applySync(r: MenuSyncRequest) {
     } else if (r.catId) {
       applySolo(r.catId)
     }
+    pendingApplyCatId = null
     consumedNonce.value = r.nonce
   })
 }
@@ -221,12 +247,22 @@ watch(filtering, (on) => {
     preFilterOpened.value = [...openedIds.value]
     for (const c of displayTree.value) if (!c.hidden && !openedIds.value.includes(c.cat.id)) openCat(c.cat.id)
   } else {
-    // 双向对齐恢复(过滤用 v-show 隐藏大类,组件常驻,EP open/close 状态稳定)
-    const target = new Set(preFilterOpened.value)
-    for (const id of allCatIds) {
-      if (target.has(id) && !openedIds.value.includes(id)) openCat(id)
-      else if (!target.has(id) && openedIds.value.includes(id)) closeCat(id)
+    // 施加挂起时让位(BUG-001/006):独占/顶栏联动的最终开合由各自 nextTick 回调收口,若此处
+    // 按快照对齐,会先「恢复到过滤前」再被施加改写,第二轮对齐又会按旧快照回滚——直接跳过
+    if (pendingApplyCatId !== null) return
+    // 双向对齐恢复(过滤用 v-show 隐藏大类,组件常驻,EP open/close 状态稳定)。
+    // BUG-002:清空时活动菜单项重挂会触发 EP watch(items→initMenu) 按 indexPath 自动展开
+    // 当前类并经 @open 回灌 openedIds+persist——首次对齐跑在该自动展开之前,故 nextTick
+    // 后补一次对齐(此时 initMenu 已跑完),确保持久化也落回过滤前快照
+    const align = () => {
+      const target = new Set(preFilterOpened.value)
+      for (const id of allCatIds) {
+        if (target.has(id) && !openedIds.value.includes(id)) openCat(id)
+        else if (!target.has(id) && openedIds.value.includes(id)) closeCat(id)
+      }
     }
+    align()
+    void nextTick(align)
   }
 })
 watch(query, () => {
@@ -234,14 +270,45 @@ watch(query, () => {
 })
 
 // ---------- 族索引弹层(仅桌面;移动端族定位只走过滤框) ----------
+// BUG-003:改受控模式(:visible 自管开合)。EP click 触发存在「pointerdown onClickOutside 先关、
+// trigger click toggle 再开」竞争(再点按钮关不掉),且 Esc 无内建关闭——关闭路径全部自理:
+// Esc / 点外部 / 再点触发按钮 / 点族项定位 / 大类折叠(applyClose)。
+const familyOpenId = ref('')
 const familyQuery = ref('')
-const popoverRefs = new Map<string, PopoverInstance>()
 const flashGroupId = ref('')
 
-function setPopoverRef(id: string, el: unknown) {
-  if (el) popoverRefs.set(id, el as PopoverInstance)
-  else popoverRefs.delete(id)
+/** 再点触发按钮 = toggle;同一时刻只保留一个族索引弹层 */
+function toggleFamilyIndex(catId: string) {
+  familyOpenId.value = familyOpenId.value === catId ? '' : catId
 }
+
+function closeFamilyIndex() {
+  familyOpenId.value = ''
+}
+
+/** 点外部关闭:弹层内容(popper-class family-pop)与触发按钮之外的点击都算外部 */
+function onDocClick(e: MouseEvent) {
+  if (!familyOpenId.value) return
+  const path = e.composedPath()
+  const inside = path.some(
+    (el) => el instanceof HTMLElement && (el.classList.contains('family-pop') || el.classList.contains('family-btn')),
+  )
+  if (!inside) closeFamilyIndex()
+}
+
+/** Esc 关闭(焦点在弹层内同样生效) */
+function onMenuKey(e: KeyboardEvent) {
+  if (e.key === 'Escape') closeFamilyIndex()
+}
+
+onMounted(() => {
+  window.addEventListener('click', onDocClick)
+  window.addEventListener('keydown', onMenuKey)
+})
+onUnmounted(() => {
+  window.removeEventListener('click', onDocClick)
+  window.removeEventListener('keydown', onMenuKey)
+})
 
 function famList(c: { groups: DispGroup[] }) {
   const q = familyQuery.value.trim().toLowerCase()
@@ -251,7 +318,7 @@ function famList(c: { groups: DispGroup[] }) {
 
 /** 点击族项:关弹层 + 滚动定位到族小标题 + 闪烁高亮 */
 function locate(c: { cat: { id: string } }, g: { group: MenuGroupDef; anchorId: string }) {
-  popoverRefs.get(c.cat.id)?.hide()
+  closeFamilyIndex()
   if (!openedIds.value.includes(c.cat.id)) openCat(c.cat.id)
   void nextTick(() => {
     const el = document.getElementById(g.anchorId)
@@ -321,7 +388,7 @@ defineExpose({
             </RouterLink>
             <el-popover
               v-if="!props.mobile && openedIds.includes(c.cat.id)"
-              :ref="(el: unknown) => setPopoverRef(c.cat.id, el)"
+              :visible="familyOpenId === c.cat.id"
               placement="right-start"
               :width="248"
               trigger="click"
@@ -330,7 +397,7 @@ defineExpose({
               @show="familyQuery = ''"
             >
               <template #reference>
-                <button class="family-btn" title="族索引" aria-label="打开族索引" @click.stop>
+                <button class="family-btn" title="族索引" aria-label="打开族索引" @click.stop="toggleFamilyIndex(c.cat.id)">
                   <ListTree :size="13" />
                 </button>
               </template>

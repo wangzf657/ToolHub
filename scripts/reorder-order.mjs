@@ -1,5 +1,5 @@
 /**
- * 12 数据分类的 FULL 全序表(V1.1 蓝图定稿)——由 scripts/gen-menu-groups.mjs 生成,勿手改。
+ * 13 数据分类的 FULL 全序表(蓝图定稿)——由 scripts/gen-menu-groups.mjs 生成,勿手改。
  * 消费方:scripts/reorder-registry.mjs(FRONT 前置白名单机制已升级为 FULL 全序)。
  */
 export const FULL = {

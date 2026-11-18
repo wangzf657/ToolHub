@@ -103,6 +103,7 @@ const allToolsActive = computed(() => route.name === 'all-tools' && !activeMenuC
   display: flex;
   align-items: center;
   gap: 9px;
+  min-width: 0;
   text-decoration: none !important;
 }
 .brand-icon {
@@ -115,10 +116,16 @@ const allToolsActive = computed(() => route.name === 'all-tools' && !activeMenuC
   color: #fff;
 }
 .brand-name {
+  min-width: 0;
   font-weight: 700;
   font-size: 18.5px;
   color: var(--text);
   letter-spacing: -0.2px;
+  /* 窄视口行内截断(BUG-001):头部行各子项均有 44px 触控契约不可收缩,
+     溢出压力全由品牌名吸收(省略号),避免全站页面级横向滚动 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .brand-name em {
   font-style: normal;
@@ -224,6 +231,16 @@ const allToolsActive = computed(() => route.name === 'all-tools' && !activeMenuC
   .icon-btn {
     width: 44px;
     height: 44px;
+  }
+}
+/* ≤480 收紧间隙(BUG-001):触屏指针下动作区 5 项 ×44px 不可减,
+   间隙让位后 320 视口亦无横向溢出(间隙仅在挤压时生效,常态由 margin-left:auto 吸收) */
+@media (max-width: 480px) {
+  .header-inner {
+    gap: 12px;
+  }
+  .header-actions {
+    gap: 4px;
   }
 }
 @media (min-width: 861px) {

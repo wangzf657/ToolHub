@@ -152,6 +152,14 @@ chk('BUG-006', 'applySync 清过滤前设置挂起(联动开合不被恢复对�
 chk('BUG-006', '恢复 watcher 按挂起标记整体让位(含联动路径)', menuVue.includes('if (pendingApplyCatId !== null) return'))
 chk('BUG-006', 'applySync 回调收口后复位挂起标记', /pendingApplyCatId = null\s*consumedNonce\.value = r\.nonce/.test(menuVue))
 
+// ---------- 7. V1.2 首轮 QA 缺陷防复发哨兵(qa/V1.2/defects) ----------
+// BUG-001:头部行子项(44px 触控契约按钮)不可收缩,溢出压力必须由品牌名截断吸收 + ≤480 间隙收紧,
+// 否则 ≤860 视口全站页面级横向滚动回归
+chk('V12-BUG-001', 'brand-name 允许截断(min-width:0 + ellipsis)', /\.brand-name\s*\{[\s\S]*?min-width: 0[\s\S]*?text-overflow: ellipsis/.test(headerVue))
+chk('V12-BUG-001', '≤480 顶栏间隙收紧(header-inner/header-actions)', /@media \(max-width: 480px\)[\s\S]*\.header-inner\s*\{[\s\S]{0,60}gap: 12px[\s\S]*\.header-actions\s*\{[\s\S]{0,60}gap: 4px/.test(headerVue))
+// BUG-002:族索引弹层 teleport 到 body,基座 .input 16px 规则不覆盖——弹层内输入必须有 ≤860 16px 规则
+chk('V12-BUG-002', 'family-input ≤860 输入 16px 规则', /@media \(max-width: 860px\)\s*\{\s*\.family-index \.family-input\s*\{[^}]*font-size: 16px/.test(menuVue))
+
 console.log(`菜单与移动基座哨兵 ${pass + fail} 项:通过 ${pass},失败 ${fail}`)
 for (const l of lines) console.log(l)
 if (fail > 0) process.exit(1)

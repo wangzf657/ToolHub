@@ -787,6 +787,13 @@ defineExpose({
 .family-index .family-input:focus {
   border-color: var(--accent);
 }
+/* ≤860 输入 16px 基座(BUG-002):弹层 teleport 到 body,基座 .input 规则不覆盖此类名;
+   <16px 在 iOS 聚焦会触发视口自动放大(与 .filter-input 同口径) */
+@media (max-width: 860px) {
+  .family-index .family-input {
+    font-size: 16px;
+  }
+}
 .family-index .family-list {
   max-height: 300px;
   overflow-y: auto;

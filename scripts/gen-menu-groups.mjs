@@ -2,7 +2,7 @@
  * 蓝图 → 代码 转写器:解析分组排序蓝图(唯一权威载体;当前指向 V1.2 过渡蓝图 516 项),
  * 生成两份产物(幂等,可重复执行):
  *   1. src/data/menuGroups.ts   —— 菜单领域族数据层(7 菜单大类 + 78 领域族 + slug 归属)
- *   2. scripts/reorder-order.mjs —— 12 数据分类的 FULL 全序表(reorder-registry.mjs 消费)
+ *   2. scripts/reorder-order.mjs —— 全量数据分类的 FULL 全序表(reorder-registry.mjs 消费)
  *
  * 校验(转写前全部通过才落盘):
  *   - 蓝图 slug 全部存在于注册表 toolMap,无重复;
@@ -150,7 +150,8 @@ for (const cat of cats) {
   cat.groups.forEach((g, idx) => {
     gi++
     g.id = `${cat.def.id}-${idx + 1}`
-    mg.push(`  { id: '${g.id}', name: '${esc(g.name)}', icon: 'wrench', category: '${g.category}', menuCategory: '${cat.def.id}' },`)
+    // 族图标继承所属菜单大类(OBS-D:统一 wrench 占位对「休闲游戏」等族语义不贴切;该字段当前无 UI 消费,纯数据层语义修正)
+    mg.push(`  { id: '${g.id}', name: '${esc(g.name)}', icon: '${cat.def.icon}', category: '${g.category}', menuCategory: '${cat.def.id}' },`)
   })
 }
 mg.push(']')
@@ -178,7 +179,7 @@ for (const cat of cats) {
 }
 const ro = []
 ro.push('/**')
-ro.push(' * 12 数据分类的 FULL 全序表(V1.1 蓝图定稿)——由 scripts/gen-menu-groups.mjs 生成,勿手改。')
+ro.push(` * ${Object.keys(fullByCat).length} 数据分类的 FULL 全序表(蓝图定稿)——由 scripts/gen-menu-groups.mjs 生成,勿手改。`)
 ro.push(' * 消费方:scripts/reorder-registry.mjs(FRONT 前置白名单机制已升级为 FULL 全序)。')
 ro.push(' */')
 ro.push('export const FULL = {')

@@ -1,7 +1,8 @@
 /**
  * 从注册表快照重生成当前版本的工具清单(docs/V<主.次>/工具清单-V<主.次>.md)。
- * V1.1 起输出「菜单分组蓝图」格式:6 菜单大类 → 77 领域族 → 工具(组内序=注册表数组序),
+ * V1.1 起输出「菜单分组蓝图」格式:菜单大类 → 领域族 → 工具(组内序=注册表数组序),
  * 与 src/data/menuGroups.ts(gen-menu-groups.mjs 生成)同源——清单、菜单、注册表三者顺序一致。
+ * 头注散文的大类/族/数据分类数量一律由 menuTree/MERGE 动态生成(OBS-C:硬编码数字随版本切换漂移)。
  *
  * - 「模式」列沿用旧文档的人工标注,缺失的工具按实现方式推导并打印出来供人工复核;
  * - 落地一致性门禁:重生成后的表格行必须与蓝图零差异(scripts/tests/run-menu-tests.mjs MENU-4)。
@@ -74,22 +75,25 @@ const modeOf = (t) => oldModes.get(t.slug) ?? (missing.push(`${t.slug}→${deriv
 
 const out = []
 const groupsTotal = menuTree.reduce((n, c) => n + c.groups.length, 0)
+/** 菜单大类 → 归并的数据分类(英文 id 列,用于总表与散文) */
+const MERGE = { image: 'image', av: 'video + audio', docdata: 'pdf + data', utility: 'utility + editors + finance + business + seo', dev: 'developer', ai: 'ai', games: 'games' }
+/** 底层数据分类数 = MERGE 归并值去重计数(随版本增减自动跟随,不再硬编码) */
+const dataCatCount = new Set(Object.values(MERGE).flatMap((s) => s.split(' + '))).size
 out.push(`# 工具清单总表（${allTools.length} 项 · ${DOC_LABEL}）`)
 out.push('')
 out.push('> **本版定位**：V1.1 的分组（领域族）与全量排序已落地——本清单由 `node scripts/gen-tool-list.mjs` 从注册表与 `src/data/menuGroups.ts`（`scripts/gen-menu-groups.mjs` 生成）重生成，三者顺序一致（哨兵 `run-menu-tests.mjs` 锁定）。')
-out.push('> **菜单大类 ≠ 数据分类**：菜单一级为 **6 个菜单大类**，是领域族的显示层归并——音视频 = 视频+音频；文档与数据 = PDF+数据；实用工具 = 实用+金融+商业+SEO+编辑器工作室。底层数据分类（12 个）、分类页、注册表 `category` 字段、路由、sitemap 不变；分类页按 12 数据分类组织（库存目录），菜单按 6 大类组织（任务导航）。')
+out.push(`> **菜单大类 ≠ 数据分类**：菜单一级为 **${menuTree.length} 个菜单大类**，是领域族的显示层归并——音视频 = 视频+音频；文档与数据 = PDF+数据；实用工具 = 实用+金融+商业+SEO+编辑器工作室；小游戏 = 游戏。底层数据分类（${dataCatCount} 个）、分类页、注册表 \`category\` 字段、路由、sitemap 不变；分类页按 ${dataCatCount} 数据分类组织（库存目录），菜单按 ${menuTree.length} 大类组织（任务导航）。`)
 out.push('> slug 为全站唯一 URL 标识；中文名称为本项目原创命名；「模式」列沿用人工标注，详见 `docs/基础设计规约.md`。')
 out.push('> 模式缩写：`text`=文本转换 `compare`=双输入对比 `calc`=计算表单 `img`=图像画布 `imgcvt`=图像格式转换 `pdf`=PDF 操作 `aud`=音频 `vid`=视频 `data`=表格数据 `ai`=AI `special`=自定义组件')
 out.push('')
 out.push('## 分组与排序口径')
 out.push('')
-out.push('- **分组**：**6 个菜单大类 → 77 个领域族**（类内小标题），族内成员不跨数据分类（脚本断言锁定）；菜单大类 = 菜单一级（可折叠），领域族 = 类内聚拢小标题。')
+out.push(`- **分组**：**${menuTree.length} 个菜单大类 → ${groupsTotal} 个领域族**（类内小标题），族内成员不跨数据分类（脚本断言锁定）；菜单大类 = 菜单一级（可折叠），领域族 = 类内聚拢小标题。`)
 out.push('- **排序口径**（需求 R2.3）：组间与组内统一按 **使用频率 40% + 技术含量/差异化 25% + 人群广度 20% + 传播引流 15%** 加权；每个菜单大类小节的第一个工具 = 该大类**默认落地页**（菜单大类头点击目标，即「子工具默认路由是第一个工具」）。')
-out.push('- **大类节顺序**：图片 → 音视频 → 文档与数据 → 实用工具 → 开发 → AI（大众媒体处理在前，专业集群靠后）。')
+out.push(`- **大类节顺序**：${menuTree.map((c) => c.cat.name).join(' → ')}（大众媒体处理在前，专业集群靠后）。`)
 out.push('')
 out.push('| 菜单大类 | 归并的数据分类 | 工具数 | 组数 | 默认落地工具 |')
 out.push('|---|---|---|---|---|')
-const MERGE = { image: 'image', av: 'video + audio', docdata: 'pdf + data', utility: 'utility + editors + finance + business + seo', dev: 'developer', ai: 'ai', games: 'games' }
 for (const c of menuTree) {
   out.push(`| ${c.cat.name} | ${MERGE[c.cat.id] ?? ''} | ${c.toolCount} | ${c.groups.length} | ${c.firstTool?.slug ?? ''} |`)
 }
